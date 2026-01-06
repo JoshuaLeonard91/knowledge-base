@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Loader2, FileText, X } from 'lucide-react';
+import { MagnifyingGlass, SpinnerGap, FileText, X } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { SearchResult } from '@/types';
 
@@ -75,7 +75,7 @@ export function SearchBar({
   return (
     <div className="relative w-full" ref={containerRef}>
       <div className="relative">
-        <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)]" />
+        <MagnifyingGlass size={20} weight="bold" className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
         <input
           ref={inputRef}
           type="text"
@@ -87,14 +87,14 @@ export function SearchBar({
           className="w-full pl-12 pr-12 py-4 bg-[var(--bg-tertiary)] border border-[var(--border-primary)] rounded-xl text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-2 focus:ring-[var(--accent-glow)] transition-all text-lg"
         />
         {isLoading && (
-          <Loader2 className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-muted)] animate-spin" />
+          <SpinnerGap size={20} weight="bold" className="absolute right-4 top-1/2 -translate-y-1/2 text-[var(--text-muted)] animate-spin" />
         )}
         {!isLoading && query && (
           <button
             onClick={handleClear}
             className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-[var(--bg-elevated)] transition-colors"
           >
-            <X className="w-4 h-4 text-[var(--text-muted)]" />
+            <X size={16} weight="bold" className="text-[var(--text-muted)]" />
           </button>
         )}
       </div>
@@ -117,7 +117,7 @@ export function SearchBar({
                   }}
                   className="flex items-start gap-3 p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors group"
                 >
-                  <FileText className="w-5 h-5 text-[var(--text-muted)] mt-0.5 group-hover:text-[var(--accent-primary)] transition-colors" />
+                  <FileText size={20} weight="duotone" className="text-[var(--text-muted)] mt-0.5 group-hover:text-[var(--accent-primary)] transition-colors" />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
                       {result.title}

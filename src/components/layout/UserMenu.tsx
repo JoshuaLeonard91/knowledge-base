@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { ChevronDown, LogOut, User, Settings, Ticket } from 'lucide-react';
+import { CaretDown, SignOut, User, Gear, Ticket } from '@phosphor-icons/react';
 import Link from 'next/link';
 
 export function UserMenu() {
@@ -44,8 +44,10 @@ export function UserMenu() {
         <span className="text-sm font-medium text-[var(--text-primary)]">
           {user.username}
         </span>
-        <ChevronDown
-          className={`w-4 h-4 text-[var(--text-muted)] transition-transform ${
+        <CaretDown
+          size={16}
+          weight="bold"
+          className={`text-[var(--text-muted)] transition-transform ${
             isOpen ? 'rotate-180' : ''
           }`}
         />
@@ -79,21 +81,21 @@ export function UserMenu() {
               onClick={() => setIsOpen(false)}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
             >
-              <Ticket className="w-4 h-4" />
+              <Ticket size={16} weight="duotone" />
               <span>My Tickets</span>
             </Link>
             <button
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors w-full"
               onClick={() => setIsOpen(false)}
             >
-              <Settings className="w-4 h-4" />
+              <Gear size={16} weight="duotone" />
               <span>Settings</span>
             </button>
             <button
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors w-full"
               onClick={() => setIsOpen(false)}
             >
-              <User className="w-4 h-4" />
+              <User size={16} weight="duotone" />
               <span>Profile</span>
             </button>
           </div>
@@ -107,7 +109,7 @@ export function UserMenu() {
               }}
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--accent-danger)] hover:bg-[var(--accent-danger)]/10 transition-colors w-full"
             >
-              <LogOut className="w-4 h-4" />
+              <SignOut size={16} weight="bold" />
               <span>Log Out</span>
             </button>
           </div>

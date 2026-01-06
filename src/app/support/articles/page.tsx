@@ -1,12 +1,12 @@
 import { Suspense } from 'react';
 import { SearchBar } from '@/components/support/SearchBar';
 import { ArticlesContent } from './ArticlesContent';
-import { Loader2 } from 'lucide-react';
+import { SpinnerGap } from '@phosphor-icons/react/dist/ssr';
 
 function ArticlesLoading() {
   return (
     <div className="flex items-center justify-center py-20">
-      <Loader2 className="w-8 h-8 text-[var(--accent-primary)] animate-spin" />
+      <SpinnerGap size={32} weight="bold" className="text-[var(--accent-primary)] animate-spin" />
     </div>
   );
 }

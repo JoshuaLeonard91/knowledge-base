@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
+import { ArrowSquareOut } from '@phosphor-icons/react/dist/ssr';
 
 export function Footer() {
   return (
@@ -55,7 +55,7 @@ export function Footer() {
               <li>
                 <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors flex items-center gap-1">
                   Documentation
-                  <ExternalLink className="w-3 h-3" />
+                  <ArrowSquareOut size={12} weight="bold" />
                 </a>
               </li>
             </ul>
@@ -68,19 +68,19 @@ export function Footer() {
               <li>
                 <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors flex items-center gap-1">
                   Discord Server
-                  <ExternalLink className="w-3 h-3" />
+                  <ArrowSquareOut size={12} weight="bold" />
                 </a>
               </li>
               <li>
                 <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors flex items-center gap-1">
                   Twitter
-                  <ExternalLink className="w-3 h-3" />
+                  <ArrowSquareOut size={12} weight="bold" />
                 </a>
               </li>
               <li>
                 <a href="#" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors flex items-center gap-1">
                   GitHub
-                  <ExternalLink className="w-3 h-3" />
+                  <ArrowSquareOut size={12} weight="bold" />
                 </a>
               </li>
             </ul>

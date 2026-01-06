@@ -5,17 +5,18 @@ import { useAuth } from '../auth/AuthProvider';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
 import { SearchResult, MockServer, TicketSubject } from '@/types';
 import {
-  Loader2, Send, CheckCircle, AlertCircle, Shield,
-  User, Wrench, CreditCard, MessageSquare, HelpCircle, Lightbulb, X, FileText
-} from 'lucide-react';
+  SpinnerGap, PaperPlaneTilt, CheckCircle, WarningCircle, ShieldCheck,
+  User, Wrench, CreditCard, ChatCircle, Question, Lightbulb, X, FileText
+} from '@phosphor-icons/react';
 import Link from 'next/link';
 
-const subjectIcons: Record<string, React.ComponentType<{ className?: string }>> = {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const subjectIcons: Record<string, React.ComponentType<any>> = {
   'account': User,
   'technical': Wrench,
   'billing': CreditCard,
-  'feedback': MessageSquare,
-  'other': HelpCircle,
+  'feedback': ChatCircle,
+  'other': Question,
 };
 
 interface TicketFormProps {
@@ -96,7 +97,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
   if (authLoading) {
     return (
       <div className="flex items-center justify-center py-12">
-        <Loader2 className="w-8 h-8 text-[var(--accent-primary)] animate-spin" />
+        <SpinnerGap size={32} weight="bold" className="text-[var(--accent-primary)] animate-spin" />
       </div>
     );
   }
@@ -105,7 +106,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
     return (
       <div className="text-center py-12 px-4">
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[var(--accent-primary)]/10 flex items-center justify-center">
-          <Shield className="w-8 h-8 text-[var(--accent-primary)]" />
+          <ShieldCheck size={32} weight="duotone" className="text-[var(--accent-primary)]" />
         </div>
         <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
           Authentication Required
@@ -122,7 +123,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
     return (
       <div className="text-center py-12 px-4 animate-fade-in">
         <div className="w-16 h-16 mx-auto mb-6 rounded-full bg-[var(--accent-success)]/10 flex items-center justify-center">
-          <CheckCircle className="w-8 h-8 text-[var(--accent-success)]" />
+          <CheckCircle size={32} weight="duotone" className="text-[var(--accent-success)]" />
         </div>
         <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">
           Ticket Submitted!
@@ -151,7 +152,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
     <form onSubmit={handleSubmit} className="space-y-6">
       {submitResult?.success === false && (
         <div className="flex items-center gap-3 p-4 rounded-lg bg-[var(--accent-danger)]/10 border border-[var(--accent-danger)]/20">
-          <AlertCircle className="w-5 h-5 text-[var(--accent-danger)] flex-shrink-0" />
+          <WarningCircle size={20} weight="duotone" className="text-[var(--accent-danger)] flex-shrink-0" />
           <p className="text-[var(--accent-danger)]">{submitResult.message}</p>
         </div>
       )}
@@ -192,7 +193,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
         </label>
         <div className="grid gap-2 sm:grid-cols-3">
           {subjects.map((subject) => {
-            const Icon = subjectIcons[subject.id] || HelpCircle;
+            const Icon = subjectIcons[subject.id] || Question;
             return (
               <button
                 key={subject.id}
@@ -204,7 +205,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
                     : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] hover:border-[var(--border-hover)]'
                 }`}
               >
-                <Icon className={`w-5 h-5 ${selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'}`} />
+                <Icon size={20} weight="duotone" className={selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'} />
                 <span className={selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}>
                   {subject.name}
                 </span>
@@ -236,11 +237,11 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
         <div className="p-4 rounded-lg bg-[var(--accent-primary)]/5 border border-[var(--accent-primary)]/20">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <Lightbulb className="w-5 h-5 text-[var(--accent-primary)]" />
+              <Lightbulb size={20} weight="duotone" className="text-[var(--accent-primary)]" />
               <p className="font-medium text-[var(--text-primary)]">These articles might help</p>
             </div>
             <button type="button" onClick={() => setShowSuggestions(false)} className="p-1 rounded hover:bg-[var(--bg-tertiary)]">
-              <X className="w-4 h-4 text-[var(--text-muted)]" />
+              <X size={16} weight="bold" className="text-[var(--text-muted)]" />
             </button>
           </div>
           <div className="space-y-2">
@@ -251,7 +252,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
                 target="_blank"
                 className="flex items-center gap-3 p-2 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors"
               >
-                <FileText className="w-4 h-4 text-[var(--accent-primary)]" />
+                <FileText size={16} weight="duotone" className="text-[var(--accent-primary)]" />
                 <span className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)]">
                   {article.title}
                 </span>
@@ -269,12 +270,12 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
       >
         {isSubmitting ? (
           <>
-            <Loader2 className="w-5 h-5 animate-spin" />
+            <SpinnerGap size={20} weight="bold" className="animate-spin" />
             Submitting...
           </>
         ) : (
           <>
-            <Send className="w-5 h-5" />
+            <PaperPlaneTilt size={20} weight="duotone" />
             Submit Ticket
           </>
         )}

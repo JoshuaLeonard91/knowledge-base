@@ -1,6 +1,6 @@
 import { TreeContainer } from '@/components/decision-tree/TreeContainer';
 import { decisionTree } from '@/lib/data/decision-tree';
-import { Compass, Clock, FileText } from 'lucide-react';
+import { Compass, Clock, FileText } from '@phosphor-icons/react/dist/ssr';
 
 export default function GuidePage() {
   return (
@@ -13,7 +13,7 @@ export default function GuidePage() {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 rounded-xl bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20">
-              <Compass className="w-8 h-8 text-[var(--accent-primary)]" />
+              <Compass size={32} weight="duotone" className="text-[var(--accent-primary)]" />
             </div>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
@@ -28,7 +28,7 @@ export default function GuidePage() {
           {/* Info cards */}
           <div className="grid sm:grid-cols-2 gap-4 mt-8">
             <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--bg-secondary)]/50 border border-[var(--border-primary)]">
-              <Clock className="w-5 h-5 text-[var(--accent-success)] mt-0.5" />
+              <Clock size={20} weight="duotone" className="text-[var(--accent-success)] mt-0.5" />
               <div>
                 <p className="font-medium text-[var(--text-primary)]">Takes 30 seconds</p>
                 <p className="text-sm text-[var(--text-muted)]">
@@ -37,7 +37,7 @@ export default function GuidePage() {
               </div>
             </div>
             <div className="flex items-start gap-3 p-4 rounded-lg bg-[var(--bg-secondary)]/50 border border-[var(--border-primary)]">
-              <FileText className="w-5 h-5 text-[var(--accent-primary)] mt-0.5" />
+              <FileText size={20} weight="duotone" className="text-[var(--accent-primary)] mt-0.5" />
               <div>
                 <p className="font-medium text-[var(--text-primary)]">Helpful resources</p>
                 <p className="text-sm text-[var(--text-muted)]">

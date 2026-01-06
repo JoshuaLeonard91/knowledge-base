@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ThumbsUp, ThumbsDown, CheckCircle, Loader2 } from 'lucide-react';
+import { ThumbsUp, ThumbsDown, CheckCircle, SpinnerGap } from '@phosphor-icons/react';
 
 interface ArticleFeedbackProps {
   articleSlug: string;
@@ -38,7 +38,7 @@ export function ArticleFeedback({ articleSlug }: ArticleFeedbackProps) {
       <div className="mt-12 p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-full bg-[var(--accent-success)]/10">
-            <CheckCircle className="w-5 h-5 text-[var(--accent-success)]" />
+            <CheckCircle size={20} weight="duotone" className="text-[var(--accent-success)]" />
           </div>
           <div>
             <p className="font-medium text-[var(--text-primary)]">Thanks for your feedback!</p>
@@ -63,9 +63,9 @@ export function ArticleFeedback({ articleSlug }: ArticleFeedbackProps) {
           }`}
         >
           {isSubmitting && feedback === 'helpful' ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <SpinnerGap size={16} weight="bold" className="animate-spin" />
           ) : (
-            <ThumbsUp className="w-4 h-4" />
+            <ThumbsUp size={16} weight="duotone" />
           )}
           Yes
         </button>
@@ -79,9 +79,9 @@ export function ArticleFeedback({ articleSlug }: ArticleFeedbackProps) {
           }`}
         >
           {isSubmitting && feedback === 'not-helpful' ? (
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <SpinnerGap size={16} weight="bold" className="animate-spin" />
           ) : (
-            <ThumbsDown className="w-4 h-4" />
+            <ThumbsDown size={16} weight="duotone" />
           )}
           No
         </button>

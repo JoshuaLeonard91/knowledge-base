@@ -1,7 +1,7 @@
 import { TicketForm } from '@/components/support/TicketForm';
 import { getFullUser } from '@/lib/auth';
 import { ticketSubjects } from '@/lib/data/servers';
-import { Ticket, Shield, Clock, CheckCircle } from 'lucide-react';
+import { Ticket, Shield, Clock, CheckCircle } from '@phosphor-icons/react/dist/ssr';
 
 export default async function TicketPage() {
   // Get user data server-side (includes servers)
@@ -18,7 +18,7 @@ export default async function TicketPage() {
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 rounded-xl bg-[var(--accent-warning)]/10 border border-[var(--accent-warning)]/20">
-              <Ticket className="w-8 h-8 text-[var(--accent-warning)]" />
+              <Ticket size={32} weight="duotone" className="text-[var(--accent-warning)]" />
             </div>
             <div>
               <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
@@ -49,7 +49,7 @@ export default async function TicketPage() {
               <ul className="space-y-4">
                 <li className="flex gap-3">
                   <div className="p-2 rounded-lg bg-[var(--accent-primary)]/10 h-fit">
-                    <CheckCircle className="w-4 h-4 text-[var(--accent-primary)]" />
+                    <CheckCircle size={16} weight="duotone" className="text-[var(--accent-primary)]" />
                   </div>
                   <div>
                     <p className="font-medium text-[var(--text-primary)]">Confirmation</p>
@@ -60,7 +60,7 @@ export default async function TicketPage() {
                 </li>
                 <li className="flex gap-3">
                   <div className="p-2 rounded-lg bg-[var(--accent-warning)]/10 h-fit">
-                    <Clock className="w-4 h-4 text-[var(--accent-warning)]" />
+                    <Clock size={16} weight="duotone" className="text-[var(--accent-warning)]" />
                   </div>
                   <div>
                     <p className="font-medium text-[var(--text-primary)]">Response Time</p>
@@ -71,7 +71,7 @@ export default async function TicketPage() {
                 </li>
                 <li className="flex gap-3">
                   <div className="p-2 rounded-lg bg-[var(--accent-success)]/10 h-fit">
-                    <Shield className="w-4 h-4 text-[var(--accent-success)]" />
+                    <Shield size={16} weight="duotone" className="text-[var(--accent-success)]" />
                   </div>
                   <div>
                     <p className="font-medium text-[var(--text-primary)]">Privacy</p>

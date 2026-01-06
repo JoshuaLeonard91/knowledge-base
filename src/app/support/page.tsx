@@ -3,7 +3,7 @@ import { SearchBar } from '@/components/support/SearchBar';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { CategoryList } from '@/components/support/CategoryList';
 import { articles, categories, getArticlesByCategory } from '@/lib/data/articles';
-import { BookOpen, Compass, Ticket, MessageCircle, ChevronRight, Sparkles } from 'lucide-react';
+import { BookOpenText, Compass, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle } from '@phosphor-icons/react/dist/ssr';
 
 export default function SupportHub() {
   // Get featured articles (one from each category)
@@ -30,7 +30,7 @@ export default function SupportHub() {
 
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 mb-6 animate-fade-in">
-            <Sparkles className="w-4 h-4 text-[var(--accent-primary)]" />
+            <Sparkle size={16} weight="duotone" className="text-[var(--accent-primary)]" />
             <span className="text-sm font-medium text-[var(--accent-primary)]">Help Center</span>
           </div>
 
@@ -61,7 +61,7 @@ export default function SupportHub() {
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-[var(--accent-primary)]/10">
-                <BookOpen className="w-6 h-6 text-[var(--accent-primary)]" />
+                <BookOpenText size={24} weight="duotone" className="text-[var(--accent-primary)]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
@@ -78,7 +78,7 @@ export default function SupportHub() {
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-[var(--accent-primary)]/10">
-                <Compass className="w-6 h-6 text-[var(--accent-primary)]" />
+                <Compass size={24} weight="duotone" className="text-[var(--accent-primary)]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
@@ -95,7 +95,7 @@ export default function SupportHub() {
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-[var(--accent-warning)]/10">
-                <Ticket className="w-6 h-6 text-[var(--accent-warning)]" />
+                <PaperPlaneTilt size={24} weight="duotone" className="text-[var(--accent-warning)]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-warning)] transition-colors">
@@ -112,7 +112,7 @@ export default function SupportHub() {
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-[#5865F2]/10">
-                <MessageCircle className="w-6 h-6 text-[#5865F2]" />
+                <DiscordLogo size={24} weight="duotone" className="text-[#5865F2]" />
               </div>
               <div>
                 <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[#5865F2] transition-colors">
@@ -147,7 +147,7 @@ export default function SupportHub() {
             href="/support/articles"
             className="flex items-center gap-1 text-[var(--accent-primary)] hover:underline text-sm font-medium"
           >
-            View all <ChevronRight className="w-4 h-4" />
+            View all <CaretRight size={16} weight="bold" />
           </Link>
         </div>
         <div className="grid gap-4 md:grid-cols-3 stagger-children">

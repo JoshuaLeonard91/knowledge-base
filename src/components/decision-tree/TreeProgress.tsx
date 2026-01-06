@@ -1,7 +1,7 @@
 'use client';
 
 import { TreeNode } from '@/types';
-import { ChevronRight, RotateCcw } from 'lucide-react';
+import { CaretRight, ArrowCounterClockwise } from '@phosphor-icons/react';
 
 interface TreeProgressProps {
   path: TreeNode[];
@@ -18,13 +18,13 @@ export function TreeProgress({ path, onNavigate, onReset }: TreeProgressProps) {
         onClick={onReset}
         className="flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-medium text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
       >
-        <RotateCcw className="w-3 h-3" />
+        <ArrowCounterClockwise size={12} weight="bold" />
         Start Over
       </button>
-      <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
+      <CaretRight size={16} weight="bold" className="text-[var(--text-muted)]" />
       {path.map((node, index) => (
         <div key={node.id} className="flex items-center gap-2">
-          {index > 0 && <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />}
+          {index > 0 && <CaretRight size={16} weight="bold" className="text-[var(--text-muted)]" />}
           <button
             onClick={() => onNavigate(index)}
             disabled={index === path.length - 1}

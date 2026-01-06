@@ -4,16 +4,17 @@ import { getArticleBySlug, getRelatedArticles, categories } from '@/lib/data/art
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { ArticleFeedback } from './ArticleFeedback';
 import {
-  ChevronLeft, Clock, BookOpen, Tag,
-  Zap, Shield, Terminal, FileText, Filter, Share2, WifiOff, Key, Database,
-  Crown, AlertTriangle, Search, RefreshCw, Layers, Settings, Calendar, Bell, Lock, Layout,
-  Rocket, HelpCircle, Wrench
-} from 'lucide-react';
+  CaretLeft, Clock, BookOpenText, Tag,
+  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
+  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
+  RocketLaunch, Question, Wrench
+} from '@phosphor-icons/react/dist/ssr';
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Zap, Shield, Terminal, FileText, Filter, Share2, WifiOff, Key, Database,
-  Crown, AlertTriangle, Search, RefreshCw, Layers, Settings, Calendar, Bell, Lock, Layout,
-  Rocket, HelpCircle, Wrench
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Zap: Lightning, Shield, Terminal, FileText, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash, Key, Database,
+  Crown, AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack, Settings: Gear, Calendar, Bell, Lock, Layout,
+  Rocket: RocketLaunch, HelpCircle: Question, Wrench
 };
 
 interface ArticlePageProps {
@@ -30,7 +31,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   const relatedArticles = getRelatedArticles(slug);
   const category = categories.find(c => c.id === article.category);
-  const Icon = iconMap[article.icon] || BookOpen;
+  const Icon = iconMap[article.icon] || BookOpenText;
 
   // Simple markdown-like rendering
   const renderContent = (content: string) => {
@@ -217,13 +218,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             href="/support/articles"
             className="inline-flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
           >
-            <ChevronLeft className="w-4 h-4" />
+            <CaretLeft size={16} weight="bold" />
             Back to Articles
           </Link>
 
           <div className="flex items-start gap-4">
             <div className={`p-4 rounded-xl bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20`}>
-              <Icon className="w-8 h-8 text-[var(--accent-primary)]" />
+              <Icon size={32} weight="duotone" className="text-[var(--accent-primary)]" />
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-3 mb-3 flex-wrap">
@@ -233,7 +234,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                   </span>
                 )}
                 <span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
-                  <Clock className="w-4 h-4" />
+                  <Clock size={16} weight="bold" />
                   {article.readTime} min read
                 </span>
               </div>
@@ -254,7 +255,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         {/* Keywords */}
         <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
           <div className="flex items-center gap-2 mb-4">
-            <Tag className="w-4 h-4 text-[var(--text-muted)]" />
+            <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
             <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
           </div>
           <div className="flex flex-wrap gap-2">

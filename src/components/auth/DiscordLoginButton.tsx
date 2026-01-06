@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useAuth } from './AuthProvider';
-import { Loader2 } from 'lucide-react';
+import { SpinnerGap } from '@phosphor-icons/react';
 
 export function DiscordLoginButton() {
   const { login, isLoading } = useAuth();
@@ -33,7 +33,7 @@ export function DiscordLoginButton() {
       <span className="relative z-10">
         {showLoading ? (
           <span className="flex items-center gap-2">
-            <Loader2 className="w-4 h-4 animate-spin" />
+            <SpinnerGap size={16} weight="bold" className="animate-spin" />
             Connecting...
           </span>
         ) : (

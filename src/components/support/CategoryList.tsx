@@ -1,10 +1,11 @@
 import Link from 'next/link';
 import { ArticleCategory } from '@/types';
-import { Rocket, HelpCircle, Wrench, ChevronRight, BookOpen } from 'lucide-react';
+import { RocketLaunch, Question, Wrench, CaretRight, BookOpenText } from '@phosphor-icons/react/dist/ssr';
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Rocket,
-  HelpCircle,
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Rocket: RocketLaunch,
+  HelpCircle: Question,
   Wrench,
 };
 
@@ -35,7 +36,7 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {categories.map((category) => {
-        const Icon = iconMap[category.icon] || BookOpen;
+        const Icon = iconMap[category.icon] || BookOpenText;
         const colors = categoryColors[category.id] || categoryColors['faq'];
         const count = articleCounts[category.id] || 0;
 
@@ -51,7 +52,7 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
             <div className="relative p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className={`p-3 rounded-xl ${colors.bg}`}>
-                  <Icon className={`w-6 h-6 ${colors.text}`} />
+                  <Icon size={24} weight="duotone" className={colors.text} />
                 </div>
                 <span className="text-sm text-[var(--text-muted)]">
                   {count} article{count !== 1 ? 's' : ''}
@@ -65,7 +66,7 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
               </p>
               <div className="flex items-center gap-2 mt-4 text-sm text-[var(--accent-primary)] opacity-0 group-hover:opacity-100 transition-opacity">
                 <span>Browse articles</span>
-                <ChevronRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                <CaretRight size={16} weight="bold" className="group-hover:translate-x-1 transition-transform" />
               </div>
             </div>
           </Link>

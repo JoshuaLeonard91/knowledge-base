@@ -1,15 +1,16 @@
 import Link from 'next/link';
 import { Article } from '@/types';
 import {
-  Zap, Shield, Terminal, FileText, Filter, Share2, WifiOff, Key, Database,
-  Crown, AlertTriangle, Search, RefreshCw, Layers, Settings, Calendar, Bell, Lock, Layout,
-  Rocket, HelpCircle, Wrench, Clock, ChevronRight
-} from 'lucide-react';
+  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
+  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
+  RocketLaunch, Question, Wrench, Clock, CaretRight
+} from '@phosphor-icons/react/dist/ssr';
 
-const iconMap: Record<string, React.ComponentType<{ className?: string }>> = {
-  Zap, Shield, Terminal, FileText, Filter, Share2, WifiOff, Key, Database,
-  Crown, AlertTriangle, Search, RefreshCw, Layers, Settings, Calendar, Bell, Lock, Layout,
-  Rocket, HelpCircle, Wrench
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const iconMap: Record<string, React.ComponentType<any>> = {
+  Zap: Lightning, Shield, Terminal, FileText, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash, Key, Database,
+  Crown, AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack, Settings: Gear, Calendar, Bell, Lock, Layout,
+  Rocket: RocketLaunch, HelpCircle: Question, Wrench
 };
 
 interface ArticleCardProps {
@@ -46,14 +47,14 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
         className="flex items-center gap-3 p-3 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-glow)] transition-all group"
       >
         <div className={`p-2 rounded-lg ${colors.bg}`}>
-          <Icon className={`w-4 h-4 ${colors.text}`} />
+          <Icon size={16} weight="duotone" className={colors.text} />
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-medium text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors truncate">
             {article.title}
           </p>
         </div>
-        <ChevronRight className="w-4 h-4 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all" />
+        <CaretRight size={16} weight="bold" className="text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all" />
       </Link>
     );
   }
@@ -65,7 +66,7 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
     >
       <div className="flex items-start gap-4">
         <div className={`p-3 rounded-xl ${colors.bg} ${colors.border} border`}>
-          <Icon className={`w-6 h-6 ${colors.text}`} />
+          <Icon size={24} weight="duotone" className={colors.text} />
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-2">
@@ -73,7 +74,7 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
               {article.category.replace('-', ' ')}
             </span>
             <span className="flex items-center gap-1 text-xs text-[var(--text-muted)]">
-              <Clock className="w-3 h-3" />
+              <Clock size={12} weight="bold" />
               {article.readTime} min read
             </span>
           </div>
@@ -84,7 +85,7 @@ export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) 
             {article.excerpt}
           </p>
         </div>
-        <ChevronRight className="w-5 h-5 text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all flex-shrink-0" />
+        <CaretRight size={20} weight="bold" className="text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all flex-shrink-0" />
       </div>
     </Link>
   );

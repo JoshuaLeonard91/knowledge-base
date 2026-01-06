@@ -6,20 +6,20 @@ import { useAuth } from '../auth/AuthProvider';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
 import { UserMenu } from './UserMenu';
 import {
-  HelpCircle,
-  BookOpen,
-  GitBranch,
-  Ticket,
-  Menu,
+  House,
+  BookOpenText,
+  Compass,
+  PaperPlaneTilt,
+  List,
   X,
-} from 'lucide-react';
+} from '@phosphor-icons/react';
 import { useState } from 'react';
 
 const navLinks = [
-  { href: '/support', label: 'Support Hub', icon: HelpCircle },
-  { href: '/support/articles', label: 'Articles', icon: BookOpen },
-  { href: '/support/guide', label: 'Get Help', icon: HelpCircle },
-  { href: '/support/ticket', label: 'Submit Ticket', icon: Ticket },
+  { href: '/support', label: 'Support Hub', icon: House },
+  { href: '/support/articles', label: 'Articles', icon: BookOpenText },
+  { href: '/support/guide', label: 'Get Help', icon: Compass },
+  { href: '/support/ticket', label: 'Submit Ticket', icon: PaperPlaneTilt },
 ];
 
 export function Navbar() {
@@ -59,7 +59,7 @@ export function Navbar() {
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
                   }`}
                 >
-                  <Icon className="w-4 h-4" />
+                  <Icon size={18} weight="duotone" />
                   {link.label}
                 </Link>
               );
@@ -86,9 +86,9 @@ export function Navbar() {
               className="md:hidden p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
             >
               {mobileMenuOpen ? (
-                <X className="w-6 h-6" />
+                <X size={24} weight="bold" />
               ) : (
-                <Menu className="w-6 h-6" />
+                <List size={24} weight="bold" />
               )}
             </button>
           </div>
@@ -113,7 +113,7 @@ export function Navbar() {
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
                   }`}
                 >
-                  <Icon className="w-5 h-5" />
+                  <Icon size={20} weight="duotone" />
                   {link.label}
                 </Link>
               );
