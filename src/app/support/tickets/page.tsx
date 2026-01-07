@@ -235,10 +235,10 @@ export default function MyTicketsPage() {
             </p>
             <Link
               href="/support/ticket"
-              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent-primary)] text-white font-medium hover:bg-[var(--accent-primary)]/90 transition-colors"
+              className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent-primary)] font-medium hover:bg-[var(--accent-primary)]/90 transition-colors"
             >
-              <Plus size={18} weight="bold" />
-              Submit a Ticket
+              <Plus size={18} weight="bold" className="text-white" />
+              <span className="text-white">Submit a Ticket</span>
             </Link>
           </div>
         ) : filteredTickets.length === 0 ? (
