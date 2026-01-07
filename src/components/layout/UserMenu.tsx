@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { CaretDown, SignOut, User, Gear, Ticket } from '@phosphor-icons/react';
+import { CaretDown, SignOut, Ticket, ListChecks } from '@phosphor-icons/react';
 import Link from 'next/link';
 
 export function UserMenu() {
@@ -30,6 +30,9 @@ export function UserMenu() {
     return null;
   }
 
+  // Default avatar if none provided
+  const avatarSrc = user.avatarUrl || '/avatars/default.png';
+
   return (
     <div className="relative" ref={menuRef}>
       <button
@@ -37,12 +40,12 @@ export function UserMenu() {
         className="flex items-center gap-2 p-1 pr-3 rounded-full bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] transition-colors border border-[var(--border-primary)] hover:border-[var(--border-hover)]"
       >
         <img
-          src={user.avatar}
-          alt={user.username}
-          className="w-8 h-8 rounded-full"
+          src={avatarSrc}
+          alt={user.displayName}
+          className="w-8 h-8 rounded-full object-cover"
         />
         <span className="text-sm font-medium text-[var(--text-primary)]">
-          {user.username}
+          {user.displayName}
         </span>
         <CaretDown
           size={16}
@@ -59,16 +62,16 @@ export function UserMenu() {
           <div className="p-4 border-b border-[var(--border-primary)]">
             <div className="flex items-center gap-3">
               <img
-                src={user.avatar}
-                alt={user.username}
-                className="w-10 h-10 rounded-full"
+                src={avatarSrc}
+                alt={user.displayName}
+                className="w-10 h-10 rounded-full object-cover"
               />
               <div>
                 <p className="font-semibold text-[var(--text-primary)]">
-                  {user.username}
+                  {user.displayName}
                 </p>
                 <p className="text-xs text-[var(--text-muted)]">
-                  {user.serverCount} servers connected
+                  Logged in
                 </p>
               </div>
             </div>
@@ -82,22 +85,16 @@ export function UserMenu() {
               className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
             >
               <Ticket size={16} weight="duotone" />
+              <span>Submit Ticket</span>
+            </Link>
+            <Link
+              href="/support/tickets"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              <ListChecks size={16} weight="duotone" />
               <span>My Tickets</span>
             </Link>
-            <button
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors w-full"
-              onClick={() => setIsOpen(false)}
-            >
-              <Gear size={16} weight="duotone" />
-              <span>Settings</span>
-            </button>
-            <button
-              className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors w-full"
-              onClick={() => setIsOpen(false)}
-            >
-              <User size={16} weight="duotone" />
-              <span>Profile</span>
-            </button>
           </div>
 
           {/* Logout */}

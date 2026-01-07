@@ -27,6 +27,14 @@ export default function RootLayout({
             <LayoutContent>{children}</LayoutContent>
           </AuthProvider>
         </ThemeProvider>
+        {process.env.NEXT_PUBLIC_JSM_WIDGET_KEY && (
+          <script
+            data-jsd-embedded
+            data-key={process.env.NEXT_PUBLIC_JSM_WIDGET_KEY}
+            data-base-url="https://jsd-widget.atlassian.com"
+            src="https://jsd-widget.atlassian.com/assets/embed.js"
+          />
+        )}
       </body>
     </html>
   );

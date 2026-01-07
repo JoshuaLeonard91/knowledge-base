@@ -30,7 +30,7 @@ export function validateDescription(description: unknown): { valid: boolean; err
   return { valid: true, sanitized };
 }
 
-// Validate server ID
+// Validate server ID (legacy - validates against a list)
 export function validateServerId(serverId: unknown, validServerIds: string[]): { valid: boolean; error?: string } {
   if (typeof serverId !== 'string') {
     return { valid: false, error: 'Invalid server ID' };
@@ -41,6 +41,27 @@ export function validateServerId(serverId: unknown, validServerIds: string[]): {
   }
 
   return { valid: true };
+}
+
+// Validate Discord server ID format (snowflake - 17-19 digit number)
+export function validateDiscordServerId(serverId: unknown): { valid: boolean; error?: string; sanitized?: string } {
+  if (typeof serverId !== 'string') {
+    return { valid: false, error: 'Server ID is required' };
+  }
+
+  const sanitized = serverId.trim();
+
+  if (!sanitized) {
+    return { valid: false, error: 'Server ID is required' };
+  }
+
+  // Discord snowflake IDs are 17-19 digits
+  const snowflakeRegex = /^\d{17,19}$/;
+  if (!snowflakeRegex.test(sanitized)) {
+    return { valid: false, error: 'Invalid Discord server ID format. It should be a 17-19 digit number.' };
+  }
+
+  return { valid: true, sanitized };
 }
 
 // Validate subject ID

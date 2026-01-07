@@ -1,12 +1,8 @@
 import { TicketForm } from '@/components/support/TicketForm';
-import { getFullUser } from '@/lib/auth';
 import { ticketSubjects } from '@/lib/data/servers';
 import { Ticket, Shield, Clock, CheckCircle } from '@phosphor-icons/react/dist/ssr';
 
 export default async function TicketPage() {
-  // Get user data server-side (includes servers)
-  const user = await getFullUser();
-  const servers = user?.servers || [];
 
   return (
     <div className="min-h-screen">
@@ -37,7 +33,7 @@ export default async function TicketPage() {
           {/* Main Form */}
           <div className="lg:col-span-2">
             <div className="p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
-              <TicketForm servers={servers} subjects={ticketSubjects} />
+              <TicketForm subjects={ticketSubjects} />
             </div>
           </div>
 

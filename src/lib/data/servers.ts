@@ -31,22 +31,16 @@ export const mockUser: MockUser = {
 
 export const ticketSubjects: TicketSubject[] = [
   {
-    id: 'account',
-    name: 'Account Issue',
-    category: 'integrations',
-    icon: 'User',
-  },
-  {
     id: 'technical',
     name: 'Technical Problem',
     category: 'integrations',
     icon: 'Wrench',
   },
   {
-    id: 'billing',
-    name: 'Billing Question',
+    id: 'documentation',
+    name: 'Documentation Issue',
     category: 'integrations',
-    icon: 'CreditCard',
+    icon: 'FileText',
   },
   {
     id: 'feedback',

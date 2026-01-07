@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { searchArticles } from '@/lib/data/articles';
+import { searchArticles } from '@/lib/cms';
 import { validateSearchQuery } from '@/lib/validation';
 import { SearchResult } from '@/types';
 
@@ -17,8 +17,8 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Search articles
-    const articles = searchArticles(validation.sanitized!);
+    // Search articles (uses configured CMS provider)
+    const articles = await searchArticles(validation.sanitized!);
 
     // Map to search results (only public data)
     const results: SearchResult[] = articles.slice(0, 10).map((article, index) => ({
@@ -37,7 +37,7 @@ export async function GET(request: NextRequest) {
     });
   } catch {
     return NextResponse.json(
-      { success: false, error: 'Search failed', results: [] },
+      { success: false, error: 'An error occurred', results: [] },
       { status: 500 }
     );
   }

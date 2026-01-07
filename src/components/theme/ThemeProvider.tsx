@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
 
 type UIMode = 'classic' | 'minimal';
 
@@ -8,6 +8,7 @@ interface ThemeContextType {
   uiMode: UIMode;
   setUIMode: (mode: UIMode) => void;
   toggleUIMode: () => void;
+  isLoading: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -15,33 +16,71 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [uiMode, setUIModeState] = useState<UIMode>('classic');
   const [mounted, setMounted] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
+  // Fetch preferences from secure httpOnly cookie via API
   useEffect(() => {
-    setMounted(true);
-    // Load preference from localStorage
-    const saved = localStorage.getItem('ui-mode') as UIMode | null;
-    if (saved && (saved === 'classic' || saved === 'minimal')) {
-      setUIModeState(saved);
+    async function loadPreferences() {
+      try {
+        const response = await fetch('/api/preferences', {
+          method: 'GET',
+          credentials: 'include', // Include cookies
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.preferences?.uiMode) {
+            setUIModeState(data.preferences.uiMode);
+          }
+        }
+      } catch {
+        // Failed to load preferences, use default
+        console.warn('Failed to load preferences, using defaults');
+      } finally {
+        setMounted(true);
+        setIsLoading(false);
+      }
+    }
+
+    loadPreferences();
+  }, []);
+
+  // Save preferences to secure httpOnly cookie via API
+  const savePreferences = useCallback(async (mode: UIMode) => {
+    try {
+      await fetch('/api/preferences', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          preferences: { uiMode: mode },
+        }),
+      });
+    } catch {
+      // Failed to save, but continue with local state
+      console.warn('Failed to save preferences');
     }
   }, []);
 
-  const setUIMode = (mode: UIMode) => {
+  const setUIMode = useCallback((mode: UIMode) => {
     setUIModeState(mode);
-    localStorage.setItem('ui-mode', mode);
-  };
+    savePreferences(mode);
+  }, [savePreferences]);
 
-  const toggleUIMode = () => {
+  const toggleUIMode = useCallback(() => {
     const newMode = uiMode === 'classic' ? 'minimal' : 'classic';
     setUIMode(newMode);
-  };
+  }, [uiMode, setUIMode]);
 
-  // Prevent hydration mismatch
+  // Prevent hydration mismatch - show nothing until mounted
   if (!mounted) {
     return <>{children}</>;
   }
 
   return (
-    <ThemeContext.Provider value={{ uiMode, setUIMode, toggleUIMode }}>
+    <ThemeContext.Provider value={{ uiMode, setUIMode, toggleUIMode, isLoading }}>
       {children}
     </ThemeContext.Provider>
   );
@@ -55,6 +94,7 @@ export function useTheme() {
       uiMode: 'classic' as const,
       setUIMode: () => {},
       toggleUIMode: () => {},
+      isLoading: true,
     };
   }
   return context;

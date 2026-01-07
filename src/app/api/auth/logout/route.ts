@@ -1,18 +1,31 @@
-import { NextResponse } from 'next/server';
-import { destroySession } from '@/lib/auth';
+import { NextRequest } from 'next/server';
+import { destroySession, getSession } from '@/lib/auth';
+import {
+  createSuccessResponse,
+  createErrorResponse,
+} from '@/lib/security/sanitize';
+import {
+  logLogout,
+  getClientIp,
+} from '@/lib/security/logger';
 
-export async function POST() {
+export async function POST(request: NextRequest) {
+  const ip = getClientIp(request.headers);
+
   try {
+    // Get user before destroying session (for logging)
+    const user = await getSession();
+
     await destroySession();
 
-    return NextResponse.json({
-      success: true,
-      message: 'Logged out successfully',
+    // Log logout event
+    logLogout({
+      ip,
+      userId: user?.id,
     });
-  } catch {
-    return NextResponse.json(
-      { success: false, error: 'Logout failed' },
-      { status: 500 }
-    );
+
+    return createSuccessResponse({});
+  } catch (error) {
+    return createErrorResponse('server', 500, error);
   }
 }

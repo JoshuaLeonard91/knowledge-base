@@ -1,11 +1,12 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { PublicUser } from '@/types';
+import { SafeUser } from '@/lib/security/sanitize';
 
 interface AuthContextType {
-  user: PublicUser | null;
+  user: SafeUser | null;
   isLoading: boolean;
+  authMode: 'discord' | 'mock' | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
@@ -14,12 +15,29 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<PublicUser | null>(null);
+  const [user, setUser] = useState<SafeUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<'discord' | 'mock' | null>(null);
+
+  // Check auth mode on mount
+  useEffect(() => {
+    async function checkAuthMode() {
+      try {
+        const res = await fetch('/api/auth/login');
+        const data = await res.json();
+        setAuthMode(data.mode || 'mock');
+      } catch {
+        setAuthMode('mock');
+      }
+    }
+    checkAuthMode();
+  }, []);
 
   const checkSession = useCallback(async () => {
     try {
-      const res = await fetch('/api/auth/session');
+      const res = await fetch('/api/auth/session', {
+        credentials: 'include',
+      });
       const data = await res.json();
       if (data.authenticated && data.user) {
         setUser(data.user);
@@ -40,8 +58,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/auth/login', { method: 'POST' });
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        credentials: 'include',
+      });
       const data = await res.json();
+
+      // Discord OAuth - redirect to Discord
+      if (data.mode === 'discord' && data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+        return;
+      }
+
+      // Mock mode - session created directly
       if (data.success && data.user) {
         setUser(data.user);
       }
@@ -55,7 +84,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setIsLoading(true);
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      // For Discord OAuth, also sign out via NextAuth
+      if (authMode === 'discord') {
+        // Call NextAuth signout endpoint
+        await fetch('/api/auth/signout', {
+          method: 'POST',
+          credentials: 'include',
+        });
+      }
+
+      // Clear our session too
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
       setUser(null);
     } catch (error) {
       console.error('Logout failed:', error);
@@ -65,7 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, checkSession }}>
+    <AuthContext.Provider value={{ user, isLoading, authMode, login, logout, checkSession }}>
       {children}
     </AuthContext.Provider>
   );

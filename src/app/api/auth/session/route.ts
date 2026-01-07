@@ -1,26 +1,27 @@
-import { NextResponse } from 'next/server';
-import { getSession } from '@/lib/auth';
+import { getSafeUser } from '@/lib/auth';
+import {
+  createSafeResponse,
+  createErrorResponse,
+} from '@/lib/security/sanitize';
 
 export async function GET() {
   try {
-    const user = await getSession();
+    // Get safe user (no internal IDs exposed)
+    const user = await getSafeUser();
 
     if (!user) {
-      return NextResponse.json({
+      return createSafeResponse({
         authenticated: false,
         user: null,
       });
     }
 
-    // Return only public user data - no sensitive info
-    return NextResponse.json({
+    // Return only safe user data - no IDs or sensitive info
+    return createSafeResponse({
       authenticated: true,
       user,
     });
-  } catch {
-    return NextResponse.json(
-      { authenticated: false, error: 'Session check failed' },
-      { status: 500 }
-    );
+  } catch (error) {
+    return createErrorResponse('server', 500, error);
   }
 }

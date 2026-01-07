@@ -3,30 +3,29 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
-import { SearchResult, MockServer, TicketSubject } from '@/types';
+import { SearchResult, TicketSubject } from '@/types';
 import {
   SpinnerGap, PaperPlaneTilt, CheckCircle, WarningCircle, ShieldCheck,
-  User, Wrench, CreditCard, ChatCircle, Question, Lightbulb, X, FileText
+  Wrench, ChatCircle, Question, Lightbulb, X, FileText
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const subjectIcons: Record<string, React.ComponentType<any>> = {
-  'account': User,
   'technical': Wrench,
-  'billing': CreditCard,
+  'documentation': FileText,
   'feedback': ChatCircle,
   'other': Question,
 };
 
 interface TicketFormProps {
-  servers: MockServer[];
   subjects: TicketSubject[];
 }
 
-export function TicketForm({ servers, subjects }: TicketFormProps) {
+export function TicketForm({ subjects }: TicketFormProps) {
   const { user, isLoading: authLoading } = useAuth();
-  const [selectedServer, setSelectedServer] = useState('');
+  const [serverId, setServerId] = useState('');
+  const [serverIdError, setServerIdError] = useState('');
   const [selectedSubject, setSelectedSubject] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,9 +53,25 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
     return () => clearTimeout(debounce);
   }, [description]);
 
+  // Validate Discord server ID format
+  const validateServerId = (id: string): boolean => {
+    const trimmed = id.trim();
+    if (!trimmed) {
+      setServerIdError('Server ID is required');
+      return false;
+    }
+    // Discord snowflake IDs are 17-19 digits
+    if (!/^\d{17,19}$/.test(trimmed)) {
+      setServerIdError('Invalid format. Discord server IDs are 17-19 digit numbers.');
+      return false;
+    }
+    setServerIdError('');
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedServer || !selectedSubject || description.length < 10) return;
+    if (!validateServerId(serverId) || !selectedSubject || description.length < 10) return;
 
     setIsSubmitting(true);
     setSubmitResult(null);
@@ -66,7 +81,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serverId: selectedServer,
+          serverId: serverId.trim(),
           subjectId: selectedSubject,
           description,
         }),
@@ -80,7 +95,8 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
       });
 
       if (data.success) {
-        setSelectedServer('');
+        setServerId('');
+        setServerIdError('');
         setSelectedSubject('');
         setDescription('');
       }
@@ -140,8 +156,8 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
           <button onClick={() => setSubmitResult(null)} className="btn btn-secondary">
             Submit Another
           </button>
-          <Link href="/support" className="btn btn-primary">
-            Back to Support
+          <Link href="/support/tickets" className="btn btn-primary">
+            View My Tickets
           </Link>
         </div>
       </div>
@@ -157,33 +173,27 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
         </div>
       )}
 
-      {/* Server Selection */}
+      {/* Discord Server ID Input */}
       <div>
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-          Select Server
+          Discord Server ID
         </label>
-        <div className="grid gap-2 sm:grid-cols-3">
-          {servers.map((server) => (
-            <button
-              key={server.id}
-              type="button"
-              onClick={() => setSelectedServer(server.id)}
-              className={`flex items-center gap-3 p-3 rounded-lg border transition-all text-left ${
-                selectedServer === server.id
-                  ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]'
-                  : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] hover:border-[var(--border-hover)]'
-              }`}
-            >
-              <img src={server.icon} alt={server.name} className="w-10 h-10 rounded-full" />
-              <div className="flex-1 min-w-0">
-                <p className={`font-medium truncate ${selectedServer === server.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}`}>
-                  {server.name}
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">{server.memberCount} members</p>
-              </div>
-            </button>
-          ))}
-        </div>
+        <input
+          type="text"
+          value={serverId}
+          onChange={(e) => {
+            setServerId(e.target.value);
+            if (serverIdError) setServerIdError('');
+          }}
+          placeholder=""
+          className={`input ${serverIdError ? 'border-[var(--accent-danger)]' : ''}`}
+        />
+        {serverIdError && (
+          <p className="text-sm text-[var(--accent-danger)] mt-1">{serverIdError}</p>
+        )}
+        <p className="text-xs text-[var(--text-muted)] mt-2">
+          Right-click your server name in Discord → Copy Server ID
+        </p>
       </div>
 
       {/* Subject Selection */}
@@ -191,7 +201,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
           What do you need help with?
         </label>
-        <div className="grid gap-2 sm:grid-cols-3">
+        <div className="grid gap-3 grid-cols-2">
           {subjects.map((subject) => {
             const Icon = subjectIcons[subject.id] || Question;
             return (
@@ -199,13 +209,13 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
                 key={subject.id}
                 type="button"
                 onClick={() => setSelectedSubject(subject.id)}
-                className={`flex items-center gap-2 p-3 rounded-lg border transition-all ${
+                className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
                   selectedSubject === subject.id
                     ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]'
                     : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] hover:border-[var(--border-hover)]'
                 }`}
               >
-                <Icon size={20} weight="duotone" className={selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'} />
+                <Icon size={28} weight="duotone" className={selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'} />
                 <span className={selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}>
                   {subject.name}
                 </span>
@@ -265,7 +275,7 @@ export function TicketForm({ servers, subjects }: TicketFormProps) {
       {/* Submit */}
       <button
         type="submit"
-        disabled={!selectedServer || !selectedSubject || description.length < 10 || isSubmitting}
+        disabled={!serverId.trim() || !selectedSubject || description.length < 10 || isSubmitting}
         className="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (

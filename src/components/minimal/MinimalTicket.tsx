@@ -11,15 +11,33 @@ interface MinimalTicketProps {
 
 export function MinimalTicket({ onBack }: MinimalTicketProps) {
   const { user, isLoading: authLoading } = useAuth();
+  const [serverId, setServerId] = useState('');
+  const [serverIdError, setServerIdError] = useState('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [ticketId, setTicketId] = useState<string | null>(null);
 
+  // Validate Discord server ID format
+  const validateServerId = (id: string): boolean => {
+    const trimmed = id.trim();
+    if (!trimmed) {
+      setServerIdError('Server ID is required');
+      return false;
+    }
+    // Discord snowflake IDs are 17-19 digits
+    if (!/^\d{17,19}$/.test(trimmed)) {
+      setServerIdError('Invalid format. Discord server IDs are 17-19 digit numbers.');
+      return false;
+    }
+    setServerIdError('');
+    return true;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || !user) return;
+    if (!description.trim() || !user || !validateServerId(serverId)) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -29,7 +47,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          serverId: 'general',
+          serverId: serverId.trim(),
           subjectId: 'technical',
           description: description.trim(),
         }),
@@ -68,12 +86,20 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
             Reference: <span className="font-mono text-[var(--accent-primary)]">{ticketId}</span>
           </p>
         )}
-        <button
-          onClick={onBack}
-          className="text-[var(--accent-primary)] hover:underline"
-        >
-          Back to support
-        </button>
+        <div className="flex items-center justify-center gap-4">
+          <button
+            onClick={onBack}
+            className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-colors"
+          >
+            Back to support
+          </button>
+          <a
+            href="/support/tickets"
+            className="text-[var(--accent-primary)] hover:underline"
+          >
+            View My Tickets
+          </a>
+        </div>
       </div>
     );
   }
@@ -124,16 +150,39 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         {user && (
           <div className="flex items-center gap-3 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
             <img
-              src={user.avatar}
-              alt={user.username}
-              className="w-10 h-10 rounded-full"
+              src={user.avatarUrl || '/avatars/default.png'}
+              alt={user.displayName}
+              className="w-10 h-10 rounded-full object-cover"
             />
             <div>
-              <p className="font-medium text-[var(--text-primary)]">{user.username}</p>
+              <p className="font-medium text-[var(--text-primary)]">{user.displayName}</p>
               <p className="text-sm text-[var(--text-muted)]">Logged in with Discord</p>
             </div>
           </div>
         )}
+
+        {/* Discord Server ID */}
+        <div>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+            Discord Server ID
+          </label>
+          <input
+            type="text"
+            value={serverId}
+            onChange={(e) => {
+              setServerId(e.target.value);
+              if (serverIdError) setServerIdError('');
+            }}
+            placeholder=""
+            className={`w-full px-4 py-3 rounded-xl bg-[var(--bg-secondary)] border text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors ${serverIdError ? 'border-[var(--accent-danger)]' : 'border-[var(--border-primary)]'}`}
+          />
+          {serverIdError && (
+            <p className="text-sm text-[var(--accent-danger)] mt-1">{serverIdError}</p>
+          )}
+          <p className="mt-2 text-xs text-[var(--text-muted)]">
+            Right-click your server name in Discord → Copy Server ID
+          </p>
+        </div>
 
         {/* Description */}
         <div>
@@ -165,7 +214,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         {/* Submit */}
         <button
           type="submit"
-          disabled={isSubmitting || description.trim().length < 20}
+          disabled={isSubmitting || !serverId.trim() || description.trim().length < 20}
           className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-[var(--accent-primary)] text-white font-medium hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isSubmitting ? (

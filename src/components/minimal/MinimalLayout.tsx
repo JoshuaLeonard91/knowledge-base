@@ -33,12 +33,12 @@ export function MinimalLayout({ children }: MinimalLayoutProps) {
                 {user ? (
                   <div className="flex items-center gap-3">
                     <img
-                      src={user.avatar}
-                      alt={user.username}
-                      className="w-7 h-7 rounded-full"
+                      src={user.avatarUrl || '/avatars/default.png'}
+                      alt={user.displayName}
+                      className="w-7 h-7 rounded-full object-cover"
                     />
                     <span className="text-sm text-[var(--text-secondary)] hidden sm:inline">
-                      {user.username}
+                      {user.displayName}
                     </span>
                     <button
                       onClick={logout}
