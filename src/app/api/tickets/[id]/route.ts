@@ -2,24 +2,36 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { jiraServiceDesk, JiraIssue } from '@/lib/atlassian/client';
 
+// ADF node type for description parsing
+interface AdfNode {
+  type: string;
+  text?: string;
+  content?: AdfNode[];
+}
+
 // Helper to extract text from ADF format
 function extractDescriptionText(issue: JiraIssue): string {
   let descriptionText = '';
-  if (typeof issue.fields.description === 'string') {
-    descriptionText = issue.fields.description;
-  } else if ((issue.fields.description as { content?: unknown[] })?.content) {
-    const extractText = (content: unknown[], isTopLevel = false): string => {
-      return content.map((node: Record<string, unknown>) => {
-        if (node.type === 'text') return node.text as string;
-        if (node.type === 'paragraph' && node.content) {
-          return extractText(node.content as unknown[]);
-        }
-        if (node.type === 'hardBreak') return '\n';
-        if (node.content) return extractText(node.content as unknown[]);
-        return '';
-      }).join(isTopLevel ? '\n' : '');
-    };
-    descriptionText = extractText((issue.fields.description as { content: unknown[] }).content, true);
+  const description = issue.fields.description;
+
+  if (typeof description === 'string') {
+    descriptionText = description;
+  } else if (description && typeof description === 'object') {
+    const adfDescription = description as { content?: AdfNode[] };
+    if (adfDescription.content) {
+      const extractText = (content: AdfNode[], isTopLevel = false): string => {
+        return content.map((node) => {
+          if (node.type === 'text') return node.text || '';
+          if (node.type === 'paragraph' && node.content) {
+            return extractText(node.content);
+          }
+          if (node.type === 'hardBreak') return '\n';
+          if (node.content) return extractText(node.content);
+          return '';
+        }).join(isTopLevel ? '\n' : '');
+      };
+      descriptionText = extractText(adfDescription.content, true);
+    }
   }
   return descriptionText;
 }
