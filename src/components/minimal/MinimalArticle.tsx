@@ -1,8 +1,9 @@
 'use client';
 
-import { CaretLeft, Clock } from '@phosphor-icons/react';
+import { useState, useEffect } from 'react';
+import { CaretLeft, Clock, SpinnerGap } from '@phosphor-icons/react';
 import { MinimalView } from './MinimalApp';
-import { getArticleBySlug } from '@/lib/data/articles';
+import { Article } from '@/types';
 
 interface MinimalArticleProps {
   slug: string;
@@ -11,7 +12,33 @@ interface MinimalArticleProps {
 }
 
 export function MinimalArticle({ slug, onBack }: MinimalArticleProps) {
-  const article = getArticleBySlug(slug);
+  const [article, setArticle] = useState<Article | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchArticle() {
+      try {
+        const res = await fetch(`/api/articles/${slug}`);
+        const data = await res.json();
+        if (data.success) {
+          setArticle(data.article);
+        }
+      } catch {
+        // Silently fail - will show not found
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchArticle();
+  }, [slug]);
+
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <SpinnerGap size={24} weight="bold" className="text-[var(--accent-primary)] animate-spin" />
+      </div>
+    );
+  }
 
   if (!article) {
     return (

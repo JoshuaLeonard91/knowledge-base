@@ -1,20 +1,20 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getArticleBySlug, getRelatedArticles, categories } from '@/lib/data/articles';
+import { getArticleBySlug, getRelatedArticles, getCategories } from '@/lib/cms';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { ArticleFeedback } from './ArticleFeedback';
 import {
   CaretLeft, Clock, BookOpenText, Tag,
   Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
   Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
-  RocketLaunch, Question, Wrench
+  RocketLaunch, Question, Wrench, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article as ArticleIcon
 } from '@phosphor-icons/react/dist/ssr';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
   Zap: Lightning, Shield, Terminal, FileText, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash, Key, Database,
   Crown, AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack, Settings: Gear, Calendar, Bell, Lock, Layout,
-  Rocket: RocketLaunch, HelpCircle: Question, Wrench
+  Rocket: RocketLaunch, HelpCircle: Question, Wrench, BookOpen: BookOpenText, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article: ArticleIcon
 };
 
 interface ArticlePageProps {
@@ -23,13 +23,16 @@ interface ArticlePageProps {
 
 export default async function ArticlePage({ params }: ArticlePageProps) {
   const { slug } = await params;
-  const article = getArticleBySlug(slug);
+  const article = await getArticleBySlug(slug);
 
   if (!article) {
     notFound();
   }
 
-  const relatedArticles = getRelatedArticles(slug);
+  const [relatedArticles, categories] = await Promise.all([
+    getRelatedArticles(article, 4),
+    getCategories()
+  ]);
   const category = categories.find(c => c.id === article.category);
   const Icon = iconMap[article.icon] || BookOpenText;
 

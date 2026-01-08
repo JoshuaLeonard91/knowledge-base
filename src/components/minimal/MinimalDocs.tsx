@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import { CaretLeft, CaretRight, MagnifyingGlass, X } from '@phosphor-icons/react';
+import { useState, useEffect } from 'react';
+import { CaretLeft, CaretRight, MagnifyingGlass, X, SpinnerGap } from '@phosphor-icons/react';
 import { MinimalView } from './MinimalApp';
-import { articles, categories } from '@/lib/data/articles';
+import { Article, ArticleCategory } from '@/types';
 
 interface MinimalDocsProps {
   onNavigate: (view: MinimalView) => void;
@@ -11,10 +11,32 @@ interface MinimalDocsProps {
 }
 
 export function MinimalDocs({ onNavigate, onBack }: MinimalDocsProps) {
+  const [articles, setArticles] = useState<Article[]>([]);
+  const [categories, setCategories] = useState<ArticleCategory[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedCategory, setExpandedCategory] = useState<string | null>(
-    categories.length > 0 ? categories[0].id : null
-  );
+  const [expandedCategory, setExpandedCategory] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await fetch('/api/articles');
+        const data = await res.json();
+        if (data.success) {
+          setArticles(data.articles);
+          setCategories(data.categories);
+          if (data.categories.length > 0) {
+            setExpandedCategory(data.categories[0].id);
+          }
+        }
+      } catch {
+        // Silently fail - will show empty state
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
 
   // Filter articles by search
   const filteredArticles = searchQuery.length >= 2
@@ -50,6 +72,12 @@ export function MinimalDocs({ onNavigate, onBack }: MinimalDocsProps) {
         Documentation
       </h1>
 
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <SpinnerGap size={24} weight="bold" className="text-[var(--accent-primary)] animate-spin" />
+        </div>
+      ) : (
+      <>
       {/* Search */}
       <div className="relative mb-8">
         <MagnifyingGlass
@@ -141,6 +169,8 @@ export function MinimalDocs({ onNavigate, onBack }: MinimalDocsProps) {
             </div>
           ))}
         </div>
+      )}
+      </>
       )}
     </div>
   );

@@ -3,9 +3,14 @@
 import { useState, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { ArticleCard } from '@/components/support/ArticleCard';
-import { articles, categories } from '@/lib/data/articles';
+import { Article, ArticleCategory } from '@/types';
 
-export function ArticlesContent() {
+interface ArticlesContentProps {
+  articles: Article[];
+  categories: ArticleCategory[];
+}
+
+export function ArticlesContent({ articles, categories }: ArticlesContentProps) {
   const searchParams = useSearchParams();
   const initialCategory = searchParams.get('category');
 
@@ -16,7 +21,7 @@ export function ArticlesContent() {
       return articles.filter(a => a.category === selectedCategory);
     }
     return articles;
-  }, [selectedCategory]);
+  }, [selectedCategory, articles]);
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">

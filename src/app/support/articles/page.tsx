@@ -1,6 +1,7 @@
 import { Suspense } from 'react';
 import { SearchBar } from '@/components/support/SearchBar';
 import { ArticlesContent } from './ArticlesContent';
+import { getArticles, getCategories } from '@/lib/cms';
 import { SpinnerGap } from '@phosphor-icons/react/dist/ssr';
 
 function ArticlesLoading() {
@@ -11,7 +12,12 @@ function ArticlesLoading() {
   );
 }
 
-export default function ArticlesPage() {
+export default async function ArticlesPage() {
+  const [articles, categories] = await Promise.all([
+    getArticles(),
+    getCategories()
+  ]);
+
   return (
     <div className="min-h-screen">
       {/* Header */}
@@ -33,7 +39,7 @@ export default function ArticlesPage() {
       </section>
 
       <Suspense fallback={<ArticlesLoading />}>
-        <ArticlesContent />
+        <ArticlesContent articles={articles} categories={categories} />
       </Suspense>
     </div>
   );

@@ -3,14 +3,15 @@ import { Article } from '@/types';
 import {
   Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
   Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
-  RocketLaunch, Question, Wrench, Clock, CaretRight
+  RocketLaunch, Question, Wrench, Clock, CaretRight, BookOpenText, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article as ArticleIcon
 } from '@phosphor-icons/react/dist/ssr';
+import { getCategoryColors } from '@/lib/category-colors';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
   Zap: Lightning, Shield, Terminal, FileText, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash, Key, Database,
   Crown, AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack, Settings: Gear, Calendar, Bell, Lock, Layout,
-  Rocket: RocketLaunch, HelpCircle: Question, Wrench
+  Rocket: RocketLaunch, HelpCircle: Question, Wrench, BookOpen: BookOpenText, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article: ArticleIcon
 };
 
 interface ArticleCardProps {
@@ -18,27 +19,9 @@ interface ArticleCardProps {
   variant?: 'default' | 'compact';
 }
 
-const categoryColors: Record<string, { bg: string; text: string; border: string }> = {
-  'getting-started': {
-    bg: 'bg-[var(--accent-success)]/10',
-    text: 'text-[var(--accent-success)]',
-    border: 'border-[var(--accent-success)]/20'
-  },
-  'faq': {
-    bg: 'bg-[var(--accent-primary)]/10',
-    text: 'text-[var(--accent-primary)]',
-    border: 'border-[var(--accent-primary)]/20'
-  },
-  'troubleshooting': {
-    bg: 'bg-[var(--accent-warning)]/10',
-    text: 'text-[var(--accent-warning)]',
-    border: 'border-[var(--accent-warning)]/20'
-  },
-};
-
 export function ArticleCard({ article, variant = 'default' }: ArticleCardProps) {
   const Icon = iconMap[article.icon] || FileText;
-  const colors = categoryColors[article.category] || categoryColors['faq'];
+  const colors = getCategoryColors(article.category);
 
   if (variant === 'compact') {
     return (

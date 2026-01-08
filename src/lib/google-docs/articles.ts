@@ -47,11 +47,8 @@ function transformDoc(
   const content = googleDocs.toMarkdown(doc);
   const readTime = googleDocs.calculateReadTime(doc);
 
-  // Ensure category is a valid type
-  const validCategories = ['getting-started', 'faq', 'troubleshooting'] as const;
-  const category = validCategories.includes(indexEntry.category as typeof validCategories[number])
-    ? (indexEntry.category as Article['category'])
-    : 'faq';
+  // Accept any category from the sheet - categories are dynamic
+  const category = indexEntry.category || 'general';
 
   return {
     slug: indexEntry.slug,
@@ -65,6 +62,39 @@ function transformDoc(
     readTime,
     relatedSlugs: [],
   };
+}
+
+/**
+ * Convert category slug to display name
+ * e.g., "getting-started" -> "Getting Started"
+ */
+function slugToDisplayName(slug: string): string {
+  return slug
+    .split('-')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}
+
+/**
+ * Get default icon for a category based on common patterns
+ */
+function getCategoryIcon(slug: string): string {
+  const iconMap: Record<string, string> = {
+    'getting-started': 'Rocket',
+    'faq': 'Question',
+    'troubleshooting': 'Wrench',
+    'guides': 'BookOpen',
+    'tutorials': 'GraduationCap',
+    'api': 'Code',
+    'reference': 'FileText',
+    'announcements': 'Megaphone',
+    'updates': 'Bell',
+    'security': 'Shield',
+    'billing': 'CreditCard',
+    'account': 'User',
+    'integrations': 'Plug',
+  };
+  return iconMap[slug] || 'Article';
 }
 
 /**
@@ -145,7 +175,8 @@ export async function getArticles(): Promise<Article[]> {
 }
 
 /**
- * Get all categories - derived from article index or local fallback
+ * Get all categories - derived dynamically from article index
+ * Categories are created automatically based on unique category values in the Articles sheet
  */
 export async function getCategories(): Promise<Category[]> {
   if (!googleDocs.isAvailable()) {
@@ -159,24 +190,24 @@ export async function getCategories(): Promise<Category[]> {
       return localCategories;
     }
 
-    // Get unique categories from index
-    const categorySet = new Set(index.map(e => e.category));
-    const validCategories = ['getting-started', 'faq', 'troubleshooting'] as const;
+    // Get unique categories from index and create category objects dynamically
+    const categoryMap = new Map<string, number>();
 
-    const categories: Category[] = [];
-
-    for (const catId of categorySet) {
-      if (validCategories.includes(catId as typeof validCategories[number])) {
-        const localCat = localCategories.find(c => c.id === catId);
-        if (localCat) {
-          categories.push(localCat);
-        }
-      }
+    for (const entry of index) {
+      const cat = entry.category || 'general';
+      categoryMap.set(cat, (categoryMap.get(cat) || 0) + 1);
     }
 
+    // Convert to Category objects with auto-generated metadata
+    const categories: Category[] = Array.from(categoryMap.entries()).map(([slug, count]) => ({
+      id: slug,
+      name: slugToDisplayName(slug),
+      description: `${count} article${count !== 1 ? 's' : ''} in this category`,
+      icon: getCategoryIcon(slug),
+    }));
+
     return categories.length > 0 ? categories : localCategories;
-  } catch (error) {
-    console.error('[GoogleDocs] Error getting categories:', error);
+  } catch {
     return localCategories;
   }
 }

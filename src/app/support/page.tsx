@@ -2,20 +2,26 @@ import Link from 'next/link';
 import { SearchBar } from '@/components/support/SearchBar';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { CategoryList } from '@/components/support/CategoryList';
-import { articles, categories, getArticlesByCategory } from '@/lib/data/articles';
-import { BookOpenText, Compass, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle } from '@phosphor-icons/react/dist/ssr';
+import { getArticles, getCategories } from '@/lib/cms';
+import { BookOpenText, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle } from '@phosphor-icons/react/dist/ssr';
 
-export default function SupportHub() {
-  // Get featured articles (one from each category)
-  const featuredArticles = [
-    articles.find(a => a.slug === 'getting-started-guide'),
-    articles.find(a => a.slug === 'common-questions'),
-    articles.find(a => a.slug === 'troubleshooting-basics'),
-  ].filter(Boolean);
+export default async function SupportHub() {
+  const [articles, categories] = await Promise.all([
+    getArticles(),
+    getCategories()
+  ]);
+
+  // Get featured articles (up to 3 from different categories)
+  const seenCategories = new Set<string>();
+  const featuredArticles = articles.filter(article => {
+    if (seenCategories.has(article.category) || seenCategories.size >= 3) return false;
+    seenCategories.add(article.category);
+    return true;
+  }).slice(0, 3);
 
   // Count articles per category
   const articleCounts = categories.reduce((acc, cat) => {
-    acc[cat.id] = getArticlesByCategory(cat.id).length;
+    acc[cat.id] = articles.filter(a => a.category === cat.id).length;
     return acc;
   }, {} as Record<string, number>);
 
@@ -54,7 +60,7 @@ export default function SupportHub() {
 
       {/* Quick Actions */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
-        <div className="grid gap-4 md:grid-cols-4 stagger-children">
+        <div className="grid gap-4 md:grid-cols-3 stagger-children">
           <Link
             href="/support/articles"
             className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-glow)] transition-all"
@@ -68,23 +74,6 @@ export default function SupportHub() {
                   Browse Articles
                 </h3>
                 <p className="text-sm text-[var(--text-muted)]">{articles.length} articles</p>
-              </div>
-            </div>
-          </Link>
-
-          <Link
-            href="/support/guide"
-            className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-glow)] transition-all"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-[var(--accent-primary)]/10">
-                <Compass size={24} weight="duotone" className="text-[var(--accent-primary)]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
-                  Get Help
-                </h3>
-                <p className="text-sm text-[var(--text-muted)]">Find answers</p>
               </div>
             </div>
           </Link>

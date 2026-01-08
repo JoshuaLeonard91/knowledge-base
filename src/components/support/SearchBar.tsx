@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { MagnifyingGlass, SpinnerGap, FileText, X } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { SearchResult } from '@/types';
+import { getCategoryBadgeClasses } from '@/lib/category-colors';
 
 interface SearchBarProps {
   placeholder?: string;
@@ -66,12 +67,6 @@ export function SearchBar({
     inputRef.current?.focus();
   };
 
-  const categoryColors: Record<string, string> = {
-    'getting-started': 'bg-[var(--accent-success)]/20 text-[var(--accent-success)]',
-    'faq': 'bg-[var(--accent-primary)]/20 text-[var(--accent-primary)]',
-    'troubleshooting': 'bg-[var(--accent-warning)]/20 text-[var(--accent-warning)]',
-  };
-
   return (
     <div className="relative w-full" ref={containerRef}>
       <div className="relative">
@@ -125,7 +120,7 @@ export function SearchBar({
                     <p className="text-sm text-[var(--text-muted)] truncate mt-0.5">
                       {result.excerpt}
                     </p>
-                    <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium ${categoryColors[result.category] || ''}`}>
+                    <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium ${getCategoryBadgeClasses(result.category)}`}>
                       {result.category.replace('-', ' ')}
                     </span>
                   </div>

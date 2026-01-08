@@ -8,7 +8,6 @@ import { UserMenu } from './UserMenu';
 import {
   House,
   BookOpenText,
-  Compass,
   PaperPlaneTilt,
   List,
   X,
@@ -18,7 +17,6 @@ import { useState } from 'react';
 const navLinks = [
   { href: '/support', label: 'Support Hub', icon: House },
   { href: '/support/articles', label: 'Articles', icon: BookOpenText },
-  { href: '/support/guide', label: 'Get Help', icon: Compass },
   { href: '/support/ticket', label: 'Submit Ticket', icon: PaperPlaneTilt },
 ];
 

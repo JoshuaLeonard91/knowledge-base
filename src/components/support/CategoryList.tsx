@@ -1,30 +1,24 @@
 import Link from 'next/link';
 import { ArticleCategory } from '@/types';
-import { RocketLaunch, Question, Wrench, CaretRight, BookOpenText } from '@phosphor-icons/react/dist/ssr';
+import { RocketLaunch, Question, Wrench, CaretRight, BookOpenText, GraduationCap, Code, FileText, Megaphone, Bell, Shield, CreditCard, User, Plug, Article } from '@phosphor-icons/react/dist/ssr';
+import { getCategoryColors } from '@/lib/category-colors';
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
   Rocket: RocketLaunch,
-  HelpCircle: Question,
+  Question,
   Wrench,
-};
-
-const categoryColors: Record<string, { bg: string; text: string; gradient: string }> = {
-  'getting-started': {
-    bg: 'bg-[var(--accent-success)]/10',
-    text: 'text-[var(--accent-success)]',
-    gradient: 'from-[var(--accent-success)]/20 to-transparent'
-  },
-  'faq': {
-    bg: 'bg-[var(--accent-primary)]/10',
-    text: 'text-[var(--accent-primary)]',
-    gradient: 'from-[var(--accent-primary)]/20 to-transparent'
-  },
-  'troubleshooting': {
-    bg: 'bg-[var(--accent-warning)]/10',
-    text: 'text-[var(--accent-warning)]',
-    gradient: 'from-[var(--accent-warning)]/20 to-transparent'
-  },
+  BookOpen: BookOpenText,
+  GraduationCap,
+  Code,
+  FileText,
+  Megaphone,
+  Bell,
+  Shield,
+  CreditCard,
+  User,
+  Plug,
+  Article,
 };
 
 interface CategoryListProps {
@@ -37,7 +31,7 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
     <div className="grid gap-4 md:grid-cols-3">
       {categories.map((category) => {
         const Icon = iconMap[category.icon] || BookOpenText;
-        const colors = categoryColors[category.id] || categoryColors['faq'];
+        const colors = getCategoryColors(category.id, category.color);
         const count = articleCounts[category.id] || 0;
 
         return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { BookOpenText, ChatCircle, CaretRight } from '@phosphor-icons/react';
+import { BookOpenText, PaperPlaneTilt, CaretRight } from '@phosphor-icons/react';
 import { MinimalView } from './MinimalApp';
 
 interface MinimalLandingProps {
@@ -45,24 +45,24 @@ export function MinimalLanding({ onNavigate }: MinimalLandingProps) {
         </button>
 
         <button
-          onClick={() => onNavigate({ type: 'wizard' })}
-          className="w-full group flex items-center gap-4 p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] hover:bg-[var(--bg-tertiary)] transition-all"
+          onClick={() => onNavigate({ type: 'ticket' })}
+          className="w-full group flex items-center gap-4 p-5 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-warning)] hover:bg-[var(--bg-tertiary)] transition-all"
         >
           <div className="p-3 rounded-xl bg-[var(--accent-warning)]/10 group-hover:bg-[var(--accent-warning)]/20 transition-colors">
-            <ChatCircle size={24} weight="duotone" className="text-[var(--accent-warning)]" />
+            <PaperPlaneTilt size={24} weight="duotone" className="text-[var(--accent-warning)]" />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-primary)] transition-colors">
-              I need help with something
+            <p className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-warning)] transition-colors">
+              Submit a Ticket
             </p>
             <p className="text-sm text-[var(--text-muted)]">
-              Walk through troubleshooting steps
+              Get help from our support team
             </p>
           </div>
           <CaretRight
             size={20}
             weight="bold"
-            className="text-[var(--text-muted)] group-hover:text-[var(--accent-primary)] group-hover:translate-x-1 transition-all"
+            className="text-[var(--text-muted)] group-hover:text-[var(--accent-warning)] group-hover:translate-x-1 transition-all"
           />
         </button>
       </div>

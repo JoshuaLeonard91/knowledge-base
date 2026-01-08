@@ -1,9 +1,9 @@
-// Article types
+// Article types - categories are dynamic from Google Sheets
 export interface Article {
   slug: string;
   title: string;
-  category: 'getting-started' | 'faq' | 'troubleshooting';
-  topic: 'general';
+  category: string; // Dynamic - defined in Google Sheets
+  topic: string;
   keywords: string[];
   excerpt: string;
   content: string;
@@ -13,10 +13,11 @@ export interface Article {
 }
 
 export interface ArticleCategory {
-  id: 'getting-started' | 'faq' | 'troubleshooting';
+  id: string; // Dynamic - defined in Google Sheets
   name: string;
   description: string;
   icon: string;
+  color?: string; // Optional color override from sheet
 }
 
 // Decision tree types

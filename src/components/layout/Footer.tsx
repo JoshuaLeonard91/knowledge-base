@@ -36,11 +36,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/support/guide" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors">
-                  Get Help
-                </Link>
-              </li>
-              <li>
                 <Link href="/support/ticket" className="text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors">
                   Submit Ticket
                 </Link>
