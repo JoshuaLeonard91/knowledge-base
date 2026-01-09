@@ -41,6 +41,11 @@
 
 html { scroll-behavior: smooth; }
 
+/* Scroll offset for anchor links (accounts for fixed navbar) */
+[id] {
+  scroll-margin-top: 100px;
+}
+
 body {
   background: var(--bg-primary);
   color: var(--text-primary);

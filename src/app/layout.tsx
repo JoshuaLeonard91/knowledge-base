@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LayoutContent } from "@/components/layout/LayoutContent";
+import { HistoryProvider } from "@/components/support/HistoryProvider";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -24,7 +25,9 @@ export default function RootLayout({
       <body className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
         <ThemeProvider>
           <AuthProvider>
-            <LayoutContent>{children}</LayoutContent>
+            <HistoryProvider>
+              <LayoutContent>{children}</LayoutContent>
+            </HistoryProvider>
           </AuthProvider>
         </ThemeProvider>
         {process.env.NEXT_PUBLIC_JSM_WIDGET_KEY && (

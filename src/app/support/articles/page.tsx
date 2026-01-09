@@ -21,18 +21,18 @@ export default async function ArticlesPage() {
   return (
     <div className="min-h-screen">
       {/* Header */}
-      <section className="relative overflow-hidden border-b border-[var(--border-primary)]">
+      <section className="relative overflow-visible border-b border-[var(--border-primary)]">
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
         <div className="absolute inset-0 bg-grid opacity-20" />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 text-center">
           <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)] mb-4">
             Knowledge Base
           </h1>
-          <p className="text-[var(--text-secondary)] mb-6 max-w-2xl">
+          <p className="text-[var(--text-secondary)] mb-6 max-w-2xl mx-auto">
             Browse our comprehensive collection of help articles, guides, and tutorials.
           </p>
-          <div className="max-w-xl">
+          <div className="relative z-20 max-w-xl mx-auto">
             <SearchBar placeholder="Search articles..." />
           </div>
         </div>

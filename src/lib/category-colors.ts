@@ -173,11 +173,11 @@ export function getCategoryColors(categorySlug: string, customColor?: string): C
 
 /**
  * Get simplified color classes for badges/pills
- * Returns combined bg and text classes
+ * Returns combined bg, text, and border classes
  */
 export function getCategoryBadgeClasses(categorySlug: string, customColor?: string): string {
   const colors = getCategoryColors(categorySlug, customColor);
-  return `${colors.bg} ${colors.text}`;
+  return `${colors.bg} ${colors.text} ${colors.border}`;
 }
 
 // Default color set for edge cases

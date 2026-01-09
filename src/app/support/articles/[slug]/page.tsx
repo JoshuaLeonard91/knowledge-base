@@ -3,12 +3,24 @@ import Link from 'next/link';
 import { getArticleBySlug, getRelatedArticles, getCategories } from '@/lib/cms';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { ArticleFeedback } from './ArticleFeedback';
+import { ArticleViewTracker } from './ArticleViewTracker';
+import { HeaderLink } from './HeaderLink';
 import {
   CaretLeft, Clock, BookOpenText, Tag,
   Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
   Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
   RocketLaunch, Question, Wrench, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article as ArticleIcon
 } from '@phosphor-icons/react/dist/ssr';
+
+// Generate URL-safe slug from header text
+function generateHeaderId(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .replace(/-+/g, '-')
+    .trim();
+}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -131,30 +143,39 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         flushTable();
       }
 
-      // Headers
+      // Headers with anchor links
       if (line.startsWith('# ')) {
         flushList();
+        const headerText = line.replace('# ', '');
+        const headerId = generateHeaderId(headerText);
         elements.push(
-          <h1 key={index} className="text-3xl font-bold text-[var(--text-primary)] mb-6 mt-8 first:mt-0">
-            {line.replace('# ', '')}
+          <h1 key={index} id={headerId} className="group text-3xl font-bold text-[var(--text-primary)] mb-6 mt-8 first:mt-0 flex items-center">
+            <span>{headerText}</span>
+            <HeaderLink id={headerId} />
           </h1>
         );
         return;
       }
       if (line.startsWith('## ')) {
         flushList();
+        const headerText = line.replace('## ', '');
+        const headerId = generateHeaderId(headerText);
         elements.push(
-          <h2 key={index} className="text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-8">
-            {line.replace('## ', '')}
+          <h2 key={index} id={headerId} className="group text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-8 flex items-center">
+            <span>{headerText}</span>
+            <HeaderLink id={headerId} />
           </h2>
         );
         return;
       }
       if (line.startsWith('### ')) {
         flushList();
+        const headerText = line.replace('### ', '');
+        const headerId = generateHeaderId(headerText);
         elements.push(
-          <h3 key={index} className="text-xl font-semibold text-[var(--text-primary)] mb-3 mt-6">
-            {line.replace('### ', '')}
+          <h3 key={index} id={headerId} className="group text-xl font-semibold text-[var(--text-primary)] mb-3 mt-6 flex items-center">
+            <span>{headerText}</span>
+            <HeaderLink id={headerId} />
           </h3>
         );
         return;
@@ -210,6 +231,9 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   return (
     <div className="min-h-screen">
+      {/* Track article view */}
+      <ArticleViewTracker slug={article.slug} title={article.title} category={article.category} />
+
       {/* Header */}
       <section className="relative overflow-hidden border-b border-[var(--border-primary)]">
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />

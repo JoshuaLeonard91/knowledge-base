@@ -5,6 +5,7 @@ import { MagnifyingGlass, SpinnerGap, FileText, X } from '@phosphor-icons/react'
 import Link from 'next/link';
 import { SearchResult } from '@/types';
 import { getCategoryBadgeClasses } from '@/lib/category-colors';
+import { useOptionalHistoryContext } from './HistoryProvider';
 
 interface SearchBarProps {
   placeholder?: string;
@@ -23,6 +24,16 @@ export function SearchBar({
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const historyContext = useOptionalHistoryContext();
+
+  const handleResultClick = () => {
+    setIsOpen(false);
+    // Track the search query in history
+    if (historyContext && query.trim()) {
+      historyContext.addSearch(query.trim());
+    }
+    onResultClick?.();
+  };
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -106,10 +117,7 @@ export function SearchBar({
                 <Link
                   key={result.slug}
                   href={`/support/articles/${result.slug}`}
-                  onClick={() => {
-                    setIsOpen(false);
-                    onResultClick?.();
-                  }}
+                  onClick={handleResultClick}
                   className="flex items-start gap-3 p-3 rounded-lg hover:bg-[var(--bg-tertiary)] transition-colors group"
                 >
                   <FileText size={20} weight="duotone" className="text-[var(--text-muted)] mt-0.5 group-hover:text-[var(--accent-primary)] transition-colors" />
@@ -120,8 +128,8 @@ export function SearchBar({
                     <p className="text-sm text-[var(--text-muted)] truncate mt-0.5">
                       {result.excerpt}
                     </p>
-                    <span className={`inline-block mt-2 px-2 py-0.5 rounded text-xs font-medium ${getCategoryBadgeClasses(result.category)}`}>
-                      {result.category.replace('-', ' ')}
+                    <span className={`inline-block mt-2 px-2 py-0.5 rounded border text-xs font-medium capitalize ${getCategoryBadgeClasses(result.category)}`}>
+                      {result.category.replace(/-/g, ' ')}
                     </span>
                   </div>
                 </Link>

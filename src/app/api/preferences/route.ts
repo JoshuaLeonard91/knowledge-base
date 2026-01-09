@@ -15,10 +15,15 @@ import {
   createErrorResponse,
 } from '@/lib/security/sanitize';
 import { logApiAccess, getClientIp } from '@/lib/security/logger';
+import { SearchHistoryItem, ViewHistoryItem } from '@/types';
 
 // Cookie configuration
 const PREFS_COOKIE_NAME = 'user_prefs';
 const PREFS_MAX_AGE = 365 * 24 * 60 * 60; // 1 year in seconds
+
+// History limits
+const MAX_RECENT_SEARCHES = 5;
+const MAX_VIEWED_ARTICLES = 5;
 
 // Valid preference keys and values
 const VALID_PREFERENCES = {
@@ -28,7 +33,38 @@ const VALID_PREFERENCES = {
 type PreferenceKey = keyof typeof VALID_PREFERENCES;
 type Preferences = {
   [K in PreferenceKey]?: (typeof VALID_PREFERENCES)[K][number];
+} & {
+  recentSearches?: SearchHistoryItem[];
+  viewedArticles?: ViewHistoryItem[];
 };
+
+// Validate search history item
+function isValidSearchHistoryItem(item: unknown): item is SearchHistoryItem {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    typeof (item as SearchHistoryItem).query === 'string' &&
+    (item as SearchHistoryItem).query.length >= 2 &&
+    (item as SearchHistoryItem).query.length <= 100 &&
+    typeof (item as SearchHistoryItem).timestamp === 'number'
+  );
+}
+
+// Validate view history item
+function isValidViewHistoryItem(item: unknown): item is ViewHistoryItem {
+  return (
+    typeof item === 'object' &&
+    item !== null &&
+    typeof (item as ViewHistoryItem).slug === 'string' &&
+    (item as ViewHistoryItem).slug.length > 0 &&
+    (item as ViewHistoryItem).slug.length <= 200 &&
+    typeof (item as ViewHistoryItem).title === 'string' &&
+    (item as ViewHistoryItem).title.length > 0 &&
+    (item as ViewHistoryItem).title.length <= 300 &&
+    typeof (item as ViewHistoryItem).category === 'string' &&
+    typeof (item as ViewHistoryItem).timestamp === 'number'
+  );
+}
 
 /**
  * GET - Read preferences from cookie
@@ -43,12 +79,14 @@ export async function GET(request: NextRequest) {
 
     let preferences: Preferences = {
       uiMode: 'classic', // Default
+      recentSearches: [],
+      viewedArticles: [],
     };
 
     if (prefsCookie?.value) {
       try {
         const parsed = JSON.parse(prefsCookie.value);
-        // Validate each preference
+        // Validate enum preferences
         for (const [key, value] of Object.entries(parsed)) {
           if (
             key in VALID_PREFERENCES &&
@@ -56,6 +94,17 @@ export async function GET(request: NextRequest) {
           ) {
             preferences[key as PreferenceKey] = value as Preferences[PreferenceKey];
           }
+        }
+        // Validate and load history arrays
+        if (Array.isArray(parsed.recentSearches)) {
+          preferences.recentSearches = parsed.recentSearches
+            .filter(isValidSearchHistoryItem)
+            .slice(0, MAX_RECENT_SEARCHES);
+        }
+        if (Array.isArray(parsed.viewedArticles)) {
+          preferences.viewedArticles = parsed.viewedArticles
+            .filter(isValidViewHistoryItem)
+            .slice(0, MAX_VIEWED_ARTICLES);
         }
       } catch {
         // Invalid JSON, use defaults
@@ -111,6 +160,7 @@ export async function POST(request: NextRequest) {
     const validatedPrefs: Preferences = {};
 
     for (const [key, value] of Object.entries(preferences)) {
+      // Handle enum preferences
       if (
         key in VALID_PREFERENCES &&
         typeof value === 'string' &&
@@ -118,6 +168,18 @@ export async function POST(request: NextRequest) {
       ) {
         validatedPrefs[key as PreferenceKey] = value as Preferences[PreferenceKey];
       }
+    }
+
+    // Handle history arrays
+    if (Array.isArray(preferences.recentSearches)) {
+      validatedPrefs.recentSearches = preferences.recentSearches
+        .filter(isValidSearchHistoryItem)
+        .slice(0, MAX_RECENT_SEARCHES);
+    }
+    if (Array.isArray(preferences.viewedArticles)) {
+      validatedPrefs.viewedArticles = preferences.viewedArticles
+        .filter(isValidViewHistoryItem)
+        .slice(0, MAX_VIEWED_ARTICLES);
     }
 
     // Get existing preferences and merge

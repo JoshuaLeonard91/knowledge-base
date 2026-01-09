@@ -95,3 +95,21 @@ export interface SearchResult {
   category: string;
   relevance: number;
 }
+
+// History types for recent searches and viewed articles
+export interface SearchHistoryItem {
+  query: string;
+  timestamp: number;
+}
+
+export interface ViewHistoryItem {
+  slug: string;
+  title: string;
+  category: string;
+  timestamp: number;
+}
+
+export interface UserHistory {
+  recentSearches: SearchHistoryItem[];
+  viewedArticles: ViewHistoryItem[];
+}

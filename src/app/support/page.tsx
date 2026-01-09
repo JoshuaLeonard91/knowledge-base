@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { SearchBar } from '@/components/support/SearchBar';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { CategoryList } from '@/components/support/CategoryList';
+import { RecentSection } from '@/components/support/RecentSection';
 import { getArticles, getCategories } from '@/lib/cms';
 import { BookOpenText, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle } from '@phosphor-icons/react/dist/ssr';
 
@@ -28,7 +29,7 @@ export default async function SupportHub() {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative overflow-hidden">
+      <section className="relative overflow-visible">
         {/* Background effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
         <div className="absolute inset-0 bg-grid opacity-30" />
@@ -52,14 +53,14 @@ export default async function SupportHub() {
           </p>
 
           {/* Search Bar */}
-          <div className="max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.2s' }}>
+          <div className="relative z-20 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <SearchBar autoFocus placeholder="Search for help articles, guides, troubleshooting..." />
           </div>
         </div>
       </section>
 
       {/* Quick Actions */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
+      <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
         <div className="grid gap-4 md:grid-cols-3 stagger-children">
           <Link
             href="/support/articles"
@@ -113,6 +114,9 @@ export default async function SupportHub() {
           </a>
         </div>
       </section>
+
+      {/* Recent Searches & Viewed Articles */}
+      <RecentSection />
 
       {/* Categories */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
