@@ -5,7 +5,7 @@
  * Uses Google Sheets as an article index for metadata management.
  */
 
-export { googleDocs } from './client';
+export { googleSheets } from './client';
 export * from './types';
 export {
   getArticles,
@@ -13,5 +13,4 @@ export {
   getArticleBySlug,
   searchArticles,
   getArticlesByCategory,
-  clearArticleCache,
 } from './articles';

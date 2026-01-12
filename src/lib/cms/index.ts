@@ -4,34 +4,37 @@
  * Provides a single entry point for fetching articles from CMS providers.
  * Automatically selects the configured provider based on environment variables.
  *
- * Provider Priority:
- * 1. Google Docs (if GOOGLE_API_KEY is set)
- * 2. Local data (fallback)
+ * Supported Providers:
+ * - google: Google Sheets (CMS_SOURCE=google)
+ * - microcms: microCMS headless CMS (CMS_SOURCE=microcms)
+ * - local: Local fallback data (default)
  *
- * Override with CMS_PROVIDER env var: 'google-docs' | 'local'
+ * See: docs/CLIENT_GOOGLE_SHEETS_SETUP.md
+ * See: docs/CLIENT_MICROCMS_SETUP.md
  */
 
 import { Article, ArticleCategory } from '@/types';
 
 // Import providers
 import * as localData from '@/lib/data/articles';
-import * as googleDocs from '@/lib/google-docs/articles';
+import * as googleSheets from '@/lib/google-docs/articles';
+import * as microCMS from '@/lib/microcms';
 
-type CMSProvider = 'google-docs' | 'local';
+type CMSProvider = 'google' | 'microcms' | 'local';
 
 /**
  * Detect which CMS provider to use
  */
 function detectProvider(): CMSProvider {
-  // Allow explicit override
-  const override = process.env.CMS_PROVIDER as CMSProvider | undefined;
-  if (override && ['google-docs', 'local'].includes(override)) {
-    return override;
+  const cmsSource = process.env.CMS_SOURCE as CMSProvider | undefined;
+
+  // Check configured providers
+  if (cmsSource === 'google' && googleSheets.isAvailable()) {
+    return 'google';
   }
 
-  // Auto-detect based on configured env vars
-  if (process.env.GOOGLE_API_KEY) {
-    return 'google-docs';
+  if (cmsSource === 'microcms' && microCMS.isAvailable()) {
+    return 'microcms';
   }
 
   return 'local';
@@ -51,8 +54,10 @@ export async function getArticles(): Promise<Article[]> {
   const provider = detectProvider();
 
   switch (provider) {
-    case 'google-docs':
-      return googleDocs.getArticles();
+    case 'google':
+      return googleSheets.getArticles();
+    case 'microcms':
+      return microCMS.getArticles();
     case 'local':
     default:
       return localData.articles;
@@ -66,8 +71,10 @@ export async function getCategories(): Promise<ArticleCategory[]> {
   const provider = detectProvider();
 
   switch (provider) {
-    case 'google-docs':
-      return googleDocs.getCategories();
+    case 'google':
+      return googleSheets.getCategories();
+    case 'microcms':
+      return microCMS.getCategories();
     case 'local':
     default:
       return localData.categories;
@@ -81,8 +88,10 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   const provider = detectProvider();
 
   switch (provider) {
-    case 'google-docs':
-      return googleDocs.getArticleBySlug(slug);
+    case 'google':
+      return googleSheets.getArticleBySlug(slug);
+    case 'microcms':
+      return microCMS.getArticleBySlug(slug);
     case 'local':
     default:
       return localData.getArticleBySlug(slug) || null;
@@ -96,8 +105,10 @@ export async function searchArticles(query: string): Promise<Article[]> {
   const provider = detectProvider();
 
   switch (provider) {
-    case 'google-docs':
-      return googleDocs.searchArticles(query);
+    case 'google':
+      return googleSheets.searchArticles(query);
+    case 'microcms':
+      return microCMS.searchArticles(query);
     case 'local':
     default:
       return localData.searchArticles(query);
@@ -111,8 +122,10 @@ export async function getArticlesByCategory(categorySlug: string): Promise<Artic
   const provider = detectProvider();
 
   switch (provider) {
-    case 'google-docs':
-      return googleDocs.getArticlesByCategory(categorySlug);
+    case 'google':
+      return googleSheets.getArticlesByCategory(categorySlug);
+    case 'microcms':
+      return microCMS.getArticlesByCategory(categorySlug);
     case 'local':
     default:
       return localData.articles.filter(a => a.category === categorySlug);

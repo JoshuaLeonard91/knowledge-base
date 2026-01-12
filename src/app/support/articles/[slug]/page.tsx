@@ -58,14 +58,31 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     let inTable = false;
     let tableRows: string[][] = [];
 
+    // Helper to process inline formatting
+    // Preserves safe HTML spans with color styles from CMS
+    const formatInline = (text: string) => {
+      return text
+        .replace(/`([^`]+)`/g, '<code class="bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
+        .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-[var(--text-primary)]">$1</strong>')
+        .replace(/__([^_]+)__/g, '<strong class="font-semibold text-[var(--text-primary)]">$1</strong>')
+        .replace(/\*([^*]+)\*/g, '<em class="italic">$1</em>')
+        .replace(/(?<![a-zA-Z])_([^_]+)_(?![a-zA-Z])/g, '<em class="italic">$1</em>')
+        // Images - must be before links since similar syntax
+        .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg my-4" />')
+        .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-[var(--accent-primary)] hover:underline">$1</a>');
+      // Note: <span style="color: ..."> tags from CMS are preserved and rendered via dangerouslySetInnerHTML
+    };
+
     const flushList = () => {
       if (listItems.length > 0) {
         elements.push(
           <ul key={`list-${elements.length}`} className="list-disc list-inside space-y-2 mb-4">
             {listItems.map((item, i) => (
-              <li key={i} className="text-[var(--text-secondary)]">
-                {item.replace(/^[-*]\s*/, '')}
-              </li>
+              <li
+                key={i}
+                className="text-[var(--text-secondary)]"
+                dangerouslySetInnerHTML={{ __html: formatInline(item.replace(/^[-*]\s*/, '')) }}
+              />
             ))}
           </ul>
         );
@@ -83,7 +100,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               <thead>
                 <tr>
                   {headers.map((h, i) => (
-                    <th key={i}>{h.trim()}</th>
+                    <th key={i} dangerouslySetInnerHTML={{ __html: formatInline(h.trim()) }} />
                   ))}
                 </tr>
               </thead>
@@ -91,7 +108,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 {rows.map((row, i) => (
                   <tr key={i}>
                     {row.map((cell, j) => (
-                      <td key={j}>{cell.trim()}</td>
+                      <td key={j} dangerouslySetInnerHTML={{ __html: formatInline(cell.trim()) }} />
                     ))}
                   </tr>
                 ))}
@@ -143,14 +160,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         flushTable();
       }
 
-      // Headers with anchor links
+      // Headers with anchor links (process inline formatting)
       if (line.startsWith('# ')) {
         flushList();
         const headerText = line.replace('# ', '');
         const headerId = generateHeaderId(headerText);
         elements.push(
           <h1 key={index} id={headerId} className="group text-3xl font-bold text-[var(--text-primary)] mb-6 mt-8 first:mt-0 flex items-center">
-            <span>{headerText}</span>
+            <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h1>
         );
@@ -162,7 +179,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerId = generateHeaderId(headerText);
         elements.push(
           <h2 key={index} id={headerId} className="group text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-8 flex items-center">
-            <span>{headerText}</span>
+            <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h2>
         );
@@ -174,7 +191,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerId = generateHeaderId(headerText);
         elements.push(
           <h3 key={index} id={headerId} className="group text-xl font-semibold text-[var(--text-primary)] mb-3 mt-6 flex items-center">
-            <span>{headerText}</span>
+            <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h3>
         );
@@ -207,18 +224,33 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         return;
       }
 
-      // Regular paragraphs
-      // Handle inline code
-      const processedLine = line.replace(
-        /`([^`]+)`/g,
-        '<code class="bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-sm font-mono">$1</code>'
-      );
+      // Standalone images
+      const imageMatch = line.match(/^!\[([^\]]*)\]\(([^)]+)\)$/);
+      if (imageMatch) {
+        const [, alt, src] = imageMatch;
+        elements.push(
+          <figure key={index} className="my-6">
+            <img
+              src={src}
+              alt={alt}
+              className="max-w-full h-auto rounded-lg shadow-md"
+            />
+            {alt && (
+              <figcaption className="text-center text-sm text-[var(--text-muted)] mt-2">
+                {alt}
+              </figcaption>
+            )}
+          </figure>
+        );
+        return;
+      }
 
+      // Regular paragraphs with inline formatting
       elements.push(
         <p
           key={index}
           className="text-[var(--text-secondary)] mb-4 leading-relaxed"
-          dangerouslySetInnerHTML={{ __html: processedLine }}
+          dangerouslySetInnerHTML={{ __html: formatInline(line) }}
         />
       );
     });
