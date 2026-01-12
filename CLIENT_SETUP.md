@@ -7,10 +7,13 @@ This guide walks through setting up a new client deployment on Digital Ocean App
 Before starting, collect the following from the client:
 
 ### 1. Domain Information
+
 - [ ] Domain name (e.g., `support.clientcompany.com`)
 
 ### 2. Discord OAuth Credentials
+
 Client creates a Discord application:
+
 1. Go to https://discord.com/developers/applications
 2. Create new application
 3. Go to OAuth2 > General
@@ -18,14 +21,18 @@ Client creates a Discord application:
 5. Add redirect URL: `https://support.clientdomain.com/api/auth/callback/discord`
 
 Collect from client:
+
 - [ ] Discord Client ID
 - [ ] Discord Client Secret
 
 ### 3. Jira Service Management
+
 Client provides access to their Jira workspace:
+
 1. Client creates API token at: Profile > Account Settings > Security > API Tokens
 
 Collect from client:
+
 - [ ] Atlassian Domain (e.g., `clientcompany.atlassian.net`)
 - [ ] Atlassian Email (admin email)
 - [ ] Atlassian API Token
@@ -34,7 +41,9 @@ Collect from client:
 - [ ] Request Type ID (from Service Desk settings)
 
 ### 4. Google Docs CMS
+
 Client sets up their documentation:
+
 1. Create Google Cloud project
 2. Enable Google Docs API and Google Sheets API
 3. Create API key (restrict to Docs and Sheets APIs)
@@ -42,6 +51,7 @@ Client sets up their documentation:
 5. Make all docs/sheets public ("Anyone with the link")
 
 Collect from client:
+
 - [ ] Google API Key
 - [ ] Google Sheets Index ID
 
@@ -85,23 +95,23 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 
 Add these environment variables (use the **Encrypt** option for secrets):
 
-| Variable | Type | Value |
-|----------|------|-------|
-| `NODE_ENV` | General | `production` |
-| `SESSION_SECRET` | **Encrypted** | (generated in Step 1) |
-| `ENCRYPTION_KEY` | **Encrypted** | (generated in Step 1) |
-| `AUTH_SECRET` | **Encrypted** | (generated in Step 1) |
-| `AUTH_URL` | General | `https://support.clientdomain.com` |
-| `DISCORD_CLIENT_ID` | **Encrypted** | (from client) |
-| `DISCORD_CLIENT_SECRET` | **Encrypted** | (from client) |
-| `GOOGLE_API_KEY` | **Encrypted** | (from client) |
-| `GOOGLE_DOCS_INDEX_SHEET_ID` | General | (from client) |
-| `ATLASSIAN_DOMAIN` | General | (from client) |
-| `ATLASSIAN_EMAIL` | General | (from client) |
-| `ATLASSIAN_API_TOKEN` | **Encrypted** | (from client) |
-| `JIRA_SERVICE_DESK_ID` | General | (from client) |
-| `JIRA_REQUEST_TYPE_ID` | General | (from client) |
-| `JIRA_PROJECT_KEY` | General | (from client) |
+| Variable                     | Type          | Value                              |
+| ---------------------------- | ------------- | ---------------------------------- |
+| `NODE_ENV`                   | General       | `production`                       |
+| `SESSION_SECRET`             | **Encrypted** | (generated in Step 1)              |
+| `ENCRYPTION_KEY`             | **Encrypted** | (generated in Step 1)              |
+| `AUTH_SECRET`                | **Encrypted** | (generated in Step 1)              |
+| `AUTH_URL`                   | General       | `https://support.clientdomain.com` |
+| `DISCORD_CLIENT_ID`          | **Encrypted** | (from client)                      |
+| `DISCORD_CLIENT_SECRET`      | **Encrypted** | (from client)                      |
+| `GOOGLE_API_KEY`             | **Encrypted** | (from client)                      |
+| `GOOGLE_DOCS_INDEX_SHEET_ID` | General       | (from client)                      |
+| `ATLASSIAN_DOMAIN`           | General       | (from client)                      |
+| `ATLASSIAN_EMAIL`            | General       | (from client)                      |
+| `ATLASSIAN_API_TOKEN`        | **Encrypted** | (from client)                      |
+| `JIRA_SERVICE_DESK_ID`       | General       | (from client)                      |
+| `JIRA_REQUEST_TYPE_ID`       | General       | (from client)                      |
+| `JIRA_PROJECT_KEY`           | General       | (from client)                      |
 
 ### Step 5: Configure Domain
 
@@ -138,15 +148,18 @@ SSL certificate will be automatically provisioned once DNS propagates.
 ## Ongoing Maintenance
 
 ### Code Updates
+
 - Push to `main` branch on GitHub
 - All client apps auto-deploy with new code
 - Environment variables persist automatically
 
 ### Client Needs Changes
+
 - Update env vars in DO Dashboard > App > Settings > App-Level Environment Variables
 - Changes take effect on next deployment (or force redeploy)
 
 ### Monitoring
+
 - View logs: DO Dashboard > App > Runtime Logs
 - View metrics: DO Dashboard > App > Insights
 - Alerts configured for deployment failures
@@ -156,20 +169,24 @@ SSL certificate will be automatically provisioned once DNS propagates.
 ## Troubleshooting
 
 ### App won't start
+
 - Check Runtime Logs for errors
 - Verify all required env vars are set
-- Ensure `AUTH_URL` matches the actual domain
+- Ensure `AUTH_URL` matches the actual domain.
 
 ### Discord login fails
+
 - Verify redirect URL in Discord Developer Portal matches domain
 - Check `DISCORD_CLIENT_ID` and `DISCORD_CLIENT_SECRET`
 
 ### Articles not loading
+
 - Verify Google Sheets is public ("Anyone with the link")
 - Check `GOOGLE_API_KEY` has Docs and Sheets API enabled
 - Verify Sheet ID is correct
 
 ### Tickets not creating
+
 - Test Jira API token is valid
 - Verify Service Desk ID and Request Type ID
 - Check Atlassian email has permission to create tickets
