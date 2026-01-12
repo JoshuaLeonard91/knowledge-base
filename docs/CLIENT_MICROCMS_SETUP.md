@@ -81,7 +81,9 @@ You need two API endpoints: **articles** and **categories**.
 
 ## Step 5: Add Some Content
 
-> **Schema Template:** See `docs/templates/microcms-schema.csv` for the complete field definitions.
+> **Schema Templates:** Upload these to auto-create your API fields:
+> - `docs/templates/categories-schema.csv`
+> - `docs/templates/articles-schema.csv`
 
 ### Add Categories
 
