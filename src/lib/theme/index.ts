@@ -16,6 +16,14 @@ export const DEFAULT_THEME: SiteTheme = {
 };
 
 /**
+ * Module-level cache for theme (persists across build)
+ * Prevents rate limiting during static generation
+ */
+let cachedTheme: SiteTheme | null = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 10 * 60 * 1000; // 10 minutes
+
+/**
  * Darken a hex color by a percentage
  * @param hex - Hex color string (e.g., "#5865F2")
  * @param percent - Amount to darken (0-100)
@@ -58,10 +66,21 @@ function hexToRgba(hex: string, alpha: number): string {
 }
 
 /**
- * Fetch theme from CMS with React cache (request deduplication)
- * Each tenant's Hygraph project has their own SiteTheme entry
+ * Get theme - currently returns default theme
+ * TODO: Enable CMS theme fetching when SiteTheme model is created in Hygraph
  */
 export const getTheme = cache(async (): Promise<SiteTheme> => {
+  // Disabled for now - always use default theme
+  return DEFAULT_THEME;
+
+  /*
+  // Uncomment when SiteTheme model is set up in Hygraph:
+
+  // Return cached theme if still valid
+  if (cachedTheme && Date.now() - cacheTimestamp < CACHE_DURATION) {
+    return cachedTheme;
+  }
+
   // Skip if Hygraph not configured
   if (!hygraph.isAvailable()) {
     return DEFAULT_THEME;
@@ -71,11 +90,12 @@ export const getTheme = cache(async (): Promise<SiteTheme> => {
     const cmsTheme = await hygraph.getSiteTheme();
 
     if (!cmsTheme) {
+      cachedTheme = DEFAULT_THEME;
+      cacheTimestamp = Date.now();
       return DEFAULT_THEME;
     }
 
-    // Auto-derive all theme colors from primary accent
-    return {
+    const theme: SiteTheme = {
       name: cmsTheme.name || 'Custom',
       accentPrimary: cmsTheme.accentPrimary,
       accentHover: darkenColor(cmsTheme.accentPrimary, 15),
@@ -83,10 +103,17 @@ export const getTheme = cache(async (): Promise<SiteTheme> => {
       borderPrimary: hexToRgba(cmsTheme.accentPrimary, 0.06),
       borderHover: hexToRgba(cmsTheme.accentPrimary, 0.1),
     };
+
+    cachedTheme = theme;
+    cacheTimestamp = Date.now();
+    return theme;
   } catch (error) {
     console.error('[Theme] Failed to fetch theme:', error);
+    cachedTheme = DEFAULT_THEME;
+    cacheTimestamp = Date.now();
     return DEFAULT_THEME;
   }
+  */
 });
 
 /**

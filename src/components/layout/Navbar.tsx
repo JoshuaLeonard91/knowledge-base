@@ -9,6 +9,7 @@ import {
   House,
   BookOpenText,
   PaperPlaneTilt,
+  Briefcase,
   List,
   X,
 } from '@phosphor-icons/react';
@@ -17,6 +18,7 @@ import { useState } from 'react';
 const navLinks = [
   { href: '/support', label: 'Support Hub', icon: House },
   { href: '/support/articles', label: 'Articles', icon: BookOpenText },
+  { href: '/support/services', label: 'Services', icon: Briefcase },
   { href: '/support/ticket', label: 'Submit Ticket', icon: PaperPlaneTilt },
 ];
 
