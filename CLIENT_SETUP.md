@@ -40,20 +40,20 @@ Collect from client:
 - [ ] Service Desk ID (from URL: `/servicedesk/project/[ID]`)
 - [ ] Request Type ID (from Service Desk settings)
 
-### 4. Google Docs CMS
+### 4. Hygraph CMS
 
-Client sets up their documentation:
+Client sets up their documentation in Hygraph:
 
-1. Create Google Cloud project
-2. Enable Google Docs API and Google Sheets API
-3. Create API key (restrict to Docs and Sheets APIs)
-4. Create index spreadsheet (see GOOGLE_DOCS_SETUP.md)
-5. Make all docs/sheets public ("Anyone with the link")
+1. Create account at hygraph.com
+2. Create a new project
+3. Create Article and Category models (see docs/CLIENT_HYGRAPH_SETUP.md)
+4. Get Content API endpoint from Settings > API Access > Endpoints
+5. Create a Permanent Auth Token with read access
 
 Collect from client:
 
-- [ ] Google API Key
-- [ ] Google Sheets Index ID
+- [ ] Hygraph API Endpoint
+- [ ] Hygraph Auth Token
 
 ---
 
@@ -104,8 +104,9 @@ Add these environment variables (use the **Encrypt** option for secrets):
 | `AUTH_URL`                   | General       | `https://support.clientdomain.com` |
 | `DISCORD_CLIENT_ID`          | **Encrypted** | (from client)                      |
 | `DISCORD_CLIENT_SECRET`      | **Encrypted** | (from client)                      |
-| `GOOGLE_API_KEY`             | **Encrypted** | (from client)                      |
-| `GOOGLE_DOCS_INDEX_SHEET_ID` | General       | (from client)                      |
+| `CMS_SOURCE`                 | General       | `hygraph`                          |
+| `HYGRAPH_ENDPOINT`           | General       | (from client)                      |
+| `HYGRAPH_TOKEN`              | **Encrypted** | (from client)                      |
 | `ATLASSIAN_DOMAIN`           | General       | (from client)                      |
 | `ATLASSIAN_EMAIL`            | General       | (from client)                      |
 | `ATLASSIAN_API_TOKEN`        | **Encrypted** | (from client)                      |
@@ -141,7 +142,7 @@ SSL certificate will be automatically provisioned once DNS propagates.
 2. Visit `https://support.clientdomain.com/support`
 3. Test Discord login
 4. Test ticket submission
-5. Verify articles load from Google Docs
+5. Verify articles load from Hygraph CMS
 
 ---
 
@@ -181,9 +182,10 @@ SSL certificate will be automatically provisioned once DNS propagates.
 
 ### Articles not loading
 
-- Verify Google Sheets is public ("Anyone with the link")
-- Check `GOOGLE_API_KEY` has Docs and Sheets API enabled
-- Verify Sheet ID is correct
+- Verify Hygraph token has Read permissions for Article and Category models
+- Check `HYGRAPH_ENDPOINT` is correct (should start with https://api-)
+- Verify `HYGRAPH_TOKEN` is a valid Permanent Auth Token
+- Ensure content is Published (not Draft) in Hygraph
 
 ### Tickets not creating
 
@@ -204,7 +206,7 @@ DO App ID: _______________
 [ ] Domain configured
 [ ] Discord OAuth working
 [ ] Jira integration working
-[ ] Google Docs loading
+[ ] Hygraph articles loading
 [ ] SSL certificate active
 [ ] Client verified working
 ```

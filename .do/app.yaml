@@ -84,17 +84,22 @@ services:
         value: "${AUTH_URL}"
 
       # ===========================================
-      # Google Docs CMS (Client provides these)
+      # Hygraph CMS (Client provides these)
       # ===========================================
-      - key: GOOGLE_API_KEY
-        scope: RUN_TIME
-        type: SECRET
-        value: "${GOOGLE_API_KEY}"
-
-      - key: GOOGLE_DOCS_INDEX_SHEET_ID
+      - key: CMS_SOURCE
         scope: RUN_TIME
         type: GENERAL
-        value: "${GOOGLE_DOCS_INDEX_SHEET_ID}"
+        value: "hygraph"
+
+      - key: HYGRAPH_ENDPOINT
+        scope: RUN_TIME
+        type: GENERAL
+        value: "${HYGRAPH_ENDPOINT}"
+
+      - key: HYGRAPH_TOKEN
+        scope: RUN_TIME
+        type: SECRET
+        value: "${HYGRAPH_TOKEN}"
 
       # ===========================================
       # Jira Service Management (Client provides these)

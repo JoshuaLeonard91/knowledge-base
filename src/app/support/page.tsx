@@ -3,13 +3,14 @@ import { SearchBar } from '@/components/support/SearchBar';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { CategoryList } from '@/components/support/CategoryList';
 import { RecentSection } from '@/components/support/RecentSection';
-import { getArticles, getCategories } from '@/lib/cms';
-import { BookOpenText, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle } from '@phosphor-icons/react/dist/ssr';
+import { getArticles, getCategories, hasServices } from '@/lib/cms';
+import { BookOpenText, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle, Briefcase } from '@phosphor-icons/react/dist/ssr';
 
 export default async function SupportHub() {
-  const [articles, categories] = await Promise.all([
+  const [articles, categories, servicesEnabled] = await Promise.all([
     getArticles(),
-    getCategories()
+    getCategories(),
+    hasServices()
   ]);
 
   // Get featured articles (up to 3 from different categories)
@@ -61,7 +62,7 @@ export default async function SupportHub() {
 
       {/* Quick Actions */}
       <section className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8">
-        <div className="grid gap-4 md:grid-cols-3 stagger-children">
+        <div className={`grid gap-4 md:grid-cols-2 ${servicesEnabled ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} stagger-children`}>
           <Link
             href="/support/articles"
             className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-glow)] transition-all"
@@ -78,6 +79,25 @@ export default async function SupportHub() {
               </div>
             </div>
           </Link>
+
+          {servicesEnabled && (
+            <Link
+              href="/support/services"
+              className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-success)] hover:shadow-[0_0_20px_rgba(35,134,54,0.3)] transition-all"
+            >
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-[var(--accent-success)]/10">
+                  <Briefcase size={24} weight="duotone" className="text-[var(--accent-success)]" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-success)] transition-colors">
+                    Our Services
+                  </h3>
+                  <p className="text-sm text-[var(--text-muted)]">Plans & SLAs</p>
+                </div>
+              </div>
+            </Link>
+          )}
 
           <Link
             href="/support/ticket"

@@ -1,8 +1,8 @@
-// Article types - categories are dynamic from Google Sheets
+// Article types - categories are dynamic from CMS
 export interface Article {
   slug: string;
   title: string;
-  category: string; // Dynamic - defined in Google Sheets
+  category: string; // Dynamic - defined in CMS
   topic: string;
   keywords: string[];
   excerpt: string;
@@ -13,11 +13,11 @@ export interface Article {
 }
 
 export interface ArticleCategory {
-  id: string; // Dynamic - defined in Google Sheets
+  id: string; // Dynamic - defined in CMS
   name: string;
   description: string;
   icon: string;
-  color?: string; // Optional color override from sheet
+  color?: string; // Optional color override from CMS
 }
 
 // Decision tree types

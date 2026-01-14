@@ -1,40 +1,35 @@
 /**
  * Unified CMS Module
  *
- * Provides a single entry point for fetching articles from CMS providers.
- * Automatically selects the configured provider based on environment variables.
+ * Provides a single entry point for fetching articles and services from CMS.
+ * Uses Hygraph CMS when configured, falls back to local data.
  *
  * Supported Providers:
- * - google: Google Sheets (CMS_SOURCE=google)
- * - microcms: microCMS headless CMS (CMS_SOURCE=microcms)
+ * - hygraph: Hygraph GraphQL CMS (CMS_SOURCE=hygraph)
  * - local: Local fallback data (default)
  *
- * See: docs/CLIENT_GOOGLE_SHEETS_SETUP.md
- * See: docs/CLIENT_MICROCMS_SETUP.md
+ * See: docs/CLIENT_HYGRAPH_SETUP.md
  */
 
 import { Article, ArticleCategory } from '@/types';
 
 // Import providers
 import * as localData from '@/lib/data/articles';
-import * as googleSheets from '@/lib/google-docs/articles';
-import * as microCMS from '@/lib/microcms';
+import * as hygraph from '@/lib/hygraph';
 
-type CMSProvider = 'google' | 'microcms' | 'local';
+// Re-export service types from Hygraph
+export type { Service, ServiceTier, SLAHighlight } from '@/lib/hygraph';
+
+type CMSProvider = 'hygraph' | 'local';
 
 /**
  * Detect which CMS provider to use
  */
 function detectProvider(): CMSProvider {
-  const cmsSource = process.env.CMS_SOURCE as CMSProvider | undefined;
+  const cmsSource = process.env.CMS_SOURCE;
 
-  // Check configured providers
-  if (cmsSource === 'google' && googleSheets.isAvailable()) {
-    return 'google';
-  }
-
-  if (cmsSource === 'microcms' && microCMS.isAvailable()) {
-    return 'microcms';
+  if (cmsSource === 'hygraph' && hygraph.isAvailable()) {
+    return 'hygraph';
   }
 
   return 'local';
@@ -53,15 +48,11 @@ export function getCMSProvider(): CMSProvider {
 export async function getArticles(): Promise<Article[]> {
   const provider = detectProvider();
 
-  switch (provider) {
-    case 'google':
-      return googleSheets.getArticles();
-    case 'microcms':
-      return microCMS.getArticles();
-    case 'local':
-    default:
-      return localData.articles;
+  if (provider === 'hygraph') {
+    return hygraph.getArticles();
   }
+
+  return localData.articles;
 }
 
 /**
@@ -70,15 +61,11 @@ export async function getArticles(): Promise<Article[]> {
 export async function getCategories(): Promise<ArticleCategory[]> {
   const provider = detectProvider();
 
-  switch (provider) {
-    case 'google':
-      return googleSheets.getCategories();
-    case 'microcms':
-      return microCMS.getCategories();
-    case 'local':
-    default:
-      return localData.categories;
+  if (provider === 'hygraph') {
+    return hygraph.getCategories();
   }
+
+  return localData.categories;
 }
 
 /**
@@ -87,15 +74,11 @@ export async function getCategories(): Promise<ArticleCategory[]> {
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
   const provider = detectProvider();
 
-  switch (provider) {
-    case 'google':
-      return googleSheets.getArticleBySlug(slug);
-    case 'microcms':
-      return microCMS.getArticleBySlug(slug);
-    case 'local':
-    default:
-      return localData.getArticleBySlug(slug) || null;
+  if (provider === 'hygraph') {
+    return hygraph.getArticleBySlug(slug);
   }
+
+  return localData.getArticleBySlug(slug) || null;
 }
 
 /**
@@ -104,15 +87,11 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
 export async function searchArticles(query: string): Promise<Article[]> {
   const provider = detectProvider();
 
-  switch (provider) {
-    case 'google':
-      return googleSheets.searchArticles(query);
-    case 'microcms':
-      return microCMS.searchArticles(query);
-    case 'local':
-    default:
-      return localData.searchArticles(query);
+  if (provider === 'hygraph') {
+    return hygraph.searchArticles(query);
   }
+
+  return localData.searchArticles(query);
 }
 
 /**
@@ -121,15 +100,11 @@ export async function searchArticles(query: string): Promise<Article[]> {
 export async function getArticlesByCategory(categorySlug: string): Promise<Article[]> {
   const provider = detectProvider();
 
-  switch (provider) {
-    case 'google':
-      return googleSheets.getArticlesByCategory(categorySlug);
-    case 'microcms':
-      return microCMS.getArticlesByCategory(categorySlug);
-    case 'local':
-    default:
-      return localData.articles.filter(a => a.category === categorySlug);
+  if (provider === 'hygraph') {
+    return hygraph.getArticlesByCategory(categorySlug);
   }
+
+  return localData.articles.filter(a => a.category === categorySlug);
 }
 
 /**
@@ -157,4 +132,75 @@ export async function getRelatedArticles(
   );
 
   return sameCategory.slice(0, limit);
+}
+
+// ==========================================
+// SERVICES (Hygraph only)
+// ==========================================
+
+import type { Service, ServiceTier, SLAHighlight } from '@/lib/hygraph';
+
+/**
+ * Check if services are enabled (any services exist in CMS)
+ */
+export async function hasServices(): Promise<boolean> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.hasServices();
+  }
+
+  return false;
+}
+
+/**
+ * Get all services from the CMS
+ */
+export async function getServices(): Promise<Service[]> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.getServices();
+  }
+
+  return [];
+}
+
+/**
+ * Get a service by slug
+ */
+export async function getServiceBySlug(slug: string): Promise<Service | null> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.getServiceBySlug(slug);
+  }
+
+  return null;
+}
+
+/**
+ * Get all service tiers from the CMS
+ */
+export async function getServiceTiers(): Promise<ServiceTier[]> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.getServiceTiers();
+  }
+
+  return [];
+}
+
+/**
+ * Get SLA highlights from the CMS
+ */
+export async function getSLAHighlights(): Promise<SLAHighlight[]> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.getSLAHighlights();
+  }
+
+  return [];
 }

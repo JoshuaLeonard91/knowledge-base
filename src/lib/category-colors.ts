@@ -4,7 +4,7 @@
  * Provides color mappings for categories with:
  * - Predefined colors for common categories
  * - Dynamic fallback colors using a consistent color palette
- * - Support for custom colors from Google Sheets
+ * - Support for custom colors from CMS
  */
 
 export interface CategoryColorSet {
@@ -147,7 +147,7 @@ function hashString(str: string): number {
  * Get color set for a category
  *
  * @param categorySlug - The category slug (e.g., "getting-started")
- * @param customColor - Optional custom color override from Google Sheets
+ * @param customColor - Optional custom color override from CMS
  * @returns CategoryColorSet with bg, text, border, and gradient classes
  */
 export function getCategoryColors(categorySlug: string, customColor?: string): CategoryColorSet {

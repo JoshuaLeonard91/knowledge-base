@@ -1,0 +1,13 @@
+Model,Field ID,Display Name,Field Type,Required,Notes
+Category,name,Name,Single line text,Yes,Category display name
+Category,slug,Slug,Slug,Yes,URL-friendly identifier
+Category,description,Description,Single line text,No,Brief description
+Category,icon,Icon,Single line text,No,Icon name (e.g. Rocket)
+Article,title,Title,Single line text,Yes,Article title
+Article,slug,Slug,Slug,Yes,URL-friendly identifier
+Article,excerpt,Excerpt,Single line text,No,Short summary
+Article,content,Content,Rich text,Yes,Article body (supports formatting)
+Article,category,Category,Reference,No,Link to Category model
+Article,keywords,Keywords,Single line text (List),No,Search tags
+Article,icon,Icon,Single line text,No,Icon name (e.g. Shield)
+Article,readTime,Read Time,Integer,No,Minutes to read

@@ -24,7 +24,7 @@ Documentation of all implemented user stories for the Knowledge Base section tar
 
 ### Implementation
 
-Users can browse articles organized by dynamic categories (loaded from Google Sheets or local fallback). The support hub displays category cards with article counts, and the articles page allows filtering by category.
+Users can browse articles organized by dynamic categories (loaded from Hygraph CMS or local fallback). The support hub displays category cards with article counts, and the articles page allows filtering by category.
 
 ### Files
 
@@ -37,7 +37,7 @@ Users can browse articles organized by dynamic categories (loaded from Google Sh
 | `src/components/support/ArticleCard.tsx`       | Individual article card component                                               |
 | `src/lib/cms/index.ts`                         | CMS abstraction - `getArticles()`, `getCategories()`, `getArticlesByCategory()` |
 | `src/lib/data/articles.ts`                     | Local fallback article data                                                     |
-| `src/lib/google-docs/articles.ts`              | Google Docs article fetching                                                    |
+| `src/lib/hygraph/client.ts`                    | Hygraph CMS article fetching                                                    |
 | `src/lib/category-colors.ts`                   | Dynamic category badge color styling                                            |
 | `src/types/index.ts`                           | `Article`, `ArticleCategory` type definitions                                   |
 
@@ -65,7 +65,7 @@ Full-text search with relevance scoring based on title matches, keyword matches,
 | -------------------------------------- | -------------------------------------------------- |
 | `src/components/support/SearchBar.tsx` | Search input with live dropdown results            |
 | `src/lib/cms/index.ts`                 | `searchArticles()` function with relevance scoring |
-| `src/lib/google-docs/articles.ts`      | Google Docs search implementation                  |
+| `src/lib/hygraph/client.ts`            | Hygraph CMS search implementation                  |
 | `src/lib/data/articles.ts`             | Local fallback search implementation               |
 | `src/lib/validation.ts`                | `validateSearchQuery()` - input sanitization       |
 | `src/app/api/articles/search/route.ts` | Search API endpoint                                |
@@ -282,7 +282,7 @@ interface UserHistory {
 | File                              | Stories    |
 | --------------------------------- | ---------- |
 | `src/lib/cms/index.ts`            | #1, #2, #3 |
-| `src/lib/google-docs/articles.ts` | #1, #2     |
+| `src/lib/hygraph/client.ts`       | #1, #2     |
 | `src/lib/data/articles.ts`        | #1, #2     |
 | `src/lib/hooks/useHistory.ts`     | #5         |
 | `src/lib/validation.ts`           | #2         |

@@ -1,17 +1,17 @@
 /**
  * Fallback Article Data
  *
- * This file provides empty fallback data when Google Sheets CMS is not configured.
- * To add articles, configure your Google Sheets integration.
- * See: docs/CLIENT_GOOGLE_SHEETS_SETUP.md
+ * This file provides empty fallback data when Hygraph CMS is not configured.
+ * To add articles, configure your Hygraph integration.
+ * See: docs/CLIENT_HYGRAPH_SETUP.md
  */
 
 import { Article, ArticleCategory } from '@/types';
 
-// Empty categories - configure Google Sheets to add your own
+// Empty categories - configure Hygraph CMS to add your own
 export const categories: ArticleCategory[] = [];
 
-// Empty articles - configure Google Sheets to add your own
+// Empty articles - configure Hygraph CMS to add your own
 export const articles: Article[] = [];
 
 /**
