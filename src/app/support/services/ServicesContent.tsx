@@ -89,7 +89,11 @@ export function ServicesContent({ services, serviceTiers, slaHighlights }: Servi
         </div>
       </section>
 
-      {/* Services Grid */}
+      {/* Services Grid
+          Layout: 1 col (mobile) → 2 cols (tablet) → 3 cols (desktop)
+          Recommended: 3-9 services (1-3 rows of 3)
+          Max: 12 services for good UX
+      */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-12">
           <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">What We Offer</h2>
@@ -98,7 +102,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights }: Servi
           </p>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2 stagger-children">
+        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 stagger-children">
           {services.map((service) => {
             const Icon = getIcon(service.icon);
             return (
@@ -180,9 +184,13 @@ export function ServicesContent({ services, serviceTiers, slaHighlights }: Servi
               </p>
             </div>
 
-            {/* SLA Highlights */}
+            {/* SLA Highlights
+                Layout: 2 cols (mobile) → 3 cols (tablet) → 5 cols (desktop)
+                Recommended: 4-5 highlights
+                Max: 6 highlights for single row on desktop
+            */}
             {slaHighlights.length > 0 && (
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5 mb-16">
+              <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6 mb-16">
                 {slaHighlights.map((highlight) => {
                   const Icon = getIcon(highlight.icon);
                   return (
@@ -201,9 +209,13 @@ export function ServicesContent({ services, serviceTiers, slaHighlights }: Servi
               </div>
             )}
 
-            {/* Pricing Tiers */}
+            {/* Pricing Tiers
+                Layout: 1 col (mobile) → 2 cols (tablet) → 3 cols (desktop) → 4 cols (xl)
+                Recommended: 3 tiers (Free/Pro/Enterprise pattern)
+                Max: 4 tiers - more becomes overwhelming for users
+            */}
             {serviceTiers.length > 0 && (
-              <div className="grid gap-6 lg:grid-cols-3">
+              <div className={`grid gap-6 md:grid-cols-2 ${serviceTiers.length <= 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-4'}`}>
                 {serviceTiers.map((tier, index) => (
                   <div
                     key={tier.id}

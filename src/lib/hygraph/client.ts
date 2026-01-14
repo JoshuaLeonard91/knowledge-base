@@ -526,11 +526,13 @@ class HygraphClient {
 
   /**
    * Get all services
+   * Grid: 1 col (mobile) → 2 cols (tablet) → 3 cols (desktop)
+   * Recommended: 3-9 services | Max: 12 for good UX
    */
   async getServices(): Promise<Service[]> {
     const data = await this.query<{ services: HygraphService[] }>(`
       query GetServices {
-        services(first: 50, orderBy: order_ASC) {
+        services(first: 12, orderBy: order_ASC) {
           id
           name
           slug
@@ -588,12 +590,14 @@ class HygraphClient {
   }
 
   /**
-   * Get all service tiers
+   * Get all service tiers (pricing plans)
+   * Grid: 1 col (mobile) → 2 cols (tablet) → 3-4 cols (desktop)
+   * Recommended: 3 tiers (Free/Pro/Enterprise) | Max: 4 tiers
    */
   async getServiceTiers(): Promise<ServiceTier[]> {
     const data = await this.query<{ serviceTiers: HygraphServiceTier[] }>(`
       query GetServiceTiers {
-        serviceTiers(first: 20, orderBy: order_ASC) {
+        serviceTiers(first: 4, orderBy: order_ASC) {
           id
           name
           slug
@@ -616,12 +620,14 @@ class HygraphClient {
   }
 
   /**
-   * Get SLA highlights
+   * Get SLA highlights (trust badges/metrics)
+   * Grid: 2 cols (mobile) → 3 cols (tablet) → 5-6 cols (desktop)
+   * Recommended: 4-5 highlights | Max: 6 for single row
    */
   async getSLAHighlights(): Promise<SLAHighlight[]> {
     const data = await this.query<{ slaHighlights: HygraphSLAHighlight[] }>(`
       query GetSLAHighlights {
-        slaHighlights(first: 20, orderBy: order_ASC) {
+        slaHighlights(first: 6, orderBy: order_ASC) {
           id
           title
           description
