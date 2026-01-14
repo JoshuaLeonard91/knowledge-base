@@ -292,8 +292,11 @@ class HygraphClient {
 
   /**
    * Search articles
+   * Searches title, excerpt, and searchText fields via GraphQL
+   * Note: Rich Text content cannot be filtered in Hygraph WHERE clauses
    */
   async searchArticles(query: string): Promise<Article[]> {
+    // GraphQL search on title, excerpt, and searchText (all support _contains)
     const data = await this.query<{ articles: HygraphArticle[] }>(
       `
       query SearchArticles($query: String!) {
@@ -302,7 +305,7 @@ class HygraphClient {
             OR: [
               { title_contains: $query }
               { excerpt_contains: $query }
-              { content: { text_contains: $query } }
+              { searchText_contains: $query }
             ]
           }
           first: 20

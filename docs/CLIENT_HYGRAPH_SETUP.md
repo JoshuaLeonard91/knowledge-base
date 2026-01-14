@@ -130,6 +130,14 @@ FIELD 8 - Read Time
 - Display Name: Read Time
 - Click "Create"
 
+FIELD 9 - Search Text (improves search results)
+- Find "Multi line text" and click "+ Add"
+- Display Name: Search Text
+- IMPORTANT: Do NOT enable "Allow multiple values" (leave it OFF)
+- Click "Create"
+
+This field lets you add extra keywords and phrases that users might search for. When someone searches your Knowledge Base, this field is searched along with the title and excerpt.
+
 Your Article model is complete!
 
 ---
@@ -224,7 +232,10 @@ Now let's add a test article.
    - Keywords: Type "welcome" and press Enter, then type "beginner" and press Enter
    - Icon: Rocket
    - Read Time: 3
+   - Search Text: welcome guide getting started beginner tutorial setup onboarding first steps new user help introduction basics
 5. Click the blue "Publish" button
+
+TIP: The Search Text field helps users find your article. Think about what words someone might type when looking for this content, and add them here. Partial matches work too - if you add "tutorial", searches for "tut" will also find the article!
 
 ---
 
@@ -285,6 +296,12 @@ For General content: FileText
 MY CONTENT ISN'T SHOWING UP
 - Make sure you clicked "Publish" (not just saved as draft)
 - Check that your token has "Read" permission for both Article and Category
+
+SEARCH ISN'T FINDING MY ARTICLES
+- Make sure the Search Text field has relevant keywords
+- Search checks: Title, Excerpt, and Search Text fields
+- Partial matches work - "tut" will find "tutorial"
+- Rich Text content is NOT searchable (this is a Hygraph limitation)
 
 I GET A 403 ERROR
 - Your token doesn't have the right permissions
