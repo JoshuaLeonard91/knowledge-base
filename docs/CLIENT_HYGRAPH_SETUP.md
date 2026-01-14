@@ -152,6 +152,44 @@ The Services page automatically appears when you add services, and stays hidden 
 
 ---
 
+## OPTIONAL: Custom Brand Color
+
+Want to customize the accent color to match your brand? Create a SiteTheme model.
+
+1. In the left sidebar, click "Schema"
+2. Click the "+ Add" button next to "MODELS"
+3. For Display Name, type: Site Theme
+4. Click "Create Model"
+
+Add these fields:
+
+FIELD 1 - Name (optional label)
+- Find "Single line text" and click "+ Add"
+- Display Name: Name
+- Click "Create"
+
+FIELD 2 - Accent Primary (your brand color)
+- Find "Color" and click "+ Add"
+- Display Name: Accent Primary
+- Check "Required"
+- Click "Create"
+
+Now create your theme entry:
+
+1. Go to "Content" in the sidebar
+2. Click "Site Theme"
+3. Click "+ Create entry"
+4. Fill in:
+   - Name: My Brand Theme (optional)
+   - Accent Primary: Click to open color picker, choose your brand color
+5. Click "Publish"
+
+Your brand color will now appear on buttons, links, and highlights throughout the site!
+
+TIP: Hover and glow effects are automatically calculated from your chosen color.
+
+---
+
 ## Step 4: Get Your API Endpoint
 
 The endpoint is the URL that connects your Knowledge Base to Hygraph.

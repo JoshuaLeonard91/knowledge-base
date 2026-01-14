@@ -4,19 +4,24 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LayoutContent } from "@/components/layout/LayoutContent";
 import { HistoryProvider } from "@/components/support/HistoryProvider";
+import { getTheme, themeToCSSVariables } from "@/lib/theme";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
   description: "Get help with Discord integrations, troubleshoot issues, and find answers to common questions.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Fetch theme from CMS (cached per request)
+  const theme = await getTheme();
+  const cssVariables = themeToCSSVariables(theme);
+
   return (
-    <html lang="en" className="dark">
+    <html lang="en" className="dark" style={cssVariables as React.CSSProperties}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

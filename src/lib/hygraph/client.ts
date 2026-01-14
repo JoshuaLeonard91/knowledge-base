@@ -381,6 +381,35 @@ class HygraphClient {
   }
 
   /**
+   * Get site theme configuration
+   * Each tenant has their own Hygraph project with one SiteTheme entry
+   */
+  async getSiteTheme(): Promise<{ name?: string; accentPrimary: string } | null> {
+    const data = await this.query<{
+      siteThemes: Array<{ name?: string; accentPrimary: { hex: string } }>;
+    }>(
+      `
+      query GetSiteTheme {
+        siteThemes(first: 1) {
+          name
+          accentPrimary { hex }
+        }
+      }
+      `
+    );
+
+    if (!data?.siteThemes?.[0]) {
+      return null;
+    }
+
+    const theme = data.siteThemes[0];
+    return {
+      name: theme.name,
+      accentPrimary: theme.accentPrimary.hex,
+    };
+  }
+
+  /**
    * Transform Hygraph article to our Article type
    */
   private transformArticle(article: HygraphArticle): Article {
