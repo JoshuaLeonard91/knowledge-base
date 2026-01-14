@@ -52,7 +52,7 @@ interface HygraphService {
   icon?: string;
   color?: string;
   features: string[];
-  relatedArticles: Array<{ slug: string }>;
+  relatedArticles?: Array<{ slug: string }>;
   order?: number;
 }
 

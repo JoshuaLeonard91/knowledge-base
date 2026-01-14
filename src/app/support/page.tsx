@@ -6,6 +6,10 @@ import { RecentSection } from '@/components/support/RecentSection';
 import { getArticles, getCategories, hasServices } from '@/lib/cms';
 import { BookOpenText, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle, Briefcase } from '@phosphor-icons/react/dist/ssr';
 
+// Force dynamic rendering - fetches fresh data on every request
+// Required for multi-tenant setup where content changes without rebuilds
+export const dynamic = 'force-dynamic';
+
 export default async function SupportHub() {
   const [articles, categories, servicesEnabled] = await Promise.all([
     getArticles(),

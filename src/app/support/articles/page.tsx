@@ -4,6 +4,10 @@ import { ArticlesContent } from './ArticlesContent';
 import { getArticles, getCategories } from '@/lib/cms';
 import { SpinnerGap } from '@phosphor-icons/react/dist/ssr';
 
+// Force dynamic rendering - fetches fresh data on every request
+// Required for multi-tenant setup where content changes without rebuilds
+export const dynamic = 'force-dynamic';
+
 function ArticlesLoading() {
   return (
     <div className="flex items-center justify-center py-20">

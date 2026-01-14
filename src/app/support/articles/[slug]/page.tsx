@@ -12,6 +12,10 @@ import {
   RocketLaunch, Question, Wrench, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article as ArticleIcon
 } from '@phosphor-icons/react/dist/ssr';
 
+// Force dynamic rendering - fetches fresh data on every request
+// Required for multi-tenant setup where content changes without rebuilds
+export const dynamic = 'force-dynamic';
+
 // Generate URL-safe slug from header text
 function generateHeaderId(text: string): string {
   return text
