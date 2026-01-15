@@ -10,7 +10,8 @@ This guide walks you through creating the optional Services page models in Hygra
 
 - **Services** - Your service offerings (e.g., Managed Bots, Consulting)
 - **Service Tiers** - Pricing/support levels (e.g., Community, Professional, Enterprise)
-- **SLA Highlights** - Key benefits displayed above pricing tiers
+- **SLA Highlights** - Key metrics/benefits displayed above pricing tiers (e.g., "99.9% Uptime")
+- **Helpful Resources** - Optional CMS-driven resource links section
 
 **Note:** The Services page automatically appears when you add services, and stays hidden if you don't.
 
@@ -48,6 +49,10 @@ If the API ID doesn't match, you can edit it before saving the field.
 | 7 | Features | `features` | Single line text | Enable "Allow multiple values" |
 | 8 | Related Articles | `relatedArticles` | Reference | Select "Article", Allow multiple |
 | 9 | Order | `order` | Integer | - |
+| 10 | Price Label | `priceLabel` | Single line text | e.g., "Starting at $99/mo" |
+| 11 | Button Text | `buttonText` | Single line text | e.g., "View Plans" (default: "Get Started") |
+
+**Note:** If `priceLabel` is left empty, no price badge appears. If `buttonText` is empty, button shows "Get Started".
 
 ---
 
@@ -70,6 +75,11 @@ If the API ID doesn't match, you can edit it before saving the field.
 | 7 | Support Channels | `supportChannels` | Single line text | e.g., "Email & tickets" |
 | 8 | Highlighted | `highlighted` | Boolean | Turn on for "recommended" tier |
 | 9 | Order | `order` | Integer | Controls display order (1, 2, 3) |
+| 10 | Accent Color | `accentColor` | Color | Custom color for tier card |
+| 11 | Price | `price` | Single line text | e.g., "Free", "$49/mo", "Custom" |
+| 12 | Button Text | `buttonText` | Single line text | e.g., "Get Started Free" (default: "Contact Sales") |
+
+**Note:** `accentColor` adds a colored top bar and styled checkmarks. The highlighted tier always uses the primary accent color.
 
 ---
 
@@ -87,10 +97,39 @@ If the API ID doesn't match, you can edit it before saving the field.
 | 2 | Description | `description` | Single line text | Required |
 | 3 | Icon | `icon` | Single line text | - |
 | 4 | Order | `order` | Integer | Controls display order |
+| 5 | Stat Value | `statValue` | Single line text | e.g., "99.9%", "24/7", "<4hrs" |
+
+**Note:** If `statValue` is set, it displays as a large prominent stat instead of an icon. Great for metrics like uptime percentages or response times.
 
 ---
 
-## Step 4: Update Token Permissions
+## Step 4: Create the Helpful Resource Model (Optional)
+
+This creates CMS-driven resource links that appear at the bottom of the Services page. If no resources exist, the section is hidden.
+
+1. Click **+ Add** next to MODELS
+2. Display Name: `Helpful Resource`
+3. Click **Create Model**
+
+### Add Fields
+
+| # | Display Name | API ID (must match) | Type | Settings |
+|---|--------------|---------------------|------|----------|
+| 1 | Title | `title` | Single line text | Required |
+| 2 | Description | `description` | Single line text | Required |
+| 3 | Icon | `icon` | Single line text | - |
+| 4 | URL | `url` | Single line text | Required. e.g., "/support/articles" or "https://..." |
+| 5 | Color | `color` | Color | Accent color for hover effect |
+| 6 | Order | `order` | Integer | Controls display order |
+
+**Example entries:**
+- Knowledge Base: `/support/articles`, icon: `BookOpenText`
+- Submit Ticket: `/support/ticket`, icon: `ArrowRight`
+- Discord Community: `https://discord.gg/yourserver`, icon: `Star`
+
+---
+
+## Step 5: Update Token Permissions
 
 1. Go to **Project Settings** (bottom left)
 2. Click **Access > Permanent Auth Tokens**
@@ -98,11 +137,12 @@ If the API ID doesn't match, you can edit it before saving the field.
    - Service
    - Service Tier
    - Sla Highlight
+   - Helpful Resource (if you created it)
 4. Save changes
 
 ---
 
-## Step 5: Add Sample Content
+## Step 6: Add Sample Content
 
 Go to **Content** in the sidebar and create entries for each model.
 
@@ -117,6 +157,8 @@ Go to **Content** in the sidebar and create entries for each model.
 | Icon | GearSix |
 | Color | #10B981 |
 | Order | 1 |
+| Price Label | Starting at $49/mo |
+| Button Text | View Plans |
 
 **Features** (add one at a time, press Enter after each):
 - 24/7 uptime monitoring
@@ -140,6 +182,8 @@ Click **Publish** when done.
 | Icon | Code |
 | Color | #8B5CF6 |
 | Order | 2 |
+| Pricing | (leave empty for contact) |
+| CTA Text | Start a Project |
 
 **Features:**
 - Requirements analysis
@@ -163,6 +207,8 @@ Click **Publish** when done.
 | Icon | Handshake |
 | Color | #F59E0B |
 | Order | 3 |
+| Pricing | From $150/hr |
+| CTA Text | Book a Call |
 
 **Features:**
 - Server audit & review
@@ -188,6 +234,9 @@ Click **Publish** when done.
 | Support Channels | Email & tickets |
 | Highlighted | No |
 | Order | 1 |
+| Accent Color | (optional - leave empty or #10B981 for green) |
+| Price | Free |
+| CTA Text | Get Started Free |
 
 **Features** (add one at a time, press Enter after each):
 - Email support
@@ -209,6 +258,9 @@ Click **Publish** when done.
 | Support Channels | Email, tickets & chat |
 | Highlighted | Yes |
 | Order | 2 |
+| Accent Color | (leave empty - highlighted tiers use primary accent) |
+| Price | $99/mo |
+| CTA Text | Get Started |
 
 **Features** (add one at a time, press Enter after each):
 - Priority email support
@@ -231,6 +283,9 @@ Click **Publish** when done.
 | Support Channels | All channels + phone |
 | Highlighted | No |
 | Order | 3 |
+| Accent Color | #8B5CF6 (purple - optional visual differentiation) |
+| Price | Custom |
+| CTA Text | Contact Sales |
 
 **Features** (add one at a time, press Enter after each):
 - 24/7 phone support
@@ -247,13 +302,15 @@ Click **Publish** when done.
 
 Create 3-5 highlights that appear above the pricing tiers. Create each as a separate entry:
 
-| Title | Description | Icon | Order |
-|-------|-------------|------|-------|
-| Fast Response | Quick turnaround on all requests | Clock | 1 |
-| 99.9% Uptime | Reliable service guaranteed | Shield | 2 |
-| Secure | Enterprise-grade security | Lock | 3 |
-| Scalable | Grows with your community | ChartLine | 4 |
-| Dedicated Support | Real humans, real help | Headset | 5 |
+| Title | Description | Icon | Value | Order |
+|-------|-------------|------|-------|-------|
+| Fast Response | Quick turnaround on all requests | Clock | <4hrs | 1 |
+| Uptime | Reliable service guaranteed | Shield | 99.9% | 2 |
+| Secure | Enterprise-grade security | Lock | (empty) | 3 |
+| Scalable | Grows with your community | ChartLine | (empty) | 4 |
+| Dedicated Support | Real humans, real help | Headset | 24/7 | 5 |
+
+**Tip:** When `value` is set (like "99.9%" or "24/7"), it displays as a large prominent number instead of an icon. Leave `value` empty to show the icon instead.
 
 Click **Publish** on each highlight when done.
 

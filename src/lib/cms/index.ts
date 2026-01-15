@@ -18,7 +18,7 @@ import * as localData from '@/lib/data/articles';
 import * as hygraph from '@/lib/hygraph';
 
 // Re-export service types from Hygraph
-export type { Service, ServiceTier, SLAHighlight } from '@/lib/hygraph';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
 
@@ -138,7 +138,7 @@ export async function getRelatedArticles(
 // SERVICES (Hygraph only)
 // ==========================================
 
-import type { Service, ServiceTier, SLAHighlight } from '@/lib/hygraph';
+import type { Service, ServiceTier, SLAHighlight, HelpfulResource } from '@/lib/hygraph';
 
 /**
  * Check if services are enabled (any services exist in CMS)
@@ -200,6 +200,20 @@ export async function getSLAHighlights(): Promise<SLAHighlight[]> {
 
   if (provider === 'hygraph') {
     return hygraph.getSLAHighlights();
+  }
+
+  return [];
+}
+
+/**
+ * Get helpful resources from the CMS (CMS-driven links section)
+ * Returns empty array if none configured - section won't render
+ */
+export async function getHelpfulResources(): Promise<HelpfulResource[]> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.getHelpfulResources();
   }
 
   return [];

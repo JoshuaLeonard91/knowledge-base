@@ -19,6 +19,9 @@ export interface Service {
   features: string[];
   relatedArticles: string[]; // Article slugs
   order: number;
+  // Optional pricing and button customization
+  priceLabel?: string; // e.g., "Starting at $99/mo" - empty = no badge
+  buttonText?: string; // e.g., "View Plans" - empty = "Get Started"
 }
 
 export interface ServiceTier {
@@ -32,6 +35,10 @@ export interface ServiceTier {
   supportChannels: string;
   highlighted: boolean;
   order: number;
+  // Optional visual customization
+  accentColor?: string; // Hex color for tier differentiation
+  price?: string; // e.g., "Free", "$49/mo", "Custom"
+  buttonText?: string; // e.g., "Get Started Free" - empty = "Contact Sales"
 }
 
 export interface SLAHighlight {
@@ -39,6 +46,19 @@ export interface SLAHighlight {
   title: string;
   description: string;
   icon: string;
+  order: number;
+  // Optional: display as large stat instead of icon
+  statValue?: string; // e.g., "99.9%", "24/7", "<4hrs" - if set, shows as big text
+}
+
+// Helpful resource links (CMS-driven, replaces hardcoded section)
+export interface HelpfulResource {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  url: string; // Internal path like "/support/articles" or external URL
+  color?: string; // Accent color for hover effect
   order: number;
 }
 
@@ -54,6 +74,8 @@ interface HygraphService {
   features: string[];
   relatedArticles?: Array<{ slug: string }>;
   order?: number;
+  priceLabel?: string;
+  buttonText?: string;
 }
 
 interface HygraphServiceTier {
@@ -67,6 +89,9 @@ interface HygraphServiceTier {
   supportChannels?: string;
   highlighted?: boolean;
   order?: number;
+  accentColor?: { hex: string };
+  price?: string;
+  buttonText?: string;
 }
 
 interface HygraphSLAHighlight {
@@ -74,6 +99,17 @@ interface HygraphSLAHighlight {
   title: string;
   description: string;
   icon?: string;
+  order?: number;
+  statValue?: string;
+}
+
+interface HygraphHelpfulResource {
+  id: string;
+  title: string;
+  description: string;
+  icon?: string;
+  url: string;
+  color?: { hex: string };
   order?: number;
 }
 
@@ -545,6 +581,8 @@ class HygraphClient {
             slug
           }
           order
+          priceLabel
+          buttonText
         }
       }
     `);
@@ -608,6 +646,9 @@ class HygraphClient {
           supportChannels
           highlighted
           order
+          accentColor { hex }
+          price
+          buttonText
         }
       }
     `);
@@ -633,6 +674,7 @@ class HygraphClient {
           description
           icon
           order
+          statValue
         }
       }
     `);
@@ -676,6 +718,8 @@ class HygraphClient {
       features: service.features || [],
       relatedArticles: service.relatedArticles?.map((a) => a.slug) || [],
       order: service.order ?? 0,
+      priceLabel: service.priceLabel,
+      buttonText: service.buttonText,
     };
   }
 
@@ -694,6 +738,9 @@ class HygraphClient {
       supportChannels: tier.supportChannels || 'Email',
       highlighted: tier.highlighted ?? false,
       order: tier.order ?? 0,
+      accentColor: tier.accentColor?.hex,
+      price: tier.price,
+      buttonText: tier.buttonText,
     };
   }
 
@@ -707,6 +754,53 @@ class HygraphClient {
       description: highlight.description,
       icon: highlight.icon || 'Check',
       order: highlight.order ?? 0,
+      statValue: highlight.statValue,
+    };
+  }
+
+  // ==========================================
+  // HELPFUL RESOURCES
+  // ==========================================
+
+  /**
+   * Get helpful resources (CMS-driven links section)
+   * Grid: 1 col (mobile) → 3 cols (desktop)
+   * If empty, section is hidden
+   */
+  async getHelpfulResources(): Promise<HelpfulResource[]> {
+    const data = await this.query<{ helpfulResources: HygraphHelpfulResource[] }>(`
+      query GetHelpfulResources {
+        helpfulResources(first: 6, orderBy: order_ASC) {
+          id
+          title
+          description
+          icon
+          url
+          color { hex }
+          order
+        }
+      }
+    `);
+
+    if (!data?.helpfulResources) {
+      return [];
+    }
+
+    return data.helpfulResources.map((resource) => this.transformHelpfulResource(resource));
+  }
+
+  /**
+   * Transform helpful resource
+   */
+  private transformHelpfulResource(resource: HygraphHelpfulResource): HelpfulResource {
+    return {
+      id: resource.id,
+      title: resource.title,
+      description: resource.description,
+      icon: resource.icon || 'BookOpenText',
+      url: resource.url,
+      color: resource.color?.hex,
+      order: resource.order ?? 0,
     };
   }
 }

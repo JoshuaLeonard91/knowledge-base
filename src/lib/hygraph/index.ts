@@ -6,7 +6,7 @@
  */
 
 export { hygraph } from './client';
-export type { Service, ServiceTier, SLAHighlight } from './client';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource } from './client';
 
 import { hygraph } from './client';
 
@@ -24,3 +24,4 @@ export const getServiceBySlug = (slug: string) => hygraph.getServiceBySlug(slug)
 export const getServiceTiers = () => hygraph.getServiceTiers();
 export const getSLAHighlights = () => hygraph.getSLAHighlights();
 export const hasServices = () => hygraph.hasServices();
+export const getHelpfulResources = () => hygraph.getHelpfulResources();
