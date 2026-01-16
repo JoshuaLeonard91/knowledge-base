@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { X, SpinnerGap, CheckCircle, WarningCircle, EnvelopeSimple, User, Buildings } from '@phosphor-icons/react';
+import type { ContactSettings, InquiryType } from '@/lib/cms';
 
 interface ServiceOption {
   id: string;
@@ -13,6 +14,8 @@ interface ServiceContactModalProps {
   onClose: () => void;
   preselectedService?: string;
   services?: ServiceOption[];
+  contactSettings: ContactSettings;
+  inquiryTypes: InquiryType[];
 }
 
 interface FormData {
@@ -20,24 +23,19 @@ interface FormData {
   email: string;
   company: string;
   service: string;
-  inquiryType: 'general' | 'pricing' | 'demo' | 'support';
+  inquiryType: string;
   message: string;
 }
 
-const inquiryTypes = [
-  { id: 'general', label: 'General Inquiry' },
-  { id: 'pricing', label: 'Pricing Information' },
-  { id: 'demo', label: 'Request a Demo' },
-  { id: 'support', label: 'Support Question' },
-];
+export function ServiceContactModal({ isOpen, onClose, preselectedService, services = [], contactSettings, inquiryTypes }: ServiceContactModalProps) {
+  const defaultInquiryType = inquiryTypes[0]?.id || 'general';
 
-export function ServiceContactModal({ isOpen, onClose, preselectedService, services = [] }: ServiceContactModalProps) {
   const [formData, setFormData] = useState<FormData>({
     name: '',
     email: '',
     company: '',
     service: preselectedService || '',
-    inquiryType: 'general',
+    inquiryType: defaultInquiryType,
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -97,7 +95,7 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
           email: '',
           company: '',
           service: '',
-          inquiryType: 'general',
+          inquiryType: defaultInquiryType,
           message: '',
         });
       }
@@ -138,9 +136,9 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
 
         {/* Header */}
         <div className="p-6 pb-4 border-b border-[var(--border-primary)]">
-          <h2 className="text-xl font-bold text-[var(--text-primary)]">Contact Us</h2>
+          <h2 className="text-xl font-bold text-[var(--text-primary)]">{contactSettings.formTitle}</h2>
           <p className="text-[var(--text-secondary)] mt-1">
-            Tell us about your needs and we&apos;ll get back to you shortly.
+            {contactSettings.formSubtitle}
           </p>
         </div>
 
@@ -152,10 +150,10 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
                 <CheckCircle size={32} weight="duotone" className="text-[var(--accent-success)]" />
               </div>
               <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-2">
-                Thank You!
+                {contactSettings.successTitle}
               </h3>
               <p className="text-[var(--text-secondary)] mb-6">
-                {submitResult.message}
+                {contactSettings.successMessage}
               </p>
               <button onClick={onClose} className="btn btn-primary">
                 Close
@@ -176,7 +174,7 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
                   Your Name <span className="text-[var(--accent-danger)]">*</span>
                 </label>
                 <div className="relative">
-                  <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <User size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] z-10 pointer-events-none" />
                   <input
                     type="text"
                     name="name"
@@ -184,7 +182,8 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
                     onChange={handleChange}
                     required
                     placeholder="John Doe"
-                    className="input pl-10"
+                    className="input"
+                    style={{ paddingLeft: '2.5rem' }}
                   />
                 </div>
               </div>
@@ -195,7 +194,7 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
                   Email Address <span className="text-[var(--accent-danger)]">*</span>
                 </label>
                 <div className="relative">
-                  <EnvelopeSimple size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <EnvelopeSimple size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] z-10 pointer-events-none" />
                   <input
                     type="email"
                     name="email"
@@ -203,7 +202,8 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
                     onChange={handleChange}
                     required
                     placeholder="john@example.com"
-                    className="input pl-10"
+                    className="input"
+                    style={{ paddingLeft: '2.5rem' }}
                   />
                 </div>
               </div>
@@ -211,17 +211,18 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
               {/* Company (optional) */}
               <div>
                 <label className="block text-sm font-medium text-[var(--text-primary)] mb-1.5">
-                  Company / Server Name
+                  {contactSettings.companyFieldLabel}
                 </label>
                 <div className="relative">
-                  <Buildings size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)]" />
+                  <Buildings size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] z-10 pointer-events-none" />
                   <input
                     type="text"
                     name="company"
                     value={formData.company}
                     onChange={handleChange}
-                    placeholder="My Discord Server"
-                    className="input pl-10"
+                    placeholder={contactSettings.companyFieldPlaceholder}
+                    className="input"
+                    style={{ paddingLeft: '2.5rem' }}
                   />
                 </div>
               </div>
@@ -259,10 +260,10 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
                       key={type.id}
                       type="button"
                       onClick={() => setFormData(prev => ({ ...prev, inquiryType: type.id as FormData['inquiryType'] }))}
-                      className={`p-2.5 rounded-lg border text-sm transition-all ${
+                      className={`p-2.5 rounded-lg border text-sm transition-all cursor-pointer ${
                         formData.inquiryType === type.id
                           ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)] text-[var(--accent-primary)]'
-                          : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--border-hover)]'
+                          : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] text-[var(--text-secondary)] hover:border-[var(--accent-primary)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       {type.label}
@@ -299,7 +300,7 @@ export function ServiceContactModal({ isOpen, onClose, preselectedService, servi
                     Sending...
                   </>
                 ) : (
-                  'Send Inquiry'
+                  contactSettings.submitButtonText
                 )}
               </button>
             </form>

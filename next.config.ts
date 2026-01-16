@@ -21,6 +21,19 @@ const ContentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Allow images from Hygraph CDN
+  images: {
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.graphassets.com',
+      },
+      {
+        protocol: 'https',
+        hostname: 'cdn.discordapp.com',
+      },
+    ],
+  },
   // Security headers
   async headers() {
     return [

@@ -129,7 +129,36 @@ This creates CMS-driven resource links that appear at the bottom of the Services
 
 ---
 
-## Step 5: Update Token Permissions
+## Step 5: Create the Services Page Content Model (Optional)
+
+This lets you customize all the section titles and descriptions on the Services page without code changes. If not created, sensible defaults are used.
+
+1. Click **+ Add** next to MODELS
+2. Display Name: `Services Page Content`
+3. Click **Create Model**
+
+### Add Fields
+
+| # | Display Name | API ID (must match) | Type | Settings |
+|---|--------------|---------------------|------|----------|
+| 1 | Hero Title | `heroTitle` | Single line text | e.g., "Discord Solutions That Scale" |
+| 2 | Hero Subtitle | `heroSubtitle` | Multi line text | The description below the main title |
+| 3 | Services Title | `servicesTitle` | Single line text | e.g., "What We Offer" |
+| 4 | Services Subtitle | `servicesSubtitle` | Multi line text | Section description |
+| 5 | SLA Title | `slaTitle` | Single line text | e.g., "Service Level Agreements" |
+| 6 | SLA Subtitle | `slaSubtitle` | Multi line text | Section description |
+| 7 | Resources Title | `resourcesTitle` | Single line text | e.g., "Helpful Resources" |
+| 8 | Resources Subtitle | `resourcesSubtitle` | Single line text | Section description |
+| 9 | CTA Title | `ctaTitle` | Single line text | e.g., "Ready to get started?" |
+| 10 | CTA Subtitle | `ctaSubtitle` | Single line text | e.g., "Let's discuss how we can help..." |
+
+**Note:** All fields are optional. If left empty, the website displays sensible defaults. Create only ONE entry for this model.
+
+**Tip:** The hero title highlights the last two words with accent styling. For best results, structure your title so the last two words are impactful (e.g., "Solutions That **Scale Fast**").
+
+---
+
+## Step 6: Update Token Permissions
 
 1. Go to **Project Settings** (bottom left)
 2. Click **Access > Permanent Auth Tokens**
@@ -138,11 +167,12 @@ This creates CMS-driven resource links that appear at the bottom of the Services
    - Service Tier
    - Sla Highlight
    - Helpful Resource (if you created it)
+   - Services Page Content (if you created it)
 4. Save changes
 
 ---
 
-## Step 6: Add Sample Content
+## Step 7: Add Sample Content
 
 Go to **Content** in the sidebar and create entries for each model.
 

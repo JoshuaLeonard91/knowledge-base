@@ -5,12 +5,21 @@ import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { MinimalLayout } from '@/components/minimal/MinimalLayout';
 import { MinimalApp } from '@/components/minimal/MinimalApp';
+import type { FooterSettings, FooterLink, HeaderSettings, NavLink } from '@/lib/cms';
 
 interface LayoutContentProps {
   children: React.ReactNode;
+  headerData: {
+    settings: HeaderSettings;
+    navLinks: NavLink[];
+  };
+  footerData: {
+    settings: FooterSettings;
+    links: FooterLink[];
+  };
 }
 
-export function LayoutContent({ children }: LayoutContentProps) {
+export function LayoutContent({ children, headerData, footerData }: LayoutContentProps) {
   const { uiMode } = useTheme();
 
   if (uiMode === 'minimal') {
@@ -24,11 +33,11 @@ export function LayoutContent({ children }: LayoutContentProps) {
   // Classic mode
   return (
     <>
-      <Navbar />
+      <Navbar settings={headerData.settings} navLinks={headerData.navLinks} />
       <main className="flex-1 pt-16">
         {children}
       </main>
-      <Footer />
+      <Footer settings={footerData.settings} links={footerData.links} />
     </>
   );
 }

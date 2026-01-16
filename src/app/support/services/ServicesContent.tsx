@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ServiceContactModal } from '@/components/support/ServiceContactModal';
-import type { Service, ServiceTier, SLAHighlight, HelpfulResource } from '@/lib/cms';
+import type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, InquiryType } from '@/lib/cms';
 import {
   ArrowRight, Check, CaretLeft, Sparkle, Star, BookOpenText, CaretRight, CaretDown, CaretUp,
   // Icon mapping for dynamic icons
@@ -39,9 +39,12 @@ interface ServicesContentProps {
   serviceTiers: ServiceTier[];
   slaHighlights: SLAHighlight[];
   helpfulResources: HelpfulResource[];
+  pageContent: ServicesPageContent;
+  contactSettings: ContactSettings;
+  inquiryTypes: InquiryType[];
 }
 
-export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources }: ServicesContentProps) {
+export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources, pageContent, contactSettings, inquiryTypes }: ServicesContentProps) {
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<string>('');
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
@@ -96,14 +99,20 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
             </div>
 
             <h1 className="text-4xl md:text-5xl font-bold text-[var(--text-primary)] mb-6 animate-slide-up">
-              Discord Solutions{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA]">
-                That Scale
-              </span>
+              {pageContent.heroTitle.includes(' ') ? (
+                <>
+                  {pageContent.heroTitle.split(' ').slice(0, -2).join(' ')}{' '}
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA]">
+                    {pageContent.heroTitle.split(' ').slice(-2).join(' ')}
+                  </span>
+                </>
+              ) : (
+                pageContent.heroTitle
+              )}
             </h1>
 
             <p className="text-lg text-[var(--text-secondary)] mb-8 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-              From managed bot services to custom development, we provide comprehensive solutions to help your Discord community thrive.
+              {pageContent.heroSubtitle}
             </p>
 
             {/* Section Navigation */}
@@ -139,9 +148,9 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
       {/* Services Grid */}
       <section id={SECTIONS.services} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 scroll-mt-20">
         <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">What We Offer</h2>
+          <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">{pageContent.servicesTitle}</h2>
           <p className="text-[var(--text-secondary)] max-w-2xl mx-auto">
-            Choose from our range of professional services designed to meet the needs of Discord communities of all sizes.
+            {pageContent.servicesSubtitle}
           </p>
         </div>
 
@@ -258,9 +267,9 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
         <section id={SECTIONS.pricing} className="bg-[var(--bg-secondary)] border-y border-[var(--border-primary)] scroll-mt-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
             <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">Service Level Agreements</h2>
+              <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">{pageContent.slaTitle}</h2>
               <p className="text-[var(--text-secondary)] max-w-2xl mx-auto">
-                We stand behind our services with clear, transparent SLAs that give you peace of mind.
+                {pageContent.slaSubtitle}
               </p>
             </div>
 
@@ -272,7 +281,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
                   return (
                     <div
                       key={highlight.id}
-                      className="group p-5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] text-center hover:border-[var(--accent-primary)]/50 hover:shadow-lg transition-all w-40 sm:w-44"
+                      className="group p-5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] text-center hover:border-[var(--accent-primary)]/50 hover:shadow-lg transition-all w-40 sm:w-44 flex flex-col"
                     >
                       {highlight.statValue ? (
                         // Display as large stat
@@ -291,7 +300,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
                           <h4 className="font-semibold text-[var(--text-primary)] mb-1">{highlight.title}</h4>
                         </>
                       )}
-                      <p className="text-xs text-[var(--text-muted)]">{highlight.description}</p>
+                      <p className="text-xs text-[var(--text-muted)] mt-auto">{highlight.description}</p>
                     </div>
                   );
                 })}
@@ -405,9 +414,9 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
       {helpfulResources.length > 0 && (
         <section id={SECTIONS.resources} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 scroll-mt-20">
           <div className="text-center mb-8">
-            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Helpful Resources</h2>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">{pageContent.resourcesTitle}</h2>
             <p className="text-[var(--text-secondary)]">
-              Explore our knowledge base to learn more about what we offer.
+              {pageContent.resourcesSubtitle}
             </p>
           </div>
 
@@ -475,10 +484,10 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
           <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">
             <div>
               <h2 className="text-2xl md:text-3xl font-bold text-white mb-2">
-                Ready to get started?
+                {pageContent.ctaTitle}
               </h2>
               <p className="text-white/80">
-                Let&apos;s discuss how we can help your Discord community succeed.
+                {pageContent.ctaSubtitle}
               </p>
             </div>
             <button
@@ -497,6 +506,8 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
         onClose={() => setIsContactModalOpen(false)}
         preselectedService={selectedService}
         services={services}
+        contactSettings={contactSettings}
+        inquiryTypes={inquiryTypes}
       />
     </div>
   );

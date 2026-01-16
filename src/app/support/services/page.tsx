@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { getServices, getServiceTiers, getSLAHighlights, getHelpfulResources } from '@/lib/cms';
+import { getServicesPageData } from '@/lib/cms';
 import { ServicesContent } from './ServicesContent';
 
 // Force dynamic rendering - fetches fresh data on every request
@@ -7,13 +7,8 @@ import { ServicesContent } from './ServicesContent';
 export const dynamic = 'force-dynamic';
 
 export default async function ServicesPage() {
-  // Fetch all service data from CMS
-  const [services, serviceTiers, slaHighlights, helpfulResources] = await Promise.all([
-    getServices(),
-    getServiceTiers(),
-    getSLAHighlights(),
-    getHelpfulResources(),
-  ]);
+  // Fetch all service data from CMS in a single query (reduces API calls from 7 to 1)
+  const { services, serviceTiers, slaHighlights, helpfulResources, pageContent, contactSettings, inquiryTypes } = await getServicesPageData();
 
   // If no services exist in CMS, return 404
   // This effectively hides the services page when client doesn't want it
@@ -27,6 +22,9 @@ export default async function ServicesPage() {
       serviceTiers={serviceTiers}
       slaHighlights={slaHighlights}
       helpfulResources={helpfulResources}
+      pageContent={pageContent}
+      contactSettings={contactSettings}
+      inquiryTypes={inquiryTypes}
     />
   );
 }

@@ -6,7 +6,7 @@
  */
 
 export { hygraph } from './client';
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource } from './client';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink } from './client';
 
 import { hygraph } from './client';
 
@@ -25,3 +25,17 @@ export const getServiceTiers = () => hygraph.getServiceTiers();
 export const getSLAHighlights = () => hygraph.getSLAHighlights();
 export const hasServices = () => hygraph.hasServices();
 export const getHelpfulResources = () => hygraph.getHelpfulResources();
+export const getServicesPageContent = () => hygraph.getServicesPageContent();
+
+// Contact
+export const getContactSettings = () => hygraph.getContactSettings();
+export const getInquiryTypes = () => hygraph.getInquiryTypes();
+
+// Combined (single query - reduces API calls)
+export const getServicesPageData = () => hygraph.getServicesPageData();
+
+// Footer
+export const getFooterData = () => hygraph.getFooterData();
+
+// Header/Navbar
+export const getHeaderData = () => hygraph.getHeaderData();

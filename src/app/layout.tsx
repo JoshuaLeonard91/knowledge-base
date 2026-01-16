@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LayoutContent } from "@/components/layout/LayoutContent";
 import { HistoryProvider } from "@/components/support/HistoryProvider";
 import { getTheme, themeToCSSVariables } from "@/lib/theme";
+import { getFooterData, getHeaderData } from "@/lib/cms";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -16,8 +17,12 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  // Fetch theme from CMS (cached per request)
-  const theme = await getTheme();
+  // Fetch theme, header, and footer data from CMS (cached per request)
+  const [theme, headerData, footerData] = await Promise.all([
+    getTheme(),
+    getHeaderData(),
+    getFooterData(),
+  ]);
   const cssVariables = themeToCSSVariables(theme);
 
   return (
@@ -31,7 +36,7 @@ export default async function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <HistoryProvider>
-              <LayoutContent>{children}</LayoutContent>
+              <LayoutContent headerData={headerData} footerData={footerData}>{children}</LayoutContent>
             </HistoryProvider>
           </AuthProvider>
         </ThemeProvider>

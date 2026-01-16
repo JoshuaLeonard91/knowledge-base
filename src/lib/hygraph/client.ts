@@ -62,6 +62,82 @@ export interface HelpfulResource {
   order: number;
 }
 
+// Services page content (section titles and descriptions)
+export interface ServicesPageContent {
+  heroTitle: string;
+  heroSubtitle: string;
+  servicesTitle: string;
+  servicesSubtitle: string;
+  slaTitle: string;
+  slaSubtitle: string;
+  resourcesTitle?: string;
+  resourcesSubtitle?: string;
+  ctaTitle?: string;
+  ctaSubtitle?: string;
+}
+
+// Contact form settings (CMS-configurable)
+export interface ContactSettings {
+  // Form header
+  formTitle: string;
+  formSubtitle: string;
+  // Field configuration
+  companyFieldLabel: string; // "Company", "Discord Server", "Organization"
+  companyFieldPlaceholder: string; // Auto-generated or custom
+  // Messages
+  successTitle: string;
+  successMessage: string;
+  // Button text
+  submitButtonText: string;
+}
+
+// Inquiry type options for contact form dropdown
+export interface InquiryType {
+  id: string;
+  label: string;
+  order: number;
+}
+
+// Footer settings (CMS-configurable)
+export interface FooterSettings {
+  siteName: string;
+  tagline: string;
+  logoIcon?: string; // URL to custom logo image
+  quickLinksTitle: string;
+  resourcesTitle: string;
+  communityTitle: string;
+  copyrightText: string;
+  privacyPolicyUrl: string;
+  termsOfServiceUrl: string;
+}
+
+// Footer link for dynamic footer sections
+export interface FooterLink {
+  id: string;
+  title: string;
+  url: string;
+  icon?: string; // Phosphor icon name
+  external: boolean;
+  section: 'quickLinks' | 'resources' | 'community';
+  order: number;
+}
+
+// Header/Navbar settings (CMS-configurable)
+export interface HeaderSettings {
+  siteName: string;
+  subtitle: string;
+  logoIcon?: string; // URL to custom logo image
+}
+
+// Navigation link for navbar
+export interface NavLink {
+  id: string;
+  title: string;
+  url: string;
+  icon: string; // Phosphor icon name (e.g., "House", "BookOpenText")
+  order: number;
+}
+
 // Hygraph response types
 interface HygraphService {
   id: string;
@@ -110,6 +186,72 @@ interface HygraphHelpfulResource {
   icon?: string;
   url: string;
   color?: { hex: string };
+  order?: number;
+}
+
+interface HygraphServicesPageContent {
+  heroTitle?: string;
+  heroSubtitle?: string;
+  servicesTitle?: string;
+  servicesSubtitle?: string;
+  slaTitle?: string;
+  slaSubtitle?: string;
+  resourcesTitle?: string;
+  resourcesSubtitle?: string;
+  ctaTitle?: string;
+  ctaSubtitle?: string;
+}
+
+interface HygraphContactSettings {
+  formTitle?: string;
+  formSubtitle?: string;
+  companyFieldLabel?: string;
+  companyFieldPlaceholder?: string;
+  successTitle?: string;
+  successMessage?: string;
+  submitButtonText?: string;
+}
+
+interface HygraphInquiryType {
+  id: string;
+  typeId?: string; // Custom field since 'id' is reserved in Hygraph
+  label: string;
+  order?: number;
+}
+
+interface HygraphFooterSettings {
+  siteName?: string;
+  tagline?: string;
+  logoIcon?: { url: string };
+  quickLinksTitle?: string;
+  resourcesTitle?: string;
+  communityTitle?: string;
+  copyrightText?: string;
+  privacyPolicyUrl?: string;
+  termsOfServiceUrl?: string;
+}
+
+interface HygraphFooterLink {
+  id: string;
+  title: string;
+  url: string;
+  icon?: string;
+  external?: boolean;
+  section: string;
+  order?: number;
+}
+
+interface HygraphHeaderSettings {
+  siteName?: string;
+  subtitle?: string;
+  logoIcon?: { url: string };
+}
+
+interface HygraphNavLink {
+  id: string;
+  title: string;
+  url: string;
+  icon?: string;
   order?: number;
 }
 
@@ -802,6 +944,466 @@ class HygraphClient {
       color: resource.color?.hex,
       order: resource.order ?? 0,
     };
+  }
+
+  // ==========================================
+  // SERVICES PAGE CONTENT
+  // ==========================================
+
+  /**
+   * Get services page content (section titles and descriptions)
+   * Returns defaults if not configured in CMS
+   */
+  async getServicesPageContent(): Promise<ServicesPageContent> {
+    const data = await this.query<{ servicesPageContents: HygraphServicesPageContent[] }>(`
+      query GetServicesPageContent {
+        servicesPageContents(first: 1) {
+          heroTitle
+          heroSubtitle
+          servicesTitle
+          servicesSubtitle
+          slaTitle
+          slaSubtitle
+          resourcesTitle
+          resourcesSubtitle
+          ctaTitle
+          ctaSubtitle
+        }
+      }
+    `);
+
+    const content = data?.servicesPageContents?.[0];
+
+    // Return with sensible defaults if no CMS content
+    return {
+      heroTitle: content?.heroTitle || 'Discord Solutions That Scale',
+      heroSubtitle: content?.heroSubtitle || 'From managed bot services to custom development, we provide comprehensive solutions to help your Discord community thrive.',
+      servicesTitle: content?.servicesTitle || 'What We Offer',
+      servicesSubtitle: content?.servicesSubtitle || 'Choose from our range of professional services designed to meet the needs of Discord communities of all sizes.',
+      slaTitle: content?.slaTitle || 'Service Level Agreements',
+      slaSubtitle: content?.slaSubtitle || 'We stand behind our services with clear, transparent SLAs that give you peace of mind.',
+      resourcesTitle: content?.resourcesTitle || 'Helpful Resources',
+      resourcesSubtitle: content?.resourcesSubtitle || 'Explore our knowledge base to learn more about what we offer.',
+      ctaTitle: content?.ctaTitle || 'Ready to get started?',
+      ctaSubtitle: content?.ctaSubtitle || "Let's discuss how we can help your Discord community succeed.",
+    };
+  }
+
+  // ==========================================
+  // CONTACT SETTINGS
+  // ==========================================
+
+  /**
+   * Get contact form settings
+   * Returns defaults if not configured in CMS
+   */
+  async getContactSettings(): Promise<ContactSettings> {
+    const data = await this.query<{ contactSettings: HygraphContactSettings[] }>(`
+      query GetContactSettings {
+        contactSettings(first: 1) {
+          formTitle
+          formSubtitle
+          companyFieldLabel
+          companyFieldPlaceholder
+          successTitle
+          successMessage
+          submitButtonText
+        }
+      }
+    `);
+
+    const settings = data?.contactSettings?.[0];
+    const companyLabel = settings?.companyFieldLabel || 'Company / Server Name';
+
+    return {
+      formTitle: settings?.formTitle || 'Contact Us',
+      formSubtitle: settings?.formSubtitle || "Tell us about your needs and we'll get back to you shortly.",
+      companyFieldLabel: companyLabel,
+      companyFieldPlaceholder: settings?.companyFieldPlaceholder || `Enter your ${companyLabel.toLowerCase()}`,
+      successTitle: settings?.successTitle || 'Message Sent!',
+      successMessage: settings?.successMessage || 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
+      submitButtonText: settings?.submitButtonText || 'Send Message',
+    };
+  }
+
+  /**
+   * Get inquiry type options for contact form
+   * Returns defaults if not configured in CMS
+   */
+  async getInquiryTypes(): Promise<InquiryType[]> {
+    const data = await this.query<{ inquiryTypes: HygraphInquiryType[] }>(`
+      query GetInquiryTypes {
+        inquiryTypes(first: 10, orderBy: order_ASC) {
+          typeId
+          label
+          order
+        }
+      }
+    `);
+
+    if (data?.inquiryTypes && data.inquiryTypes.length > 0) {
+      return data.inquiryTypes.map((type) => ({
+        id: type.typeId || type.id,
+        label: type.label,
+        order: type.order ?? 0,
+      }));
+    }
+
+    // Return defaults if no CMS content
+    return [
+      { id: 'general', label: 'General Inquiry', order: 1 },
+      { id: 'pricing', label: 'Pricing Information', order: 2 },
+      { id: 'demo', label: 'Request a Demo', order: 3 },
+      { id: 'support', label: 'Support Question', order: 4 },
+    ];
+  }
+
+  // ==========================================
+  // COMBINED SERVICES PAGE DATA (Single Query)
+  // ==========================================
+
+  /**
+   * Get all services page data in a single query
+   * This reduces API calls from 7 to 1, avoiding rate limits
+   */
+  async getServicesPageData(): Promise<{
+    services: Service[];
+    serviceTiers: ServiceTier[];
+    slaHighlights: SLAHighlight[];
+    helpfulResources: HelpfulResource[];
+    pageContent: ServicesPageContent;
+    contactSettings: ContactSettings;
+    inquiryTypes: InquiryType[];
+  }> {
+    const data = await this.query<{
+      services: HygraphService[];
+      serviceTiers: HygraphServiceTier[];
+      slaHighlights: HygraphSLAHighlight[];
+      helpfulResources: HygraphHelpfulResource[];
+      servicesPageContents: HygraphServicesPageContent[];
+      contactSettings: HygraphContactSettings[];
+      inquiryTypes: HygraphInquiryType[];
+    }>(`
+      query GetServicesPageData {
+        services(first: 12, orderBy: order_ASC) {
+          id
+          name
+          slug
+          tagline
+          description
+          icon
+          color
+          features
+          relatedArticles { slug }
+          order
+          priceLabel
+          buttonText
+        }
+        serviceTiers(first: 4, orderBy: order_ASC) {
+          id
+          name
+          slug
+          description
+          features
+          responseTime
+          availability
+          supportChannels
+          highlighted
+          order
+          accentColor { hex }
+          price
+          buttonText
+        }
+        slaHighlights(first: 6, orderBy: order_ASC) {
+          id
+          title
+          description
+          icon
+          order
+          statValue
+        }
+        helpfulResources(first: 6, orderBy: order_ASC) {
+          id
+          title
+          description
+          icon
+          url
+          color { hex }
+          order
+        }
+        servicesPageContents(first: 1) {
+          heroTitle
+          heroSubtitle
+          servicesTitle
+          servicesSubtitle
+          slaTitle
+          slaSubtitle
+          resourcesTitle
+          resourcesSubtitle
+          ctaTitle
+          ctaSubtitle
+        }
+        contactSettings(first: 1) {
+          formTitle
+          formSubtitle
+          companyFieldLabel
+          companyFieldPlaceholder
+          successTitle
+          successMessage
+          submitButtonText
+        }
+        inquiryTypes(first: 10, orderBy: order_ASC) {
+          typeId
+          label
+          order
+        }
+      }
+    `);
+
+    // Transform services
+    const services = (data?.services || []).map((s) => this.transformService(s));
+
+    // Transform service tiers
+    const serviceTiers = (data?.serviceTiers || []).map((t) => this.transformServiceTier(t));
+
+    // Transform SLA highlights
+    const slaHighlights = (data?.slaHighlights || []).map((h) => this.transformSLAHighlight(h));
+
+    // Transform helpful resources
+    const helpfulResources = (data?.helpfulResources || []).map((r) => this.transformHelpfulResource(r));
+
+    // Page content with defaults
+    const content = data?.servicesPageContents?.[0];
+    const pageContent: ServicesPageContent = {
+      heroTitle: content?.heroTitle || 'Discord Solutions That Scale',
+      heroSubtitle: content?.heroSubtitle || 'From managed bot services to custom development, we provide comprehensive solutions to help your Discord community thrive.',
+      servicesTitle: content?.servicesTitle || 'What We Offer',
+      servicesSubtitle: content?.servicesSubtitle || 'Choose from our range of professional services designed to meet the needs of Discord communities of all sizes.',
+      slaTitle: content?.slaTitle || 'Service Level Agreements',
+      slaSubtitle: content?.slaSubtitle || 'We stand behind our services with clear, transparent SLAs that give you peace of mind.',
+      resourcesTitle: content?.resourcesTitle || 'Helpful Resources',
+      resourcesSubtitle: content?.resourcesSubtitle || 'Explore our knowledge base to learn more about what we offer.',
+      ctaTitle: content?.ctaTitle || 'Ready to get started?',
+      ctaSubtitle: content?.ctaSubtitle || "Let's discuss how we can help your Discord community succeed.",
+    };
+
+    // Contact settings with defaults
+    const settings = data?.contactSettings?.[0];
+    const companyLabel = settings?.companyFieldLabel || 'Company / Server Name';
+    const contactSettings: ContactSettings = {
+      formTitle: settings?.formTitle || 'Contact Us',
+      formSubtitle: settings?.formSubtitle || "Tell us about your needs and we'll get back to you shortly.",
+      companyFieldLabel: companyLabel,
+      companyFieldPlaceholder: settings?.companyFieldPlaceholder || `Enter your ${companyLabel.toLowerCase()}`,
+      successTitle: settings?.successTitle || 'Message Sent!',
+      successMessage: settings?.successMessage || 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
+      submitButtonText: settings?.submitButtonText || 'Send Message',
+    };
+
+    // Inquiry types with defaults
+    let inquiryTypes: InquiryType[];
+    if (data?.inquiryTypes && data.inquiryTypes.length > 0) {
+      inquiryTypes = data.inquiryTypes.map((type) => ({
+        id: type.typeId || type.id,
+        label: type.label,
+        order: type.order ?? 0,
+      }));
+    } else {
+      inquiryTypes = [
+        { id: 'general', label: 'General Inquiry', order: 1 },
+        { id: 'pricing', label: 'Pricing Information', order: 2 },
+        { id: 'demo', label: 'Request a Demo', order: 3 },
+        { id: 'support', label: 'Support Question', order: 4 },
+      ];
+    }
+
+    return {
+      services,
+      serviceTiers,
+      slaHighlights,
+      helpfulResources,
+      pageContent,
+      contactSettings,
+      inquiryTypes,
+    };
+  }
+
+  // ==========================================
+  // FOOTER DATA
+  // ==========================================
+
+  /**
+   * Get footer data (settings + links) in a single query
+   * Used by LayoutContent to render CMS-driven footer
+   */
+  async getFooterData(): Promise<{
+    settings: FooterSettings;
+    links: FooterLink[];
+  }> {
+    const data = await this.query<{
+      footerSettings: HygraphFooterSettings[];
+      footerLinks: HygraphFooterLink[];
+    }>(`
+      query GetFooterData {
+        footerSettings(first: 1) {
+          siteName
+          tagline
+          quickLinksTitle
+          resourcesTitle
+          communityTitle
+          copyrightText
+          privacyPolicyUrl
+          termsOfServiceUrl
+        }
+        footerLinks(first: 15, orderBy: order_ASC) {
+          id
+          title
+          url
+          icon
+          external
+          section
+          order
+        }
+      }
+    `);
+
+    // Try to fetch logoIcon separately (optional - won't break if it fails)
+    let logoIconUrl: string | undefined;
+    try {
+      const logoData = await this.query<{
+        footerSettings: Array<{ logoIcon?: { url: string } }>;
+      }>(`
+        query GetFooterLogo {
+          footerSettings(first: 1) {
+            logoIcon { url }
+          }
+        }
+      `);
+      logoIconUrl = logoData?.footerSettings?.[0]?.logoIcon?.url;
+    } catch {
+      // Ignore logoIcon errors - use default icon
+    }
+
+    // Settings with defaults
+    const s = data?.footerSettings?.[0];
+    const settings: FooterSettings = {
+      siteName: s?.siteName || 'Support Portal',
+      tagline: s?.tagline || 'Get help with your Discord integrations and server management.',
+      logoIcon: logoIconUrl,
+      quickLinksTitle: s?.quickLinksTitle || 'Quick Links',
+      resourcesTitle: s?.resourcesTitle || 'Resources',
+      communityTitle: s?.communityTitle || 'Community',
+      copyrightText: s?.copyrightText || 'Support Portal',
+      privacyPolicyUrl: s?.privacyPolicyUrl || '#',
+      termsOfServiceUrl: s?.termsOfServiceUrl || '#',
+    };
+
+    // Links with defaults if none exist
+    let links: FooterLink[];
+    if (data?.footerLinks && data.footerLinks.length > 0) {
+      links = data.footerLinks.map((link) => ({
+        id: link.id,
+        title: link.title,
+        url: link.url,
+        icon: link.icon,
+        external: link.external ?? false,
+        section: link.section as FooterLink['section'],
+        order: link.order ?? 0,
+      }));
+    } else {
+      // Default links when CMS is empty
+      links = [
+        { id: 'default-1', title: 'Support Hub', url: '/support', section: 'quickLinks', external: false, order: 1 },
+        { id: 'default-2', title: 'Knowledge Base', url: '/support/articles', section: 'quickLinks', external: false, order: 2 },
+        { id: 'default-3', title: 'Submit Ticket', url: '/support/ticket', section: 'quickLinks', external: false, order: 3 },
+        { id: 'default-4', title: 'Documentation', url: '#', icon: 'ArrowSquareOut', section: 'resources', external: true, order: 1 },
+        { id: 'default-5', title: 'Discord Server', url: '#', icon: 'ArrowSquareOut', section: 'community', external: true, order: 1 },
+        { id: 'default-6', title: 'Twitter', url: '#', icon: 'ArrowSquareOut', section: 'community', external: true, order: 2 },
+        { id: 'default-7', title: 'GitHub', url: '#', icon: 'ArrowSquareOut', section: 'community', external: true, order: 3 },
+      ];
+    }
+
+    return { settings, links };
+  }
+
+  // ==========================================
+  // HEADER/NAVBAR DATA
+  // ==========================================
+
+  /**
+   * Get header data (settings + nav links) in a single query
+   * Used by LayoutContent to render CMS-driven navbar
+   */
+  async getHeaderData(): Promise<{
+    settings: HeaderSettings;
+    navLinks: NavLink[];
+  }> {
+    // Query without logoIcon first (it can fail due to permission issues)
+    const data = await this.query<{
+      headerSettings: HygraphHeaderSettings[];
+      navLinks: HygraphNavLink[];
+    }>(`
+      query GetHeaderData {
+        headerSettings(first: 1) {
+          siteName
+          subtitle
+        }
+        navLinks(first: 10, orderBy: order_ASC) {
+          id
+          title
+          url
+          icon
+          order
+        }
+      }
+    `);
+
+    // Try to fetch logoIcon separately (optional - won't break if it fails)
+    let logoIconUrl: string | undefined;
+    try {
+      const logoData = await this.query<{
+        headerSettings: Array<{ logoIcon?: { url: string } }>;
+      }>(`
+        query GetHeaderLogo {
+          headerSettings(first: 1) {
+            logoIcon { url }
+          }
+        }
+      `);
+      logoIconUrl = logoData?.headerSettings?.[0]?.logoIcon?.url;
+    } catch {
+      // Ignore logoIcon errors - use default icon
+    }
+
+    // Settings with defaults
+    const s = data?.headerSettings?.[0];
+    const settings: HeaderSettings = {
+      siteName: s?.siteName || 'Support Portal',
+      subtitle: s?.subtitle || 'Help Center',
+      logoIcon: logoIconUrl,
+    };
+
+    // Nav links with defaults if none exist
+    let navLinks: NavLink[];
+    if (data?.navLinks && data.navLinks.length > 0) {
+      navLinks = data.navLinks.map((link) => ({
+        id: link.id,
+        title: link.title,
+        url: link.url,
+        icon: link.icon || 'House',
+        order: link.order ?? 0,
+      }));
+    } else {
+      // Default nav links when CMS is empty
+      navLinks = [
+        { id: 'default-1', title: 'Support Hub', url: '/support', icon: 'House', order: 1 },
+        { id: 'default-2', title: 'Articles', url: '/support/articles', icon: 'BookOpenText', order: 2 },
+        { id: 'default-3', title: 'Services', url: '/support/services', icon: 'Briefcase', order: 3 },
+        { id: 'default-4', title: 'Submit Ticket', url: '/support/ticket', icon: 'PaperPlaneTilt', order: 4 },
+      ];
+    }
+
+    return { settings, navLinks };
   }
 }
 
