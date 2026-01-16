@@ -6,7 +6,7 @@
  */
 
 export { hygraph } from './client';
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink } from './client';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory } from './client';
 
 import { hygraph } from './client';
 
@@ -27,9 +27,12 @@ export const hasServices = () => hygraph.hasServices();
 export const getHelpfulResources = () => hygraph.getHelpfulResources();
 export const getServicesPageContent = () => hygraph.getServicesPageContent();
 
-// Contact
+// Contact (services page modal)
 export const getContactSettings = () => hygraph.getContactSettings();
 export const getInquiryTypes = () => hygraph.getInquiryTypes();
+
+// Contact Page (/support/contact)
+export const getContactPageSettings = () => hygraph.getContactPageSettings();
 
 // Combined (single query - reduces API calls)
 export const getServicesPageData = () => hygraph.getServicesPageData();
@@ -39,3 +42,6 @@ export const getFooterData = () => hygraph.getFooterData();
 
 // Header/Navbar
 export const getHeaderData = () => hygraph.getHeaderData();
+
+// Ticket Form
+export const getTicketCategories = () => hygraph.getTicketCategories();

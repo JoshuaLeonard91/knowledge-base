@@ -1,8 +1,9 @@
 import { TicketForm } from '@/components/support/TicketForm';
-import { ticketSubjects } from '@/lib/data/servers';
+import { getTicketCategories } from '@/lib/cms';
 import { Ticket, Shield, Clock, CheckCircle } from '@phosphor-icons/react/dist/ssr';
 
 export default async function TicketPage() {
+  const categories = await getTicketCategories();
 
   return (
     <div className="min-h-screen">
@@ -33,7 +34,7 @@ export default async function TicketPage() {
           {/* Main Form */}
           <div className="lg:col-span-2">
             <div className="p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
-              <TicketForm subjects={ticketSubjects} />
+              <TicketForm categories={categories} />
             </div>
           </div>
 

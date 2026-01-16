@@ -18,7 +18,7 @@ import * as localData from '@/lib/data/articles';
 import * as hygraph from '@/lib/hygraph';
 
 // Re-export service types from Hygraph
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink } from '@/lib/hygraph';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
 
@@ -247,10 +247,10 @@ export async function getServicesPageContent(): Promise<ServicesPageContent> {
   };
 }
 
-import type { ContactSettings, InquiryType } from '@/lib/hygraph';
+import type { ContactSettings, ContactPageSettings, InquiryType } from '@/lib/hygraph';
 
 /**
- * Get contact form settings
+ * Get contact form settings (for services page modal)
  * Returns defaults if not configured in CMS
  */
 export async function getContactSettings(): Promise<ContactSettings> {
@@ -269,6 +269,26 @@ export async function getContactSettings(): Promise<ContactSettings> {
     successTitle: 'Message Sent!',
     successMessage: 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
     submitButtonText: 'Send Message',
+  };
+}
+
+/**
+ * Get contact page settings (for /support/contact page)
+ * Returns defaults if not configured in CMS
+ */
+export async function getContactPageSettings(): Promise<ContactPageSettings> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.getContactPageSettings();
+  }
+
+  // Return defaults for local provider
+  return {
+    pageTitle: undefined,
+    pageSubtitle: undefined,
+    discordUrl: undefined,
+    emailAddress: undefined,
   };
 }
 
@@ -425,6 +445,36 @@ export async function getHeaderData(): Promise<{
       { id: 'default-2', title: 'Articles', url: '/support/articles', icon: 'BookOpenText', order: 2 },
       { id: 'default-3', title: 'Services', url: '/support/services', icon: 'Briefcase', order: 3 },
       { id: 'default-4', title: 'Submit Ticket', url: '/support/ticket', icon: 'PaperPlaneTilt', order: 4 },
+      { id: 'default-5', title: 'Contact', url: '/support/contact', icon: 'Envelope', order: 5 },
     ],
   };
+}
+
+// ==========================================
+// TICKET FORM DATA
+// ==========================================
+
+import type { TicketCategory } from '@/lib/hygraph';
+
+/**
+ * Get ticket categories for the ticket form
+ * Returns defaults if not configured in CMS
+ */
+export async function getTicketCategories(): Promise<TicketCategory[]> {
+  const provider = detectProvider();
+
+  if (provider === 'hygraph') {
+    return hygraph.getTicketCategories();
+  }
+
+  // Return defaults for local provider
+  return [
+    { id: 'technical', name: 'Technical Problem', icon: 'Wrench', order: 1 },
+    { id: 'setup', name: 'Setup & Configuration', icon: 'Gear', order: 2 },
+    { id: 'not-working', name: 'Feature Not Working', icon: 'WarningCircle', order: 3 },
+    { id: 'permissions', name: 'Permission Issue', icon: 'Lock', order: 4 },
+    { id: 'billing', name: 'Billing & Account', icon: 'CreditCard', order: 5 },
+    { id: 'feedback', name: 'Feedback & Suggestions', icon: 'ChatCircle', order: 6 },
+    { id: 'other', name: 'Other', icon: 'Question', order: 7 },
+  ];
 }

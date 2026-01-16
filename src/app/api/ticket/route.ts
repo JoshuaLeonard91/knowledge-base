@@ -1,10 +1,10 @@
 import { NextRequest } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
-import { ticketSubjects } from '@/lib/data/servers';
+import { ticketCategories, getCategoryById } from '@/lib/data/servers';
 import {
   validateDescription,
   validateDiscordServerId,
-  validateSubjectId,
+  validateSeverity,
   generateTicketId,
 } from '@/lib/validation';
 import { jiraServiceDesk } from '@/lib/atlassian/client';
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { serverId, subjectId, description } = body;
+    const { serverId, categoryId, severity, description } = body;
 
     // Validate Discord server ID format (snowflake)
     const serverValidation = validateDiscordServerId(serverId);
@@ -65,18 +65,39 @@ export async function POST(request: NextRequest) {
     }
     const sanitizedServerId = serverValidation.sanitized || serverId;
 
-    // Validate subject ID
-    const validSubjectIds = ticketSubjects.map(s => s.id);
-    const subjectValidation = validateSubjectId(subjectId, validSubjectIds);
-    if (!subjectValidation.valid) {
+    // Validate category ID
+    const validCategoryIds = ticketCategories.map(c => c.id);
+    if (!categoryId || !validCategoryIds.includes(categoryId)) {
       logValidationFailure({
-        field: 'subjectId',
-        reason: subjectValidation.error || 'Invalid subject',
+        field: 'categoryId',
+        reason: 'Invalid category',
         ip,
         resource: '/api/ticket',
       });
       return createErrorResponse('validation', 400);
     }
+
+    // Validate severity
+    const severityValidation = validateSeverity(severity);
+    if (!severityValidation.valid) {
+      logValidationFailure({
+        field: 'severity',
+        reason: severityValidation.error || 'Invalid severity',
+        ip,
+        resource: '/api/ticket',
+      });
+      return createErrorResponse('validation', 400);
+    }
+    const sanitizedSeverity = severityValidation.sanitized || severity;
+
+    // Map severity to Jira priority
+    const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 'highest'> = {
+      low: 'low',
+      medium: 'medium',
+      high: 'high',
+      critical: 'highest',
+    };
+    const jiraPriority = severityToPriority[sanitizedSeverity] || 'medium';
 
     // Validate and sanitize description
     const descValidation = validateDescription(description);
@@ -90,19 +111,26 @@ export async function POST(request: NextRequest) {
       return createErrorResponse('validation', 400);
     }
 
-    // Get subject name for ticket title
-    const subject = ticketSubjects.find(s => s.id === subjectId);
-    const subjectName = subject?.name || 'Support Request';
+    // Get category name for ticket title
+    const category = getCategoryById(categoryId);
+    const categoryName = category?.name || 'Support Request';
+
+    // Build summary
+    const summary = `[${categoryName}] Support Request`;
+
+    // Build labels
+    const labels = ['discord', 'support-portal', `category-${categoryId}`, `severity-${sanitizedSeverity}`];
 
     // Submit to Jira Service Desk (or mock if not configured)
     const jiraResult = await jiraServiceDesk.createRequest({
-      summary: `[${subjectName}] Support Request`,
+      summary,
       description: descValidation.sanitized || description,
       requesterName: user.username,
       discordUserId: user.id,
       discordUsername: user.username,
       discordServerId: sanitizedServerId,
-      labels: ['discord', 'support-portal', subjectId],
+      priority: jiraPriority,
+      labels,
     });
 
     let ticketId: string;

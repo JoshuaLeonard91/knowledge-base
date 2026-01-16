@@ -68,16 +68,19 @@ export interface PublicUser {
 }
 
 // Ticket types
-export interface TicketSubject {
+export interface TicketCategory {
   id: string;
   name: string;
-  category: 'integrations' | 'discord';
   icon: string;
+  order: number;
 }
+
+export type TicketSeverity = 'low' | 'medium' | 'high' | 'critical';
 
 export interface TicketSubmission {
   serverId: string;
-  subjectId: string;
+  categoryId: string;
+  severity: TicketSeverity;
   description: string;
 }
 

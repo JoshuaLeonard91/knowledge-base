@@ -64,17 +64,21 @@ export function validateDiscordServerId(serverId: unknown): { valid: boolean; er
   return { valid: true, sanitized };
 }
 
-// Validate subject ID
-export function validateSubjectId(subjectId: unknown, validSubjectIds: string[]): { valid: boolean; error?: string } {
-  if (typeof subjectId !== 'string') {
-    return { valid: false, error: 'Invalid subject ID' };
+// Validate ticket severity
+const VALID_SEVERITIES = ['low', 'medium', 'high', 'critical'] as const;
+
+export function validateSeverity(severity: unknown): { valid: boolean; error?: string; sanitized?: string } {
+  if (typeof severity !== 'string') {
+    return { valid: false, error: 'Severity is required' };
   }
 
-  if (!validSubjectIds.includes(subjectId)) {
-    return { valid: false, error: 'Invalid subject selected' };
+  const sanitized = severity.trim().toLowerCase();
+
+  if (!VALID_SEVERITIES.includes(sanitized as typeof VALID_SEVERITIES[number])) {
+    return { valid: false, error: 'Invalid severity level' };
   }
 
-  return { valid: true };
+  return { valid: true, sanitized };
 }
 
 // Validate search query

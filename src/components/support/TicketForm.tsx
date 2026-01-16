@@ -3,30 +3,39 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
-import { SearchResult, TicketSubject } from '@/types';
+import { SearchResult, TicketSeverity } from '@/types';
+import { TicketCategory } from '@/lib/cms';
 import {
   SpinnerGap, PaperPlaneTilt, CheckCircle, WarningCircle, ShieldCheck,
-  Wrench, ChatCircle, Question, Lightbulb, X, FileText
+  Lightbulb, X, FileText,
+  Info, Warning, Fire, SealWarning, CaretDown
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const subjectIcons: Record<string, React.ComponentType<any>> = {
-  'technical': Wrench,
-  'documentation': FileText,
-  'feedback': ChatCircle,
-  'other': Question,
-};
+// Severity options with icons and colors
+const severityOptions: Array<{
+  id: TicketSeverity;
+  name: string;
+  description: string;
+  icon: React.ComponentType<{ size?: number; weight?: 'duotone' | 'bold'; className?: string }>;
+  color: string;
+}> = [
+  { id: 'low', name: 'Low', description: 'Minor issue, no impact on work', icon: Info, color: 'text-blue-500' },
+  { id: 'medium', name: 'Medium', description: 'Moderate impact, workaround available', icon: Warning, color: 'text-yellow-500' },
+  { id: 'high', name: 'High', description: 'Significant impact, urgent attention needed', icon: SealWarning, color: 'text-orange-500' },
+  { id: 'critical', name: 'Critical', description: 'System down, blocking all work', icon: Fire, color: 'text-red-500' },
+];
 
 interface TicketFormProps {
-  subjects: TicketSubject[];
+  categories: TicketCategory[];
 }
 
-export function TicketForm({ subjects }: TicketFormProps) {
+export function TicketForm({ categories }: TicketFormProps) {
   const { user, isLoading: authLoading } = useAuth();
   const [serverId, setServerId] = useState('');
   const [serverIdError, setServerIdError] = useState('');
-  const [selectedSubject, setSelectedSubject] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedSeverity, setSelectedSeverity] = useState<TicketSeverity | ''>('');
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string; ticketId?: string } | null>(null);
@@ -71,7 +80,7 @@ export function TicketForm({ subjects }: TicketFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateServerId(serverId) || !selectedSubject || description.length < 10) return;
+    if (!validateServerId(serverId) || !selectedCategory || !selectedSeverity || description.length < 10) return;
 
     setIsSubmitting(true);
     setSubmitResult(null);
@@ -82,7 +91,8 @@ export function TicketForm({ subjects }: TicketFormProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serverId: serverId.trim(),
-          subjectId: selectedSubject,
+          categoryId: selectedCategory,
+          severity: selectedSeverity,
           description,
         }),
       });
@@ -97,7 +107,8 @@ export function TicketForm({ subjects }: TicketFormProps) {
       if (data.success) {
         setServerId('');
         setServerIdError('');
-        setSelectedSubject('');
+        setSelectedCategory('');
+        setSelectedSeverity('');
         setDescription('');
       }
     } catch {
@@ -196,28 +207,58 @@ export function TicketForm({ subjects }: TicketFormProps) {
         </p>
       </div>
 
-      {/* Subject Selection */}
+      {/* Category Selection */}
       <div>
         <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
           What do you need help with?
         </label>
-        <div className="grid gap-3 grid-cols-2">
-          {subjects.map((subject) => {
-            const Icon = subjectIcons[subject.id] || Question;
+        <div className="relative">
+          <select
+            value={selectedCategory}
+            onChange={(e) => setSelectedCategory(e.target.value)}
+            className="input w-full appearance-none pr-10 cursor-pointer"
+          >
+            <option value="">Select a category</option>
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.name}
+              </option>
+            ))}
+          </select>
+          <CaretDown
+            size={18}
+            weight="bold"
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-muted)] pointer-events-none"
+          />
+        </div>
+      </div>
+
+      {/* Severity Selection */}
+      <div>
+        <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+          How severe is this issue?
+        </label>
+        <div className="grid gap-3 grid-cols-2 sm:grid-cols-4">
+          {severityOptions.map((severity) => {
+            const Icon = severity.icon;
+            const isSelected = selectedSeverity === severity.id;
             return (
               <button
-                key={subject.id}
+                key={severity.id}
                 type="button"
-                onClick={() => setSelectedSubject(subject.id)}
-                className={`flex items-center gap-3 p-4 rounded-lg border transition-all ${
-                  selectedSubject === subject.id
+                onClick={() => setSelectedSeverity(severity.id)}
+                className={`flex flex-col items-center gap-2 p-4 rounded-lg border transition-all ${
+                  isSelected
                     ? 'bg-[var(--accent-primary)]/10 border-[var(--accent-primary)]'
                     : 'bg-[var(--bg-tertiary)] border-[var(--border-primary)] hover:border-[var(--border-hover)]'
                 }`}
               >
-                <Icon size={28} weight="duotone" className={selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-muted)]'} />
-                <span className={selectedSubject === subject.id ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}>
-                  {subject.name}
+                <Icon size={24} weight="duotone" className={isSelected ? 'text-[var(--accent-primary)]' : severity.color} />
+                <span className={`font-medium ${isSelected ? 'text-[var(--accent-primary)]' : 'text-[var(--text-primary)]'}`}>
+                  {severity.name}
+                </span>
+                <span className="text-xs text-[var(--text-muted)] text-center leading-tight">
+                  {severity.description}
                 </span>
               </button>
             );
@@ -275,7 +316,7 @@ export function TicketForm({ subjects }: TicketFormProps) {
       {/* Submit */}
       <button
         type="submit"
-        disabled={!serverId.trim() || !selectedSubject || description.length < 10 || isSubmitting}
+        disabled={!serverId.trim() || !selectedCategory || !selectedSeverity || description.length < 10 || isSubmitting}
         className="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (

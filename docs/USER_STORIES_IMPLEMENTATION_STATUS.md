@@ -24,16 +24,16 @@ Complete implementation status of all user stories with realistic AI-assisted de
 |------|-----------|-------------|--------------|-------|
 | Knowledge Base | 3/3 | 1/1 | 1/1 | **5/5** |
 | Services Page | 2/2 | 1/1 | - | **3/3** |
-| Ticket Support | 1/2 | 0/1 | 0/1 | **1/4** |
-| Contact Page | 0/1 | - | - | **0/1** |
+| Ticket Support | 2/2 | 0/1 | 0/1 | **2/4** |
+| Contact Page | 1/1 | - | - | **1/1** |
 | Help Me Decide | 0/1 | - | 0/1 | **0/2** |
 | Testimonials | 0/1 | - | - | **0/1** |
 | Direct Links | 1/2 | - | - | **1/2** |
 | Leave A Tip | 0/1 | - | 0/1 | **0/2** |
-| Support Optimization | - | - | 0/1 | **0/1** |
-| **TOTAL** | **7/13** | **2/3** | **1/5** | **10/21** |
+| Support Optimization | - | - | 1/1 | **1/1** |
+| **TOTAL** | **10/13** | **2/3** | **2/5** | **14/21** |
 
-**Overall Progress: 48% Complete (10/21 stories)**
+**Overall Progress: 67% Complete (14/21 stories)**
 
 ---
 
@@ -145,7 +145,7 @@ Complete implementation status of all user stories with realistic AI-assisted de
 
 | # | Priority | User | User Story | Status | AI Dev | Testing | Total |
 |---|----------|------|------------|--------|--------|---------|-------|
-| 9 | Must Have | Client | Create ticket (server, topic, severity, description) | **PARTIAL** | 10 min | 10 min | 20 min |
+| 9 | Must Have | Client | Create ticket (server, topic, severity, description) | **DONE** | 15 min | 10 min | 25 min |
 | 10 | Must Have | Manager | SLA bucket mapping based on options | **NOT DONE** | 20 min | 20 min | 40 min |
 | 11 | Should Have | Client | Update ticket with logs/comments, receive status | **NOT DONE** | 30 min | 25 min | 55 min |
 | 12 | Nice to Have | Client | Submit RFC/RFI with delivery window | **NOT DONE** | 20 min | 15 min | 35 min |
@@ -153,17 +153,17 @@ Complete implementation status of all user stories with realistic AI-assisted de
 ### Story Details
 
 #### #9: Create Incident Ticket
-**Status:** Partial - Missing severity field
+**Status:** Implemented
 
 **As a** Client **I need** to create a ticket for an incident with fields for server, topic, severity, and description **So that I can** get support to triage and meet SLA expectations.
 
-**Current State:** Has server ID, subject/topic, description. Missing: severity dropdown.
+**Implementation:**
+- Added `TicketSeverity` type with levels: low, medium, high, critical
+- Added severity selector with icons and descriptions in `TicketForm.tsx`
+- Severity maps to Jira priority (low→low, medium→medium, high→high, critical→highest)
+- Severity included in Jira labels for filtering
 
-**Required Work:**
-- Add severity field to `TicketForm.tsx`
-- Add severity to `TicketSubmission` type
-- Update `/api/ticket` to include severity
-- Map severity to Jira priority
+**Files:** `TicketForm.tsx`, `types/index.ts`, `lib/validation.ts`, `api/ticket/route.ts`
 
 ---
 
@@ -212,20 +212,22 @@ Complete implementation status of all user stories with realistic AI-assisted de
 
 | # | Priority | User Story | Status | AI Dev | Testing | Total |
 |---|----------|------------|--------|--------|---------|-------|
-| 13 | Must Have | Contact page explaining tickets vs Discord vs DM | **NOT DONE** | 15 min | 10 min | 25 min |
+| 13 | Must Have | Contact page explaining tickets vs Discord vs DM | **DONE** | 15 min | 10 min | 25 min |
 
 ### Story Details
 
 #### #13: Contact Channel Guide
-**Status:** Not Implemented
+**Status:** Implemented
 
 **As a** Visitor **I need** a contact page that explains when to use tickets, Discord, or direct messages **So that I can** choose the fastest and most appropriate channel.
 
-**Required Work:**
-- Create `/support/contact/page.tsx`
-- Design channel comparison cards
-- Add decision flowchart or table
-- Link to each channel
+**Implementation:**
+- Created `/support/contact/page.tsx` with three channel cards (Ticket, Discord, Email)
+- Each card shows response time, features, and "Best for" use cases
+- Decision helper section with common questions and recommended channels
+- Response time expectations section showing SLA tiers (Critical: 4h, High: 8h, Medium: 24h, Low: 48h)
+
+**Files:** `app/support/contact/page.tsx`
 
 ---
 
@@ -348,21 +350,22 @@ Complete implementation status of all user stories with realistic AI-assisted de
 
 | # | Priority | User Story | Status | AI Dev | Testing | Total |
 |---|----------|------------|--------|--------|---------|-------|
-| 21 | Nice to Have | Dropdown of managed integrations & topics | **PARTIAL** | 15 min | 10 min | 25 min |
+| 21 | Nice to Have | Dropdown of managed integrations & topics | **DONE** | 20 min | 10 min | 30 min |
 
 ### Story Details
 
-#### #21: Integration-Specific Dropdowns
-**Status:** Partial - Has subjects but not integration-specific
+#### #21: Category Dropdown
+**Status:** Implemented (Simplified)
 
-**As a** Client **I need** a dropdown of managed integrations and frequent topics **So that I can** quickly select the right category and provide relevant details.
+**As a** Client **I need** a dropdown of ticket categories **So that I can** quickly select the right category for my issue.
 
-**Current State:** Has subject dropdown with categories, but not specific to managed integrations.
+**Implementation:**
+- Single `TicketCategory` model in Hygraph CMS (fields: categoryId, name, icon, order)
+- CMS-driven category dropdown with fallback defaults
+- Categories include: Technical Problem, Setup & Configuration, Feature Not Working, Permission Issue, Billing & Account, Feedback & Suggestions, Other
+- Selected category included in Jira ticket summary and labels for filtering
 
-**Required Work:**
-- Add integration type selector
-- Load topics based on selected integration
-- Update form to show relevant fields per integration
+**Files:** `TicketForm.tsx`, `types/index.ts`, `lib/hygraph/client.ts`, `lib/cms/index.ts`, `api/ticket/route.ts`
 
 ---
 

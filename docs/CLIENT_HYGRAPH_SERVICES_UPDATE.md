@@ -16,11 +16,13 @@ This guide adds new fields to your existing Services schema for enhanced UI feat
 | Helpful Resource      | (new model)                          | CMS-driven resource links                  |
 | Services Page Content | (new model)                          | Customizable section titles/descriptions   |
 | Contact Settings      | (new model)                          | Customize contact form labels and messages |
+| Contact Page Settings | (new model)                          | Contact page title, subtitle, links        |
 | Inquiry Type          | (new model)                          | CMS-driven inquiry type options            |
 | Footer Settings       | (new model)                          | Footer branding and legal links            |
 | Footer Link           | (new model)                          | Dynamic footer navigation links            |
 | Header Settings       | (new model)                          | Navbar branding (name, subtitle, logo)     |
 | Nav Link              | (new model)                          | Dynamic navbar navigation links            |
+| Ticket Category       | (new model)                          | Ticket form category options               |
 
 ---
 
@@ -162,11 +164,11 @@ CTA Subtitle: "Contact us today to discuss your Discord project."
 
 ## Step 6: Create Contact Settings Model (Optional)
 
-This model lets you customize the contact form in the modal. If not created, sensible defaults are used.
+This model lets you customize the contact form modal on the services page. If not created, sensible defaults are used.
 
 1. Go to **Schema**
 2. Click **+ Add** next to MODELS
-3. Display Name: `Contact Settings`
+3. Display Name: `Contact Setting`
 4. Click **Add Model**
 
 ### Add Fields
@@ -188,14 +190,42 @@ This model lets you customize the contact form in the modal. If not created, sen
 ```
 Form Title: "Get in Touch"
 Form Subtitle: "Fill out the form below and our team will respond within 24 hours."
-
 Company Field Label: "Discord Server Name"
 Company Field Placeholder: "e.g., My Community Server"
-
 Success Title: "Message Sent!"
 Success Message: "Thank you for your inquiry! Our team will contact you within 1-2 business days."
-
 Submit Button Text: "Send Message"
+```
+
+---
+
+## Step 6b: Create Contact Page Settings Model (Optional)
+
+This model lets you customize the `/support/contact` page. If not created, sensible defaults are used.
+
+1. Go to **Schema**
+2. Click **+ Add** next to MODELS
+3. Display Name: `Contact Page Setting`
+4. Click **Add Model**
+
+### Add Fields
+
+| #   | Display Name  | API ID         | Type             | Notes                                             |
+| --- | ------------- | -------------- | ---------------- | ------------------------------------------------- |
+| 1   | Page Title    | `pageTitle`    | Single line text | e.g., "Get in Touch"                              |
+| 2   | Page Subtitle | `pageSubtitle` | Single line text | e.g., "Choose the best way to get help..."        |
+| 3   | Discord URL   | `discordUrl`   | Single line text | Your Discord invite, e.g., "https://discord.gg/x" |
+| 4   | Email Address | `emailAddress` | Single line text | Support email, e.g., "support@example.com"        |
+
+**Note:** All fields optional. Create only ONE entry. Empty fields use defaults.
+
+### Sample Entry
+
+```
+Page Title: "Contact & Support"
+Page Subtitle: "Choose the best way to get help based on your needs."
+Discord URL: "https://discord.gg/yourserver"
+Email Address: "support@example.com"
 ```
 
 ---
@@ -410,7 +440,45 @@ Use these exact names in the Icon field:
 
 ---
 
-## Step 12: Update Token Permissions
+## Step 12: Create Ticket Category Model (Optional)
+
+This model lets you customize the category options in the ticket submission form.
+
+1. Go to **Schema**
+2. Click **+ Add** next to MODELS
+3. Display Name: `Ticket Category`
+4. Click **Add Model**
+
+### Add Fields
+
+| #   | Display Name | API ID       | Type             | Notes                                              |
+| --- | ------------ | ------------ | ---------------- | -------------------------------------------------- |
+| 1   | Category ID  | `categoryId` | Single line text | Required. Unique identifier (e.g., "technical")    |
+| 2   | Name         | `name`       | Single line text | Required. Display text (e.g., "Technical Problem") |
+| 3   | Icon         | `icon`       | Single line text | Phosphor icon name (see icon list above)           |
+| 4   | Order        | `order`      | Integer          | Display order (lower = first)                      |
+
+### Sample Entries
+
+| Category ID | Name                   | Icon          | Order |
+| ----------- | ---------------------- | ------------- | ----- |
+| technical   | Technical Problem      | Wrench        | 1     |
+| setup       | Setup & Configuration  | Gear          | 2     |
+| not-working | Feature Not Working    | WarningCircle | 3     |
+| permissions | Permission Issue       | Lock          | 4     |
+| billing     | Billing & Account      | CreditCard    | 5     |
+| feedback    | Feedback & Suggestions | ChatCircle    | 6     |
+| other       | Other                  | Question      | 7     |
+
+**Behavior:**
+
+- Category selector is required for users
+- If no categories are configured, defaults are used
+- Simple dropdown with direct category selection
+
+---
+
+## Step 13: Update Token Permissions
 
 If you created new models:
 
@@ -425,6 +493,7 @@ If you created new models:
    - Footer Link (if created)
    - Header Settings (if created)
    - Nav Link (if created)
+   - Ticket Category (if created)
 4. Save
 
 ---
@@ -500,5 +569,6 @@ Your site will now show:
 - CMS-driven inquiry type options (if configured)
 - Custom footer branding and links (if configured)
 - Custom navbar branding and navigation (if configured)
+- CMS-driven ticket form categories (if configured)
 
 No code changes needed - just publish your updated content!

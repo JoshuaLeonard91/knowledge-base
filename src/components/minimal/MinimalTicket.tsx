@@ -48,7 +48,8 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           serverId: serverId.trim(),
-          subjectId: 'technical',
+          categoryId: 'technical',
+          severity: 'medium',
           description: description.trim(),
         }),
       });

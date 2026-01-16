@@ -76,7 +76,7 @@ export interface ServicesPageContent {
   ctaSubtitle?: string;
 }
 
-// Contact form settings (CMS-configurable)
+// Contact form settings (CMS-configurable) - for services page modal
 export interface ContactSettings {
   // Form header
   formTitle: string;
@@ -89,6 +89,14 @@ export interface ContactSettings {
   successMessage: string;
   // Button text
   submitButtonText: string;
+}
+
+// Contact page settings (CMS-configurable) - for /support/contact page
+export interface ContactPageSettings {
+  pageTitle?: string;
+  pageSubtitle?: string;
+  discordUrl?: string;
+  emailAddress?: string;
 }
 
 // Inquiry type options for contact form dropdown
@@ -135,6 +143,14 @@ export interface NavLink {
   title: string;
   url: string;
   icon: string; // Phosphor icon name (e.g., "House", "BookOpenText")
+  order: number;
+}
+
+// Ticket form category (CMS-configurable) - single simplified model
+export interface TicketCategory {
+  id: string;
+  name: string;
+  icon: string; // Phosphor icon name
   order: number;
 }
 
@@ -212,6 +228,13 @@ interface HygraphContactSettings {
   submitButtonText?: string;
 }
 
+interface HygraphContactPageSettings {
+  pageTitle?: string;
+  pageSubtitle?: string;
+  discordUrl?: string;
+  emailAddress?: string;
+}
+
 interface HygraphInquiryType {
   id: string;
   typeId?: string; // Custom field since 'id' is reserved in Hygraph
@@ -251,6 +274,14 @@ interface HygraphNavLink {
   id: string;
   title: string;
   url: string;
+  icon?: string;
+  order?: number;
+}
+
+interface HygraphTicketCategory {
+  id: string;
+  categoryId?: string; // Custom field since 'id' is reserved in Hygraph
+  name: string;
   icon?: string;
   order?: number;
 }
@@ -994,7 +1025,7 @@ class HygraphClient {
   // ==========================================
 
   /**
-   * Get contact form settings
+   * Get contact form settings (for services page modal)
    * Returns defaults if not configured in CMS
    */
   async getContactSettings(): Promise<ContactSettings> {
@@ -1023,6 +1054,32 @@ class HygraphClient {
       successTitle: settings?.successTitle || 'Message Sent!',
       successMessage: settings?.successMessage || 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
       submitButtonText: settings?.submitButtonText || 'Send Message',
+    };
+  }
+
+  /**
+   * Get contact page settings (for /support/contact page)
+   * Returns defaults if not configured in CMS
+   */
+  async getContactPageSettings(): Promise<ContactPageSettings> {
+    const data = await this.query<{ contactPageSettings: HygraphContactPageSettings[] }>(`
+      query GetContactPageSettings {
+        contactPageSettings(first: 1) {
+          pageTitle
+          pageSubtitle
+          discordUrl
+          emailAddress
+        }
+      }
+    `);
+
+    const settings = data?.contactPageSettings?.[0];
+
+    return {
+      pageTitle: settings?.pageTitle,
+      pageSubtitle: settings?.pageSubtitle,
+      discordUrl: settings?.discordUrl,
+      emailAddress: settings?.emailAddress,
     };
   }
 
@@ -1187,7 +1244,7 @@ class HygraphClient {
       ctaSubtitle: content?.ctaSubtitle || "Let's discuss how we can help your Discord community succeed.",
     };
 
-    // Contact settings with defaults
+    // Contact settings with defaults (form fields only - page fields fetched separately)
     const settings = data?.contactSettings?.[0];
     const companyLabel = settings?.companyFieldLabel || 'Company / Server Name';
     const contactSettings: ContactSettings = {
@@ -1400,10 +1457,52 @@ class HygraphClient {
         { id: 'default-2', title: 'Articles', url: '/support/articles', icon: 'BookOpenText', order: 2 },
         { id: 'default-3', title: 'Services', url: '/support/services', icon: 'Briefcase', order: 3 },
         { id: 'default-4', title: 'Submit Ticket', url: '/support/ticket', icon: 'PaperPlaneTilt', order: 4 },
+        { id: 'default-5', title: 'Contact', url: '/support/contact', icon: 'Envelope', order: 5 },
       ];
     }
 
     return { settings, navLinks };
+  }
+
+  // ==========================================
+  // TICKET FORM DATA
+  // ==========================================
+
+  /**
+   * Get ticket categories for the ticket form
+   * Returns defaults if not configured in CMS
+   */
+  async getTicketCategories(): Promise<TicketCategory[]> {
+    const data = await this.query<{ ticketCategories: HygraphTicketCategory[] }>(`
+      query GetTicketCategories {
+        ticketCategories(first: 20, orderBy: order_ASC) {
+          categoryId
+          name
+          icon
+          order
+        }
+      }
+    `);
+
+    if (data?.ticketCategories && data.ticketCategories.length > 0) {
+      return data.ticketCategories.map((item) => ({
+        id: item.categoryId || item.id,
+        name: item.name,
+        icon: item.icon || 'Question',
+        order: item.order ?? 0,
+      }));
+    }
+
+    // Return defaults if no CMS content
+    return [
+      { id: 'technical', name: 'Technical Problem', icon: 'Wrench', order: 1 },
+      { id: 'setup', name: 'Setup & Configuration', icon: 'Gear', order: 2 },
+      { id: 'not-working', name: 'Feature Not Working', icon: 'WarningCircle', order: 3 },
+      { id: 'permissions', name: 'Permission Issue', icon: 'Lock', order: 4 },
+      { id: 'billing', name: 'Billing & Account', icon: 'CreditCard', order: 5 },
+      { id: 'feedback', name: 'Feedback & Suggestions', icon: 'ChatCircle', order: 6 },
+      { id: 'other', name: 'Other', icon: 'Question', order: 7 },
+    ];
   }
 }
 

@@ -491,6 +491,361 @@ export function getDevTenant(request: NextRequest): string | null {
 
 ---
 
+## Caching Strategy (Valkey + Webhooks)
+
+### Overview
+
+Each tenant's Hygraph content is cached in a shared Valkey (Redis-compatible) instance. Webhooks from each tenant's Hygraph project trigger cache invalidation for real-time updates.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                           Tenant Request Flow                            │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   1. Request arrives at acme.supportdesk.io/support                     │
+│                          ↓                                               │
+│   2. Middleware extracts tenant: "acme"                                 │
+│                          ↓                                               │
+│   3. Check Valkey for: tenant:acme:header, tenant:acme:footer, etc.     │
+│                          ↓                                               │
+│         ┌────────────────┴────────────────┐                             │
+│         ↓                                  ↓                             │
+│   [Cache HIT]                        [Cache MISS]                        │
+│   Return cached data                 Fetch from Hygraph API              │
+│                                      Store in Valkey (TTL: 24h)          │
+│                                      Return data                         │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        Webhook Invalidation Flow                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│   1. Content editor publishes Article in Hygraph (acme's project)       │
+│                          ↓                                               │
+│   2. Hygraph fires webhook to:                                          │
+│      POST /api/webhooks/hygraph?tenant=acme                             │
+│                          ↓                                               │
+│   3. Webhook handler validates secret, identifies affected cache keys   │
+│                          ↓                                               │
+│   4. Delete from Valkey: tenant:acme:articles, tenant:acme:article:*    │
+│                          ↓                                               │
+│   5. Next request triggers cache rebuild from fresh API data            │
+│                                                                          │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Cache Key Namespacing
+
+All cache keys are namespaced by tenant to ensure isolation:
+
+```
+Pattern: tenant:{subdomain}:{resource}:{optional-id}
+
+Examples:
+  tenant:acme:header           → Header settings + nav links
+  tenant:acme:footer           → Footer settings + footer links
+  tenant:acme:theme            → Site theme/colors
+  tenant:acme:articles         → Article list
+  tenant:acme:article:welcome  → Single article by slug
+  tenant:acme:categories       → Category list
+  tenant:acme:services         → Services page data
+  tenant:acme:contact          → Contact settings + inquiry types
+```
+
+### Valkey Configuration
+
+```typescript
+// lib/cache/valkey.ts
+import { createClient } from 'redis';
+
+const valkey = createClient({
+  url: process.env.VALKEY_URL, // e.g., redis://user:pass@host:6379
+});
+
+// Default TTL: 24 hours (content rarely changes more than daily)
+const DEFAULT_TTL = 60 * 60 * 24;
+
+export async function getCached<T>(key: string): Promise<T | null> {
+  const data = await valkey.get(key);
+  return data ? JSON.parse(data) : null;
+}
+
+export async function setCache(key: string, data: unknown, ttl = DEFAULT_TTL): Promise<void> {
+  await valkey.setEx(key, ttl, JSON.stringify(data));
+}
+
+export async function invalidateCache(pattern: string): Promise<void> {
+  // Use SCAN for pattern matching (e.g., tenant:acme:article:*)
+  const keys = await valkey.keys(pattern);
+  if (keys.length > 0) {
+    await valkey.del(keys);
+  }
+}
+
+export async function invalidateTenantCache(subdomain: string): Promise<void> {
+  await invalidateCache(`tenant:${subdomain}:*`);
+}
+```
+
+### Webhook Database Schema
+
+```sql
+-- Webhook configuration per tenant
+CREATE TABLE tenant_webhook_config (
+  tenant_id UUID PRIMARY KEY REFERENCES tenants(id),
+  hygraph_webhook_secret VARCHAR(255) NOT NULL,  -- Secret for validating incoming webhooks
+  webhook_enabled BOOLEAN DEFAULT true,
+  last_webhook_at TIMESTAMP,                      -- For monitoring
+  webhook_failure_count INTEGER DEFAULT 0,        -- Track failures
+  created_at TIMESTAMP DEFAULT NOW(),
+  updated_at TIMESTAMP DEFAULT NOW()
+);
+
+-- Webhook event log (optional, for debugging)
+CREATE TABLE webhook_events (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  tenant_id UUID REFERENCES tenants(id),
+  event_type VARCHAR(50),                         -- publish, unpublish, delete
+  model_name VARCHAR(100),                        -- Article, Service, etc.
+  model_id VARCHAR(100),
+  processed_at TIMESTAMP DEFAULT NOW(),
+  success BOOLEAN DEFAULT true,
+  error_message TEXT
+);
+
+-- Index for recent events lookup
+CREATE INDEX idx_webhook_events_tenant ON webhook_events(tenant_id, processed_at DESC);
+```
+
+### Webhook Endpoint
+
+```typescript
+// app/api/webhooks/hygraph/route.ts
+import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
+import { invalidateCache } from '@/lib/cache/valkey';
+
+// Model to cache key mapping
+const MODEL_CACHE_KEYS: Record<string, (subdomain: string, data?: any) => string[]> = {
+  HeaderSettings: (s) => [`tenant:${s}:header`],
+  NavLink: (s) => [`tenant:${s}:header`],
+  FooterSettings: (s) => [`tenant:${s}:footer`],
+  FooterLink: (s) => [`tenant:${s}:footer`],
+  Article: (s, d) => [`tenant:${s}:articles`, `tenant:${s}:article:${d?.slug || '*'}`],
+  Category: (s) => [`tenant:${s}:articles`, `tenant:${s}:categories`],
+  Service: (s) => [`tenant:${s}:services`],
+  ServiceTier: (s) => [`tenant:${s}:services`],
+  SlaHighlight: (s) => [`tenant:${s}:services`],
+  HelpfulResource: (s) => [`tenant:${s}:services`],
+  ServicesPageContent: (s) => [`tenant:${s}:services`],
+  SiteTheme: (s) => [`tenant:${s}:theme`],
+  ContactSettings: (s) => [`tenant:${s}:contact`],
+  InquiryType: (s) => [`tenant:${s}:contact`],
+};
+
+export async function POST(request: NextRequest) {
+  try {
+    // 1. Extract tenant from query param
+    const { searchParams } = new URL(request.url);
+    const subdomain = searchParams.get('tenant');
+
+    if (!subdomain) {
+      return NextResponse.json({ error: 'Missing tenant' }, { status: 400 });
+    }
+
+    // 2. Get tenant's webhook secret from database
+    const tenant = await db.query(`
+      SELECT t.id, w.hygraph_webhook_secret, w.webhook_enabled
+      FROM tenants t
+      JOIN tenant_webhook_config w ON t.id = w.tenant_id
+      WHERE t.subdomain = $1 AND t.status = 'active'
+    `, [subdomain]);
+
+    if (!tenant || !tenant.webhook_enabled) {
+      return NextResponse.json({ error: 'Invalid tenant' }, { status: 404 });
+    }
+
+    // 3. Validate webhook secret
+    const providedSecret = request.headers.get('x-webhook-secret');
+    if (providedSecret !== tenant.hygraph_webhook_secret) {
+      return NextResponse.json({ error: 'Invalid secret' }, { status: 401 });
+    }
+
+    // 4. Parse webhook payload
+    const payload = await request.json();
+    const { operation, data } = payload;
+    const modelName = data?.__typename;
+
+    // 5. Get cache keys to invalidate
+    const getCacheKeys = MODEL_CACHE_KEYS[modelName];
+    if (getCacheKeys) {
+      const keysToInvalidate = getCacheKeys(subdomain, data);
+
+      // 6. Invalidate cache (must complete within 3s)
+      await Promise.all(keysToInvalidate.map(key => invalidateCache(key)));
+    }
+
+    // 7. Update last webhook timestamp
+    await db.query(`
+      UPDATE tenant_webhook_config
+      SET last_webhook_at = NOW(), webhook_failure_count = 0
+      WHERE tenant_id = $1
+    `, [tenant.id]);
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('Webhook error:', error);
+    return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+  }
+}
+```
+
+### Tenant Hygraph Setup with Webhooks
+
+Update the onboarding flow to include webhook configuration:
+
+```
+┌─────────────────────────────────────────┐
+│         Connect Your CMS                 │
+├─────────────────────────────────────────┤
+│                                          │
+│  Step 1: Create a Hygraph project        │
+│          [Open Hygraph] ↗                │
+│                                          │
+│  Step 2: Copy your credentials           │
+│                                          │
+│  API Endpoint: [____________________]    │
+│  API Token: [_______________________]    │
+│                                          │
+│  Step 3: Configure Webhook (for          │
+│          real-time updates)              │
+│                                          │
+│  ┌────────────────────────────────────┐  │
+│  │ Webhook URL (copy this):           │  │
+│  │ https://api.supportdesk.io/        │  │
+│  │   webhooks/hygraph?tenant=acme     │  │
+│  │                          [Copy]    │  │
+│  ├────────────────────────────────────┤  │
+│  │ Webhook Secret (copy this):        │  │
+│  │ whsec_a1b2c3d4e5f6...              │  │
+│  │                          [Copy]    │  │
+│  ├────────────────────────────────────┤  │
+│  │ In Hygraph → Settings → Webhooks:  │  │
+│  │ • URL: paste webhook URL           │  │
+│  │ • Header: x-webhook-secret         │  │
+│  │ • Header Value: paste secret       │  │
+│  │ • Triggers: All models, Publish/   │  │
+│  │   Unpublish/Delete                 │  │
+│  └────────────────────────────────────┘  │
+│                                          │
+│  [Test Connection]  [Save & Continue]    │
+│                                          │
+└─────────────────────────────────────────┘
+```
+
+### Cache-Aware Data Fetching
+
+```typescript
+// lib/cms/cached.ts
+import { getCached, setCache } from '@/lib/cache/valkey';
+import { HygraphClient } from '@/lib/hygraph/client';
+
+export async function getCachedHeaderData(subdomain: string, hygraphClient: HygraphClient) {
+  const cacheKey = `tenant:${subdomain}:header`;
+
+  // Try cache first
+  const cached = await getCached(cacheKey);
+  if (cached) {
+    return cached;
+  }
+
+  // Fetch from Hygraph
+  const data = await hygraphClient.getHeaderData();
+
+  // Store in cache
+  await setCache(cacheKey, data);
+
+  return data;
+}
+
+// Similar functions for footer, articles, services, etc.
+```
+
+### Manual Cache Invalidation
+
+Provide tenants a way to manually clear their cache:
+
+```typescript
+// app/api/admin/cache/clear/route.ts
+import { invalidateTenantCache } from '@/lib/cache/valkey';
+import { getTenantFromRequest } from '@/lib/tenant/resolver';
+
+export async function POST() {
+  const tenant = await getTenantFromRequest();
+
+  if (!tenant) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  await invalidateTenantCache(tenant.subdomain);
+
+  return NextResponse.json({ success: true, message: 'Cache cleared' });
+}
+```
+
+### Environment Variables
+
+Add to platform environment:
+
+```bash
+# Valkey/Redis Cache
+VALKEY_URL=redis://user:pass@your-valkey-host:6379
+
+# Cache settings
+CACHE_TTL_SECONDS=86400  # 24 hours default
+```
+
+### Implementation Phases (Updated)
+
+Add caching to the existing phases:
+
+#### Phase 2: Tenant Database (Updated)
+- [ ] PostgreSQL schema setup
+- [ ] **Add tenant_webhook_config table**
+- [ ] **Add webhook_events table (optional)**
+- [ ] Tenant CRUD API routes
+- [ ] Credential encryption utilities
+- [ ] **Webhook secret generation utility**
+- [ ] Subdomain middleware
+
+#### Phase 3: Tenant Resolution (Updated)
+- [ ] Middleware for subdomain extraction
+- [ ] Tenant context provider
+- [ ] Dynamic Hygraph client per tenant
+- [ ] **Valkey client setup**
+- [ ] **Cache-aware data fetching functions**
+- [ ] Dynamic Jira client per tenant
+
+#### Phase 4: Self-Service Onboarding (Updated)
+- [ ] Signup flow UI
+- [ ] Email verification
+- [ ] Hygraph connection wizard
+- [ ] **Webhook configuration UI + instructions**
+- [ ] **Webhook secret generation on signup**
+- [ ] Jira connection wizard
+- [ ] Onboarding progress tracking
+
+#### New Phase: Cache Infrastructure
+- [ ] Valkey client library
+- [ ] Cache key utilities
+- [ ] Webhook endpoint handler
+- [ ] Model-to-cache-key mapping
+- [ ] Manual cache clear endpoint
+- [ ] Cache hit/miss monitoring
+
+---
+
 ## Related Documentation
 
 - [Hygraph Setup Guide](./CLIENT_HYGRAPH_SETUP.md)
