@@ -1,9 +1,0 @@
-Field ID,Display Name,Field Type,Required
-slug,Slug,Text,Yes
-title,Title,Text,Yes
-excerpt,Excerpt,Text,No
-content,Content,Rich Text,Yes
-category,Category,Reference,No
-keywords,Keywords,Text,No
-icon,Icon,Text,No
-readTime,Read Time,Number,No

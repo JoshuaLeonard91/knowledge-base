@@ -53,3 +53,11 @@ secrets.json
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# playwright
+.playwright-mcp/
+
+# documentation (local only)
+/docs/
+client\ setup.md
+user\ stories\ -\ user\ stories\ (specific).pdf
