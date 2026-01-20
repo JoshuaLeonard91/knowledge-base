@@ -2,11 +2,12 @@
  * Unified CMS Module
  *
  * Provides a single entry point for fetching articles and services from CMS.
- * Uses Hygraph CMS when configured, falls back to local data.
+ * Supports multi-tenant: uses tenant's Hygraph when available, falls back to env vars.
  *
- * Supported Providers:
- * - hygraph: Hygraph GraphQL CMS (CMS_SOURCE=hygraph)
- * - local: Local fallback data (default)
+ * Priority:
+ * 1. Tenant's Hygraph config (if tenant has hygraphConfig in database)
+ * 2. Environment variable Hygraph (HYGRAPH_ENDPOINT, HYGRAPH_TOKEN)
+ * 3. Local fallback data
  *
  * See: docs/CLIENT_HYGRAPH_SETUP.md
  */
@@ -16,11 +17,37 @@ import { Article, ArticleCategory } from '@/types';
 // Import providers
 import * as localData from '@/lib/data/articles';
 import * as hygraph from '@/lib/hygraph';
+import { HygraphClient, createHygraphClient } from '@/lib/hygraph';
+import { getTenantFromRequest } from '@/lib/tenant';
 
 // Re-export service types from Hygraph
 export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
+
+/**
+ * Get the Hygraph client for the current request
+ * Returns tenant's client if configured, otherwise default client
+ */
+async function getHygraphClient(): Promise<HygraphClient | null> {
+  try {
+    const tenant = await getTenantFromRequest();
+
+    // If tenant has Hygraph config, use their client
+    if (tenant?.hygraph?.endpoint && tenant?.hygraph?.token) {
+      return createHygraphClient(tenant.hygraph.endpoint, tenant.hygraph.token);
+    }
+  } catch {
+    // Not in a request context (e.g., build time), fall through to default
+  }
+
+  // Fall back to default client (env vars)
+  if (hygraph.isAvailable()) {
+    return hygraph.hygraph;
+  }
+
+  return null;
+}
 
 /**
  * Detect which CMS provider to use
@@ -46,10 +73,10 @@ export function getCMSProvider(): CMSProvider {
  * Get all articles from the configured CMS
  */
 export async function getArticles(): Promise<Article[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getArticles();
+  if (client) {
+    return client.getArticles();
   }
 
   return localData.articles;
@@ -59,10 +86,10 @@ export async function getArticles(): Promise<Article[]> {
  * Get all categories from the configured CMS
  */
 export async function getCategories(): Promise<ArticleCategory[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getCategories();
+  if (client) {
+    return client.getCategories();
   }
 
   return localData.categories;
@@ -72,10 +99,10 @@ export async function getCategories(): Promise<ArticleCategory[]> {
  * Get an article by slug from the configured CMS
  */
 export async function getArticleBySlug(slug: string): Promise<Article | null> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getArticleBySlug(slug);
+  if (client) {
+    return client.getArticleBySlug(slug);
   }
 
   return localData.getArticleBySlug(slug) || null;
@@ -85,10 +112,10 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
  * Search articles from the configured CMS
  */
 export async function searchArticles(query: string): Promise<Article[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.searchArticles(query);
+  if (client) {
+    return client.searchArticles(query);
   }
 
   return localData.searchArticles(query);
@@ -98,10 +125,10 @@ export async function searchArticles(query: string): Promise<Article[]> {
  * Get articles by category from the configured CMS
  */
 export async function getArticlesByCategory(categorySlug: string): Promise<Article[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getArticlesByCategory(categorySlug);
+  if (client) {
+    return client.getArticlesByCategory(categorySlug);
   }
 
   return localData.articles.filter(a => a.category === categorySlug);
@@ -144,10 +171,10 @@ import type { Service, ServiceTier, SLAHighlight, HelpfulResource } from '@/lib/
  * Check if services are enabled (any services exist in CMS)
  */
 export async function hasServices(): Promise<boolean> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.hasServices();
+  if (client) {
+    return client.hasServices();
   }
 
   return false;
@@ -157,10 +184,10 @@ export async function hasServices(): Promise<boolean> {
  * Get all services from the CMS
  */
 export async function getServices(): Promise<Service[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getServices();
+  if (client) {
+    return client.getServices();
   }
 
   return [];
@@ -170,10 +197,10 @@ export async function getServices(): Promise<Service[]> {
  * Get a service by slug
  */
 export async function getServiceBySlug(slug: string): Promise<Service | null> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getServiceBySlug(slug);
+  if (client) {
+    return client.getServiceBySlug(slug);
   }
 
   return null;
@@ -183,10 +210,10 @@ export async function getServiceBySlug(slug: string): Promise<Service | null> {
  * Get all service tiers from the CMS
  */
 export async function getServiceTiers(): Promise<ServiceTier[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getServiceTiers();
+  if (client) {
+    return client.getServiceTiers();
   }
 
   return [];
@@ -196,10 +223,10 @@ export async function getServiceTiers(): Promise<ServiceTier[]> {
  * Get SLA highlights from the CMS
  */
 export async function getSLAHighlights(): Promise<SLAHighlight[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getSLAHighlights();
+  if (client) {
+    return client.getSLAHighlights();
   }
 
   return [];
@@ -210,10 +237,10 @@ export async function getSLAHighlights(): Promise<SLAHighlight[]> {
  * Returns empty array if none configured - section won't render
  */
 export async function getHelpfulResources(): Promise<HelpfulResource[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getHelpfulResources();
+  if (client) {
+    return client.getHelpfulResources();
   }
 
   return [];
@@ -226,10 +253,10 @@ import type { ServicesPageContent } from '@/lib/hygraph';
  * Returns defaults if not configured in CMS
  */
 export async function getServicesPageContent(): Promise<ServicesPageContent> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getServicesPageContent();
+  if (client) {
+    return client.getServicesPageContent();
   }
 
   // Return defaults for local provider
@@ -254,10 +281,10 @@ import type { ContactSettings, ContactPageSettings, InquiryType } from '@/lib/hy
  * Returns defaults if not configured in CMS
  */
 export async function getContactSettings(): Promise<ContactSettings> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getContactSettings();
+  if (client) {
+    return client.getContactSettings();
   }
 
   // Return defaults for local provider
@@ -277,10 +304,10 @@ export async function getContactSettings(): Promise<ContactSettings> {
  * Returns defaults if not configured in CMS
  */
 export async function getContactPageSettings(): Promise<ContactPageSettings> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getContactPageSettings();
+  if (client) {
+    return client.getContactPageSettings();
   }
 
   // Return defaults for local provider
@@ -297,10 +324,10 @@ export async function getContactPageSettings(): Promise<ContactPageSettings> {
  * Returns defaults if not configured in CMS
  */
 export async function getInquiryTypes(): Promise<InquiryType[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getInquiryTypes();
+  if (client) {
+    return client.getInquiryTypes();
   }
 
   // Return defaults for local provider
@@ -326,10 +353,10 @@ export async function getServicesPageData(): Promise<{
   contactSettings: ContactSettings;
   inquiryTypes: InquiryType[];
 }> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getServicesPageData();
+  if (client) {
+    return client.getServicesPageData();
   }
 
   // Return defaults for local provider
@@ -382,10 +409,10 @@ export async function getFooterData(): Promise<{
   settings: FooterSettings;
   links: FooterLink[];
 }> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getFooterData();
+  if (client) {
+    return client.getFooterData();
   }
 
   // Return defaults for local provider
@@ -427,10 +454,10 @@ export async function getHeaderData(): Promise<{
   settings: HeaderSettings;
   navLinks: NavLink[];
 }> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getHeaderData();
+  if (client) {
+    return client.getHeaderData();
   }
 
   // Return defaults for local provider
@@ -461,10 +488,10 @@ import type { TicketCategory } from '@/lib/hygraph';
  * Returns defaults if not configured in CMS
  */
 export async function getTicketCategories(): Promise<TicketCategory[]> {
-  const provider = detectProvider();
+  const client = await getHygraphClient();
 
-  if (provider === 'hygraph') {
-    return hygraph.getTicketCategories();
+  if (client) {
+    return client.getTicketCategories();
   }
 
   // Return defaults for local provider

@@ -63,3 +63,4 @@ client\ setup.md
 user\ stories\ -\ user\ stories\ (specific).pdf
 
 /src/generated/prisma
+prisma/seed-donuts.ts

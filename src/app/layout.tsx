@@ -4,6 +4,8 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LayoutContent } from "@/components/layout/LayoutContent";
 import { HistoryProvider } from "@/components/support/HistoryProvider";
+import { TenantProvider } from "@/lib/tenant/context";
+import { getTenantFromRequest, transformTenantToContext } from "@/lib/tenant/resolver";
 import { getTheme, themeToCSSVariables } from "@/lib/theme";
 import { getFooterData, getHeaderData } from "@/lib/cms";
 
@@ -17,13 +19,37 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  // Get tenant from request (subdomain or query param)
+  const tenant = await getTenantFromRequest();
+
   // Fetch theme, header, and footer data from CMS (cached per request)
   const [theme, headerData, footerData] = await Promise.all([
     getTheme(),
     getHeaderData(),
     getFooterData(),
   ]);
-  const cssVariables = themeToCSSVariables(theme);
+
+  // Build CSS variables from theme
+  let cssVariables = themeToCSSVariables(theme);
+
+  // Override with tenant branding if available
+  if (tenant?.branding?.primaryColor) {
+    cssVariables = {
+      ...cssVariables,
+      '--accent-primary': tenant.branding.primaryColor,
+    };
+  }
+
+  // Convert tenant to client-safe config for context
+  const clientTenant = tenant ? {
+    id: tenant.id,
+    slug: tenant.slug,
+    name: tenant.name,
+    plan: tenant.plan,
+    features: tenant.features,
+    branding: tenant.branding,
+    jiraConnected: tenant.jira?.connected ?? false,
+  } : null;
 
   return (
     <html lang="en" className="dark" style={cssVariables as React.CSSProperties}>
@@ -35,9 +61,11 @@ export default async function RootLayout({
       <body className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
         <ThemeProvider>
           <AuthProvider>
-            <HistoryProvider>
-              <LayoutContent headerData={headerData} footerData={footerData}>{children}</LayoutContent>
-            </HistoryProvider>
+            <TenantProvider tenant={clientTenant}>
+              <HistoryProvider>
+                <LayoutContent headerData={headerData} footerData={footerData}>{children}</LayoutContent>
+              </HistoryProvider>
+            </TenantProvider>
           </AuthProvider>
         </ThemeProvider>
         {process.env.NEXT_PUBLIC_JSM_WIDGET_KEY && (
