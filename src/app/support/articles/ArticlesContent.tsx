@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { Article, ArticleCategory } from '@/types';
-import { X, MagnifyingGlass } from '@phosphor-icons/react';
+import { X, MagnifyingGlass, Sparkle } from '@phosphor-icons/react';
 
 interface ArticlesContentProps {
   articles: Article[];
@@ -91,32 +91,34 @@ export function ArticlesContent({ articles, categories }: ArticlesContentProps) 
         </div>
       )}
 
-      {/* Category Tabs */}
-      <div className="flex flex-wrap gap-2 mb-8">
-        <button
-          onClick={() => setSelectedCategory(null)}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-            selectedCategory === null
-              ? 'bg-[var(--accent-primary)] text-white'
-              : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-          }`}
-        >
-          All
-        </button>
-        {categories.map((cat) => (
+      {/* Category Tabs - only show if there are categories */}
+      {categories.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-8">
           <button
-            key={cat.id}
-            onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+            onClick={() => setSelectedCategory(null)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-              selectedCategory === cat.id
+              selectedCategory === null
                 ? 'bg-[var(--accent-primary)] text-white'
                 : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
             }`}
           >
-            {cat.name}
+            All
           </button>
-        ))}
-      </div>
+          {categories.map((cat) => (
+            <button
+              key={cat.id}
+              onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                selectedCategory === cat.id
+                  ? 'bg-[var(--accent-primary)] text-white'
+                  : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              {cat.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Articles List */}
       <div className="space-y-4">
@@ -126,8 +128,20 @@ export function ArticlesContent({ articles, categories }: ArticlesContentProps) 
       </div>
 
       {filteredArticles.length === 0 && (
-        <div className="text-center py-12">
-          <p className="text-[var(--text-secondary)]">No articles found.</p>
+        <div className="text-center py-12 px-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
+          {articles.length === 0 ? (
+            <>
+              <div className="p-4 rounded-full bg-[var(--accent-primary)]/10 w-fit mx-auto mb-4">
+                <Sparkle size={32} weight="duotone" className="text-[var(--accent-primary)]" />
+              </div>
+              <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Coming Soon</h2>
+              <p className="text-[var(--text-secondary)] max-w-md mx-auto">
+                We&apos;re setting up our knowledge base. Check back soon for helpful articles and guides.
+              </p>
+            </>
+          ) : (
+            <p className="text-[var(--text-secondary)]">No articles found matching your criteria.</p>
+          )}
         </div>
       )}
     </div>

@@ -139,40 +139,56 @@ export default async function SupportHub() {
         </div>
       </section>
 
-      {/* Recent Searches & Viewed Articles */}
-      <RecentSection />
+      {/* Recent Searches & Viewed Articles - only show if there are articles */}
+      {articles.length > 0 && <RecentSection />}
 
-      {/* Categories */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-[var(--text-primary)]">Browse by Category</h2>
-            <p className="text-[var(--text-secondary)] mt-1">Find articles organized by topic</p>
+      {/* Categories - only show if configured */}
+      {categories.length > 0 ? (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-[var(--text-primary)]">Browse by Category</h2>
+              <p className="text-[var(--text-secondary)] mt-1">Find articles organized by topic</p>
+            </div>
           </div>
-        </div>
-        <CategoryList categories={categories} articleCounts={articleCounts} />
-      </section>
+          <CategoryList categories={categories} articleCounts={articleCounts} />
+        </section>
+      ) : (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="text-center py-12 px-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
+            <div className="p-4 rounded-full bg-[var(--accent-primary)]/10 w-fit mx-auto mb-4">
+              <Sparkle size={32} weight="duotone" className="text-[var(--accent-primary)]" />
+            </div>
+            <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Coming Soon</h2>
+            <p className="text-[var(--text-secondary)] max-w-md mx-auto">
+              We&apos;re setting up our knowledge base. Check back soon for helpful articles and guides.
+            </p>
+          </div>
+        </section>
+      )}
 
-      {/* Featured Articles */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
-        <div className="flex items-center justify-between mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-[var(--text-primary)]">Popular Articles</h2>
-            <p className="text-[var(--text-secondary)] mt-1">Start here for quick answers</p>
+      {/* Featured Articles - only show if there are articles */}
+      {featuredArticles.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-16">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl font-bold text-[var(--text-primary)]">Popular Articles</h2>
+              <p className="text-[var(--text-secondary)] mt-1">Start here for quick answers</p>
+            </div>
+            <Link
+              href="/support/articles"
+              className="flex items-center gap-1 text-[var(--accent-primary)] hover:underline text-sm font-medium"
+            >
+              View all <CaretRight size={16} weight="bold" />
+            </Link>
           </div>
-          <Link
-            href="/support/articles"
-            className="flex items-center gap-1 text-[var(--accent-primary)] hover:underline text-sm font-medium"
-          >
-            View all <CaretRight size={16} weight="bold" />
-          </Link>
-        </div>
-        <div className="grid gap-4 md:grid-cols-3 stagger-children">
-          {featuredArticles.map((article) => article && (
-            <ArticleCard key={article.slug} article={article} />
-          ))}
-        </div>
-      </section>
+          <div className="grid gap-4 md:grid-cols-3 stagger-children">
+            {featuredArticles.map((article) => article && (
+              <ArticleCard key={article.slug} article={article} />
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
