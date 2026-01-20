@@ -3,9 +3,24 @@
  *
  * GraphQL-based headless CMS for article and service management.
  * See: docs/CLIENT_HYGRAPH_SETUP.md
+ *
+ * Multi-tenant support:
+ * - Use default exports for main site (uses env vars)
+ * - Use createHygraphClient() or getOrCreateTenantClient() for tenant-specific clients
  */
 
+// Default singleton client (main site / fallback)
 export { hygraph } from './client';
+
+// Multi-tenant client factories
+export {
+  HygraphClient,
+  createHygraphClient,
+  getOrCreateTenantClient,
+  clearTenantClientCache,
+} from './client';
+
+// Types
 export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory } from './client';
 
 import { hygraph } from './client';

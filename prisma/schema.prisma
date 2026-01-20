@@ -1,0 +1,142 @@
+// Prisma schema for multi-tenant support portal
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==========================================
+// TENANT (Core)
+// ==========================================
+
+model Tenant {
+  id        String   @id @default(cuid())
+  slug      String   @unique // subdomain: "acme" -> acme.portal.com
+  name      String // Display name: "Acme Corp Support"
+  status    TenantStatus @default(PENDING)
+  plan      TenantPlan   @default(FREE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  hygraphConfig  TenantHygraphConfig?
+  jiraConfig     TenantJiraConfig?
+  branding       TenantBranding?
+  features       TenantFeatures?
+  webhookConfig  TenantWebhookConfig?
+
+  @@index([slug])
+  @@index([status])
+}
+
+enum TenantStatus {
+  PENDING    // Just signed up, awaiting verification
+  SETUP      // Verified, completing onboarding
+  ACTIVE     // Fully operational
+  SUSPENDED  // Temporarily disabled
+  CANCELLED  // Account closed
+}
+
+enum TenantPlan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+// ==========================================
+// HYGRAPH CMS CONFIG (Per Tenant)
+// ==========================================
+
+model TenantHygraphConfig {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  endpoint  String   // Hygraph API endpoint
+  token     String   // Encrypted API token
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// JIRA OAUTH CONFIG (Per Tenant)
+// ==========================================
+
+model TenantJiraConfig {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  // OAuth tokens (encrypted)
+  connected       Boolean  @default(false)
+  cloudId         String?  // Jira site identifier for API calls
+  cloudUrl        String?  // e.g., "https://acme.atlassian.net"
+  accessToken     String?  // Encrypted
+  refreshToken    String?  // Encrypted
+  tokenExpiry     DateTime?
+
+  // Service desk configuration
+  serviceDeskId   String?
+  requestTypeId   String?
+  projectKey      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// BRANDING (Per Tenant)
+// ==========================================
+
+model TenantBranding {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  logoUrl       String?  // Custom logo
+  faviconUrl    String?  // Custom favicon
+  primaryColor  String?  // Hex color override
+  customDomain  String?  // e.g., "support.acmecorp.com"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// FEATURE FLAGS (Per Tenant)
+// ==========================================
+
+model TenantFeatures {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  articlesEnabled      Boolean @default(true)
+  servicesEnabled      Boolean @default(true)
+  ticketsEnabled       Boolean @default(true)
+  discordLoginEnabled  Boolean @default(true)
+  tipsEnabled          Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// WEBHOOK CONFIG (For Hygraph Cache Invalidation)
+// ==========================================
+
+model TenantWebhookConfig {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  webhookSecret       String   // Secret for validating incoming webhooks
+  webhookEnabled      Boolean  @default(true)
+  lastWebhookAt       DateTime?
+  webhookFailureCount Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

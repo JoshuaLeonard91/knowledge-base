@@ -317,20 +317,31 @@ interface GraphQLResponse<T> {
   errors?: Array<{ message: string }>;
 }
 
-class HygraphClient {
+// Options for creating a Hygraph client
+interface HygraphClientOptions {
+  endpoint?: string;
+  token?: string;
+}
+
+export class HygraphClient {
   private endpoint: string | null;
   private token: string | null;
   private isConfigured: boolean;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private cacheDuration = 300000; // 5 minutes
 
-  constructor() {
-    this.endpoint = process.env.HYGRAPH_ENDPOINT || null;
-    this.token = process.env.HYGRAPH_TOKEN || null;
+  /**
+   * Create a Hygraph client
+   * @param options - Optional endpoint and token. If not provided, uses env vars.
+   */
+  constructor(options?: HygraphClientOptions) {
+    this.endpoint = options?.endpoint || process.env.HYGRAPH_ENDPOINT || null;
+    this.token = options?.token || process.env.HYGRAPH_TOKEN || null;
     this.isConfigured = !!(this.endpoint && this.token);
 
-    if (this.isConfigured) {
-      console.log('[Hygraph] Configured with endpoint:', this.endpoint?.split('/').slice(0, 3).join('/'));
+    // Only log for default client (not per-tenant)
+    if (!options && this.isConfigured) {
+      console.log('[Hygraph] Default client configured');
     }
   }
 
@@ -1506,5 +1517,49 @@ class HygraphClient {
   }
 }
 
-// Export singleton instance
+// Export singleton instance (for main site / fallback)
 export const hygraph = new HygraphClient();
+
+/**
+ * Create a Hygraph client with specific credentials
+ * Used for multi-tenant setups where each tenant has their own Hygraph project
+ */
+export function createHygraphClient(endpoint: string, token: string): HygraphClient {
+  return new HygraphClient({ endpoint, token });
+}
+
+// Cache for tenant-specific clients (avoids recreating on every request)
+const tenantClientCache = new Map<string, { client: HygraphClient; timestamp: number }>();
+const CLIENT_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Get or create a Hygraph client for a tenant
+ * Caches clients to avoid recreation overhead
+ */
+export function getOrCreateTenantClient(
+  tenantSlug: string,
+  endpoint: string,
+  token: string
+): HygraphClient {
+  const cached = tenantClientCache.get(tenantSlug);
+
+  if (cached && Date.now() - cached.timestamp < CLIENT_CACHE_TTL) {
+    return cached.client;
+  }
+
+  const client = createHygraphClient(endpoint, token);
+  tenantClientCache.set(tenantSlug, { client, timestamp: Date.now() });
+
+  return client;
+}
+
+/**
+ * Clear cached client for a tenant (e.g., when credentials change)
+ */
+export function clearTenantClientCache(tenantSlug?: string): void {
+  if (tenantSlug) {
+    tenantClientCache.delete(tenantSlug);
+  } else {
+    tenantClientCache.clear();
+  }
+}

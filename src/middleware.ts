@@ -2,6 +2,7 @@
  * Next.js Security Middleware
  *
  * Runs on every request to enforce:
+ * - Multi-tenant subdomain resolution
  * - Rate limiting (in-memory, checked here)
  * - Request validation
  * - Security headers
@@ -12,6 +13,59 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+
+// ==========================================
+// MULTI-TENANT SUBDOMAIN EXTRACTION
+// ==========================================
+
+/**
+ * Extract tenant subdomain from hostname
+ */
+function extractTenantSubdomain(request: NextRequest): string | null {
+  const hostname = request.headers.get('host') || '';
+
+  // Handle localhost development
+  if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
+    // Check for dev tenant override via query param
+    const devTenant = request.nextUrl.searchParams.get('tenant');
+    if (devTenant) {
+      return devTenant;
+    }
+
+    // Check for dev tenant cookie
+    const tenantCookie = request.cookies.get('dev-tenant')?.value;
+    if (tenantCookie) {
+      return tenantCookie;
+    }
+
+    return null;
+  }
+
+  // Handle Vercel preview URLs
+  if (hostname.endsWith('.vercel.app')) {
+    // Check query param for tenant override in previews
+    const previewTenant = request.nextUrl.searchParams.get('tenant');
+    return previewTenant || null;
+  }
+
+  // Extract subdomain from hostname
+  // e.g., "acme.supportdesk.io" → "acme"
+  const parts = hostname.split('.');
+
+  // Need at least 3 parts for subdomain (sub.domain.tld)
+  if (parts.length >= 3) {
+    const subdomain = parts[0].toLowerCase();
+
+    // Ignore common non-tenant subdomains (main site)
+    if (['www', 'app', 'api', 'admin', 'mail', 'smtp'].includes(subdomain)) {
+      return null;
+    }
+
+    return subdomain;
+  }
+
+  return null;
+}
 
 // Simple in-memory rate limiting for middleware
 // Note: This resets on server restart and doesn't share between instances
@@ -107,9 +161,17 @@ export async function middleware(request: NextRequest) {
   const ip = getClientIp(request);
   const method = request.method;
 
+  // Extract tenant subdomain
+  const tenantSlug = extractTenantSubdomain(request);
+
   // Skip middleware for NextAuth routes - let Auth.js handle everything
   if (pathname.startsWith('/api/auth/')) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    // Still add tenant header for auth routes
+    if (tenantSlug) {
+      response.headers.set('x-tenant-slug', tenantSlug);
+    }
+    return response;
   }
 
   // Validate HTTP method
@@ -155,17 +217,26 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // Continue with rate limit headers
+    // Continue with rate limit headers and tenant slug
     const response = NextResponse.next();
     response.headers.set('X-RateLimit-Limit', String(config.maxRequests));
     response.headers.set('X-RateLimit-Remaining', String(result.remaining));
     response.headers.set('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
 
+    // Add tenant header for API routes
+    if (tenantSlug) {
+      response.headers.set('x-tenant-slug', tenantSlug);
+    }
+
     return response;
   }
 
-  // Continue for non-API routes
-  return NextResponse.next();
+  // Continue for non-API routes with tenant header
+  const response = NextResponse.next();
+  if (tenantSlug) {
+    response.headers.set('x-tenant-slug', tenantSlug);
+  }
+  return response;
 }
 
 /**

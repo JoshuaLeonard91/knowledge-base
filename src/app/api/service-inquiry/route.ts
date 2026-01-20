@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { sanitizeString } from '@/lib/security/sanitize';
 
 interface ServiceInquiry {
   name: string;
@@ -7,6 +8,18 @@ interface ServiceInquiry {
   service: string;
   inquiryType: 'general' | 'pricing' | 'demo' | 'support';
   message: string;
+}
+
+// Valid inquiry types for validation
+const VALID_INQUIRY_TYPES = ['general', 'pricing', 'demo', 'support'] as const;
+
+// Sanitize label for Jira (alphanumeric, hyphens, underscores only)
+function sanitizeLabel(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/[^a-z0-9-_]/g, '-')
+    .replace(/-+/g, '-')
+    .substring(0, 50);
 }
 
 export async function POST(request: NextRequest) {
@@ -30,6 +43,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate inquiry type
+    if (!VALID_INQUIRY_TYPES.includes(body.inquiryType)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid inquiry type' },
+        { status: 400 }
+      );
+    }
+
+    // Sanitize all user inputs
+    const sanitizedName = sanitizeString(body.name).substring(0, 100);
+    const sanitizedEmail = body.email.substring(0, 254); // Max email length per RFC
+    const sanitizedCompany = body.company ? sanitizeString(body.company).substring(0, 100) : '';
+    const sanitizedService = sanitizeString(body.service).substring(0, 100);
+    const sanitizedMessage = sanitizeString(body.message).substring(0, 5000);
+
     // Check if Jira is configured for service inquiries
     const atlassianDomain = process.env.ATLASSIAN_DOMAIN;
     const atlassianEmail = process.env.ATLASSIAN_EMAIL;
@@ -43,7 +71,7 @@ export async function POST(request: NextRequest) {
       const jiraPayload = {
         fields: {
           project: { key: projectKey },
-          summary: `Service Inquiry: ${body.service} - ${body.inquiryType}`,
+          summary: `Service Inquiry: ${sanitizedService} - ${body.inquiryType}`,
           description: {
             type: 'doc',
             version: 1,
@@ -56,9 +84,9 @@ export async function POST(request: NextRequest) {
               {
                 type: 'bulletList',
                 content: [
-                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Name: ${body.name}` }] }] },
-                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Email: ${body.email}` }] }] },
-                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Company/Server: ${body.company || 'Not provided'}` }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Name: ${sanitizedName}` }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Email: ${sanitizedEmail}` }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Company/Server: ${sanitizedCompany || 'Not provided'}` }] }] },
                 ]
               },
               {
@@ -69,7 +97,7 @@ export async function POST(request: NextRequest) {
               {
                 type: 'bulletList',
                 content: [
-                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Service: ${body.service}` }] }] },
+                  { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Service: ${sanitizedService}` }] }] },
                   { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: `Type: ${body.inquiryType}` }] }] },
                 ]
               },
@@ -80,12 +108,12 @@ export async function POST(request: NextRequest) {
               },
               {
                 type: 'paragraph',
-                content: [{ type: 'text', text: body.message }]
+                content: [{ type: 'text', text: sanitizedMessage }]
               }
             ]
           },
           issuetype: { name: 'Task' },
-          labels: ['service-inquiry', body.inquiryType, body.service],
+          labels: ['service-inquiry', body.inquiryType, sanitizeLabel(sanitizedService)],
         }
       };
 
@@ -111,20 +139,20 @@ export async function POST(request: NextRequest) {
           referenceId: jiraData.key,
         });
       } else {
-        const errorText = await jiraResponse.text();
-        console.error('[Service Inquiry] Jira API error:', errorText);
+        // Log only status code, not the full error body which may contain sensitive data
+        console.error('[Service Inquiry] Jira API error - status:', jiraResponse.status);
         // Fall through to mock mode if Jira fails
       }
     }
 
-    // Mock mode - log the inquiry
+    // Mock mode - log the inquiry (using sanitized values)
     console.log('[Service Inquiry] Mock mode - inquiry received:', {
-      name: body.name,
-      email: body.email,
-      company: body.company,
-      service: body.service,
+      name: sanitizedName,
+      email: sanitizedEmail,
+      company: sanitizedCompany,
+      service: sanitizedService,
       inquiryType: body.inquiryType,
-      messagePreview: body.message.substring(0, 100) + '...',
+      messagePreview: sanitizedMessage.substring(0, 100) + (sanitizedMessage.length > 100 ? '...' : ''),
       timestamp: new Date().toISOString(),
     });
 
@@ -132,8 +160,9 @@ export async function POST(request: NextRequest) {
       success: true,
       message: 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
     });
-  } catch (error) {
-    console.error('[Service Inquiry] Error:', error);
+  } catch {
+    // Log generic error message - don't expose error details
+    console.error('[Service Inquiry] Failed to process inquiry');
     return NextResponse.json(
       { success: false, error: 'Failed to process inquiry' },
       { status: 500 }
