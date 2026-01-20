@@ -1,7 +1,13 @@
 /**
  * Custom Discord OAuth Callback Handler
  *
- * Exchanges authorization code for tokens and creates session
+ * Exchanges authorization code for tokens and creates session.
+ * Redirects back to the tenant subdomain after successful auth.
+ *
+ * Flow:
+ * 1. User on tenant subdomain (e.g., donuts.helpportal.app) clicks "Login with Discord"
+ * 2. Redirected to main domain OAuth callback (helpportal.app/api/auth/callback/discord)
+ * 3. After auth, redirect back to tenant subdomain with session cookie
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -34,7 +40,13 @@ interface DiscordGuild {
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();
-  const baseUrl = process.env.AUTH_URL || 'http://localhost:3000';
+
+  // AUTH_URL is the main domain used for OAuth callback
+  const authBaseUrl = process.env.AUTH_URL || 'http://localhost:3000';
+
+  // Get callback URL and original tenant origin (needed for all redirects)
+  const callbackUrl = cookieStore.get('oauth_callback')?.value || '/support';
+  const tenantOrigin = cookieStore.get('oauth_origin')?.value || authBaseUrl;
 
   // Get code and state from query params
   const code = request.nextUrl.searchParams.get('code');
@@ -48,12 +60,12 @@ export async function GET(request: NextRequest) {
       method: 'discord',
       details: { error: 'access_denied' },
     });
-    return NextResponse.redirect(`${baseUrl}/support/login?error=AccessDenied`);
+    return NextResponse.redirect(`${tenantOrigin}/support/login?error=AccessDenied`);
   }
 
   // Verify code exists
   if (!code) {
-    return NextResponse.redirect(`${baseUrl}/support/login?error=Configuration`);
+    return NextResponse.redirect(`${tenantOrigin}/support/login?error=Configuration`);
   }
 
   // Verify state (CSRF protection)
@@ -62,16 +74,21 @@ export async function GET(request: NextRequest) {
     logAuthAttempt({
       success: false,
       method: 'discord',
-      details: { error: 'state_mismatch' },
+      details: {
+        error: 'state_mismatch',
+        hasStoredState: !!storedState,
+        statesMatch: storedState === state,
+        tenantOrigin,
+        authCookieDomain: process.env.AUTH_COOKIE_DOMAIN || 'NOT_SET',
+      },
     });
-    return NextResponse.redirect(`${baseUrl}/support/login?error=Configuration`);
+    // Include debug info in error
+    const debugError = !storedState ? 'StateMissing' : 'StateMismatch';
+    return NextResponse.redirect(`${tenantOrigin}/support/login?error=${debugError}`);
   }
 
-  // Get callback URL
-  const callbackUrl = cookieStore.get('oauth_callback')?.value || '/support';
-
   try {
-    // Exchange code for tokens
+    // Exchange code for tokens (always use main domain for redirect_uri)
     const tokenResponse = await fetch(DISCORD_TOKEN_URL, {
       method: 'POST',
       headers: {
@@ -82,17 +99,23 @@ export async function GET(request: NextRequest) {
         client_secret: DISCORD_CLIENT_SECRET,
         grant_type: 'authorization_code',
         code: code,
-        redirect_uri: `${baseUrl}/api/auth/callback/discord`,
+        redirect_uri: `${authBaseUrl}/api/auth/callback/discord`,
       }),
     });
 
     if (!tokenResponse.ok) {
+      const errorBody = await tokenResponse.text();
       logAuthAttempt({
         success: false,
         method: 'discord',
-        details: { error: 'token_exchange_failed' },
+        details: {
+          error: 'token_exchange_failed',
+          status: tokenResponse.status,
+          authUrl: authBaseUrl,
+          redirectUri: `${authBaseUrl}/api/auth/callback/discord`,
+        },
       });
-      return NextResponse.redirect(`${baseUrl}/support/login?error=Configuration`);
+      return NextResponse.redirect(`${tenantOrigin}/support/login?error=TokenExchangeFailed`);
     }
 
     const tokens = await tokenResponse.json();
@@ -111,7 +134,7 @@ export async function GET(request: NextRequest) {
         method: 'discord',
         details: { error: 'user_fetch_failed' },
       });
-      return NextResponse.redirect(`${baseUrl}/support/login?error=Configuration`);
+      return NextResponse.redirect(`${tenantOrigin}/support/login?error=Configuration`);
     }
 
     const discordUser: DiscordUser = await userResponse.json();
@@ -153,21 +176,24 @@ export async function GET(request: NextRequest) {
       details: { username: discordUser.username },
     });
 
-    // Create response with redirect
-    const response = NextResponse.redirect(`${baseUrl}${callbackUrl}`);
+    // Create response with redirect back to tenant origin
+    const response = NextResponse.redirect(`${tenantOrigin}${callbackUrl}`);
 
-    // Set session cookie
+    // Set session cookie with domain for cross-subdomain sharing
+    const cookieDomain = process.env.AUTH_COOKIE_DOMAIN; // e.g., '.helpportal.app'
     response.cookies.set(SESSION_COOKIE_CONFIG.name, sessionToken, {
       httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
       secure: SESSION_COOKIE_CONFIG.secure,
       sameSite: SESSION_COOKIE_CONFIG.sameSite,
       path: SESSION_COOKIE_CONFIG.path,
       maxAge: SESSION_COOKIE_CONFIG.maxAge,
+      ...(cookieDomain ? { domain: cookieDomain } : {}),
     });
 
     // Clear OAuth state cookies
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_callback');
+    response.cookies.delete('oauth_origin');
 
     return response;
   } catch {
@@ -176,6 +202,6 @@ export async function GET(request: NextRequest) {
       method: 'discord',
       details: { error: 'callback_failed' },
     });
-    return NextResponse.redirect(`${baseUrl}/support/login?error=Configuration`);
+    return NextResponse.redirect(`${tenantOrigin}/support/login?error=Configuration`);
   }
 }
