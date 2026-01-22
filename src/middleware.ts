@@ -228,6 +228,11 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
+  // Skip middleware for Stripe webhook - needs raw body for signature verification
+  if (pathname === '/api/stripe/webhook') {
+    return NextResponse.next();
+  }
+
   // Validate HTTP method
   if (!isValidMethod(method)) {
     return new NextResponse('Method Not Allowed', { status: 405 });

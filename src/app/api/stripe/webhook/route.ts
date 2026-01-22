@@ -5,6 +5,12 @@
  *
  * Handles Stripe webhook events to sync subscription state.
  * Verifies webhook signature for security.
+ *
+ * IMPORTANT: If you get signature verification errors:
+ * 1. Go to Stripe Dashboard → Developers → Webhooks
+ * 2. Click on your webhook endpoint
+ * 3. Click "Reveal" on the Signing secret
+ * 4. Copy that value to STRIPE_WEBHOOK_SECRET in your environment
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -18,8 +24,9 @@ import {
 } from '@/lib/stripe/webhooks';
 import Stripe from 'stripe';
 
-// Disable body parsing - we need raw body for signature verification
+// Route segment config - ensure raw body is preserved
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 const WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 
@@ -50,6 +57,12 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid signature';
     console.error('[Stripe Webhook] Signature verification failed:', message);
+    console.error('[Stripe Webhook] Debug info:', {
+      signatureHeader: signature.substring(0, 50) + '...',
+      bodyLength: body.length,
+      secretConfigured: !!WEBHOOK_SECRET,
+      secretPrefix: WEBHOOK_SECRET?.substring(0, 10) + '...',
+    });
     return NextResponse.json(
       { error: 'Invalid signature' },
       { status: 400 }
