@@ -6,6 +6,7 @@
 
 import { prisma } from '@/lib/db/client';
 import { SubscriptionStatus, User, Subscription, Tenant } from '@/generated/prisma';
+import { stripe } from '@/lib/stripe/client';
 
 export type UserWithSubscription = User & {
   subscription: Subscription | null;
@@ -204,5 +205,86 @@ export function formatSubscriptionStatus(subscription: Subscription | null): {
         description: 'Unable to determine subscription status.',
         color: 'gray',
       };
+  }
+}
+
+/**
+ * Sync subscription status with Stripe
+ *
+ * Fetches the current status from Stripe and updates the database
+ * if there's a mismatch. This catches cases where webhooks fail.
+ *
+ * Returns true if the subscription was updated.
+ */
+export async function syncSubscriptionWithStripe(
+  subscription: Subscription
+): Promise<boolean> {
+  try {
+    // Fetch from Stripe
+    const stripeSubscription = await stripe.subscriptions.retrieve(
+      subscription.stripeSubscriptionId
+    );
+
+    // Determine expected status based on Stripe data
+    let expectedStatus: SubscriptionStatus;
+    const cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end;
+
+    switch (stripeSubscription.status) {
+      case 'active':
+        expectedStatus = cancelAtPeriodEnd
+          ? SubscriptionStatus.CANCELED
+          : SubscriptionStatus.ACTIVE;
+        break;
+      case 'past_due':
+        expectedStatus = SubscriptionStatus.PAST_DUE;
+        break;
+      case 'canceled':
+      case 'unpaid':
+        expectedStatus = SubscriptionStatus.EXPIRED;
+        break;
+      default:
+        // Don't update for unknown statuses
+        return false;
+    }
+
+    // Check if update is needed
+    const needsUpdate =
+      subscription.status !== expectedStatus ||
+      subscription.cancelAtPeriodEnd !== cancelAtPeriodEnd;
+
+    if (!needsUpdate) {
+      return false;
+    }
+
+    // Extract period timestamps
+    const subData = stripeSubscription as unknown as Record<string, unknown>;
+    const periodStart = subData.current_period_start as number | undefined;
+    const periodEnd = subData.current_period_end as number | undefined;
+
+    // Update database
+    await prisma.subscription.update({
+      where: { id: subscription.id },
+      data: {
+        status: expectedStatus,
+        cancelAtPeriodEnd,
+        canceledAt: stripeSubscription.canceled_at
+          ? new Date(stripeSubscription.canceled_at * 1000)
+          : null,
+        ...(periodStart && { currentPeriodStart: new Date(periodStart * 1000) }),
+        ...(periodEnd && { currentPeriodEnd: new Date(periodEnd * 1000) }),
+      },
+    });
+
+    console.log(
+      '[Subscription Sync] Updated subscription:',
+      subscription.stripeSubscriptionId,
+      'to status:',
+      expectedStatus
+    );
+
+    return true;
+  } catch (error) {
+    console.error('[Subscription Sync] Failed to sync:', error);
+    return false;
   }
 }

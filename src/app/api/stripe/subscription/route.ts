@@ -5,6 +5,8 @@
  *
  * Returns the current user's subscription status.
  * Requires authenticated user.
+ *
+ * Also syncs with Stripe if the local subscription might be stale.
  */
 
 import { NextResponse } from 'next/server';
@@ -14,6 +16,7 @@ import {
   formatSubscriptionStatus,
   hasActiveAccess,
   getSignupStep,
+  syncSubscriptionWithStripe,
 } from '@/lib/subscription/helpers';
 
 export async function GET() {
@@ -37,7 +40,7 @@ export async function GET() {
     }
 
     // Get user with subscription from database
-    const user = await getUserByDiscordId(session.id);
+    let user = await getUserByDiscordId(session.id);
 
     // User not in database yet (hasn't completed signup)
     if (!user) {
@@ -48,6 +51,15 @@ export async function GET() {
         nextStep: 'subscribe',
         status: formatSubscriptionStatus(null),
       });
+    }
+
+    // Sync with Stripe if user has a subscription (catches webhook misses)
+    if (user.subscription) {
+      const synced = await syncSubscriptionWithStripe(user.subscription);
+      if (synced) {
+        // Re-fetch user to get updated subscription data
+        user = await getUserByDiscordId(session.id) || user;
+      }
     }
 
     const { subscription, tenants } = user;
