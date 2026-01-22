@@ -162,12 +162,12 @@ export default async function ContactPage() {
             {pageTitle.includes(' ') ? (
               <>
                 {pageTitle.split(' ').slice(0, -1).join(' ')}{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA]">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
                   {pageTitle.split(' ').slice(-1)[0]}
                 </span>
               </>
             ) : (
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
                 {pageTitle}
               </span>
             )}

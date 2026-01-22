@@ -48,7 +48,7 @@ export default async function SupportHub() {
 
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text-primary)] mb-6 animate-slide-up">
             How can we{' '}
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA]">
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
               help you?
             </span>
           </h1>
@@ -192,7 +192,7 @@ export default async function SupportHub() {
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA] p-8 md:p-12">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] p-8 md:p-12">
           {/* Background pattern */}
           <div className="absolute inset-0 bg-grid opacity-10" />
 

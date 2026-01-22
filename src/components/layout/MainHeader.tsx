@@ -45,7 +45,7 @@ export function MainHeader({ siteName }: MainHeaderProps) {
                 : 'text-white/80 hover:text-white'
             }`}
           >
-            Documentation
+            Support
           </Link>
           <Link
             href="/contact"

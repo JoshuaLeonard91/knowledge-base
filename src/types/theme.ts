@@ -5,6 +5,7 @@
 export interface SiteTheme {
   name: string;
   accentPrimary: string;
+  accentSecondary: string; // For gradient endpoints
   accentHover: string;
   accentGlow: string;
   borderPrimary: string;
@@ -24,6 +25,7 @@ export interface HygraphSiteTheme {
  */
 export interface ThemeCSSVariables {
   '--accent-primary': string;
+  '--accent-secondary': string;
   '--accent-hover': string;
   '--accent-glow': string;
   '--border-primary': string;

@@ -102,7 +102,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
               {pageContent.heroTitle.includes(' ') ? (
                 <>
                   {pageContent.heroTitle.split(' ').slice(0, -2).join(' ')}{' '}
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA]">
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
                     {pageContent.heroTitle.split(' ').slice(-2).join(' ')}
                   </span>
                 </>
@@ -478,7 +478,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent-primary)] to-[#7289DA] p-8 md:p-12">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] p-8 md:p-12">
           <div className="absolute inset-0 bg-grid opacity-10" />
 
           <div className="relative flex flex-col md:flex-row items-center justify-between gap-6">

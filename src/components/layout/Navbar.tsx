@@ -89,7 +89,7 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                 />
               </div>
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[#7289DA] flex items-center justify-center shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
                 <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
@@ -103,25 +103,28 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.url;
-              const IconComponent = getIcon(link.icon);
-              return (
-                <Link
-                  key={link.id}
-                  href={link.url}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-                  }`}
-                >
-                  <IconComponent size={18} weight="duotone" />
-                  {link.title}
-                </Link>
-              );
-            })}
-            {/* Main domain: Add Contact Us link to /contact */}
+            {navLinks
+              // On main domain, filter out /support/contact since we have /contact
+              .filter((link) => !(isMainDomain && link.url === '/support/contact'))
+              .map((link) => {
+                const isActive = pathname === link.url;
+                const IconComponent = getIcon(link.icon);
+                return (
+                  <Link
+                    key={link.id}
+                    href={link.url}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <IconComponent size={18} weight="duotone" />
+                    {link.title}
+                  </Link>
+                );
+              })}
+            {/* Main domain: Add Contact link to /contact (replaces /support/contact) */}
             {isMainDomain && (
               <Link
                 href="/contact"
@@ -132,7 +135,7 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                 }`}
               >
                 <Phone size={18} weight="duotone" />
-                Contact Us
+                Contact
               </Link>
             )}
           </div>
@@ -170,26 +173,29 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-[var(--border-primary)] animate-slide-down">
           <div className="px-4 py-4 space-y-2">
-            {navLinks.map((link) => {
-              const isActive = pathname === link.url;
-              const IconComponent = getIcon(link.icon);
-              return (
-                <Link
-                  key={link.id}
-                  href={link.url}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
-                    isActive
-                      ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
-                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
-                  }`}
-                >
-                  <IconComponent size={20} weight="duotone" />
-                  {link.title}
-                </Link>
-              );
-            })}
-            {/* Main domain: Add Contact Us link to /contact */}
+            {navLinks
+              // On main domain, filter out /support/contact since we have /contact
+              .filter((link) => !(isMainDomain && link.url === '/support/contact'))
+              .map((link) => {
+                const isActive = pathname === link.url;
+                const IconComponent = getIcon(link.icon);
+                return (
+                  <Link
+                    key={link.id}
+                    href={link.url}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                      isActive
+                        ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                        : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                    }`}
+                  >
+                    <IconComponent size={20} weight="duotone" />
+                    {link.title}
+                  </Link>
+                );
+              })}
+            {/* Main domain: Add Contact link to /contact (replaces /support/contact) */}
             {isMainDomain && (
               <Link
                 href="/contact"
@@ -201,7 +207,7 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                 }`}
               >
                 <Phone size={20} weight="duotone" />
-                Contact Us
+                Contact
               </Link>
             )}
             {!user && !isLoading && (

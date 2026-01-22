@@ -44,6 +44,7 @@ export default async function RootLayout({
     cssVariables = {
       ...cssVariables,
       '--accent-primary': '#6366f1',
+      '--accent-secondary': '#8b5cf6', // Purple for gradients (matches marketing pages)
       '--accent-hover': '#4f46e5',
       '--accent-glow': 'rgba(99, 102, 241, 0.4)',
       '--border-primary': 'rgba(99, 102, 241, 0.06)',

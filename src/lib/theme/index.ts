@@ -9,6 +9,7 @@ import { hygraph } from '@/lib/hygraph';
 export const DEFAULT_THEME: SiteTheme = {
   name: 'Default',
   accentPrimary: '#5865F2',
+  accentSecondary: '#7289DA', // Discord purple for gradient endpoints
   accentHover: '#4752c4',
   accentGlow: 'rgba(88, 101, 242, 0.4)',
   borderPrimary: 'rgba(88, 101, 242, 0.06)',
@@ -122,6 +123,7 @@ export const getTheme = cache(async (): Promise<SiteTheme> => {
 export function themeToCSSVariables(theme: SiteTheme): ThemeCSSVariables {
   return {
     '--accent-primary': theme.accentPrimary,
+    '--accent-secondary': theme.accentSecondary,
     '--accent-hover': theme.accentHover,
     '--accent-glow': theme.accentGlow,
     '--border-primary': theme.borderPrimary,
