@@ -32,38 +32,66 @@ export default function BillingPage() {
   const { siteName } = usePlatform();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
   const [data, setData] = useState<BillingData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Fetch billing data
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        const res = await fetch('/api/stripe/subscription');
-        const subData = await res.json();
-
-        if (!subData.success) {
-          router.push('/signup');
-          return;
-        }
-
-        if (subData.nextStep !== 'dashboard') {
-          router.push('/signup');
-          return;
-        }
-
-        setData(subData);
-      } catch (err) {
-        console.error('Failed to fetch billing data:', err);
-        router.push('/dashboard');
-      } finally {
-        setIsLoading(false);
-      }
+  const fetchData = async (showRefresh = false) => {
+    if (showRefresh) {
+      setIsRefreshing(true);
     }
+    try {
+      // Add cache-busting and no-cache headers to ensure fresh data
+      const res = await fetch(`/api/stripe/subscription?t=${Date.now()}`, {
+        cache: 'no-store',
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      });
+      const subData = await res.json();
 
+      if (!subData.success) {
+        router.push('/signup');
+        return;
+      }
+
+      if (subData.nextStep !== 'dashboard') {
+        router.push('/signup');
+        return;
+      }
+
+      setData(subData);
+    } catch (err) {
+      console.error('Failed to fetch billing data:', err);
+      router.push('/dashboard');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchData();
   }, [router]);
+
+  // Refresh data when returning from Stripe Portal
+  useEffect(() => {
+    const fromPortal = searchParams.get('from_portal');
+    if (fromPortal === 'true') {
+      // Clear the param from URL
+      const url = new URL(window.location.href);
+      url.searchParams.delete('from_portal');
+      window.history.replaceState({}, '', url.toString());
+
+      // Refresh data after a short delay to allow webhook to process
+      setIsRefreshing(true);
+      setTimeout(() => {
+        fetchData(true);
+      }, 1000);
+    }
+  }, [searchParams]);
 
   // Open Stripe Customer Portal
   const openStripePortal = async () => {
@@ -162,6 +190,14 @@ export default function BillingPage() {
           </div>
         )}
 
+        {/* Refreshing indicator */}
+        {isRefreshing && (
+          <div className="mb-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-lg flex items-center gap-3">
+            <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-indigo-500" />
+            <p className="text-indigo-400 text-sm">Refreshing subscription status...</p>
+          </div>
+        )}
+
         {/* Subscription Status */}
         <div className="bg-[#16161f] rounded-2xl border border-white/10 p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
@@ -169,13 +205,35 @@ export default function BillingPage() {
               <h2 className="text-lg font-semibold">Current Plan</h2>
               <p className="text-white/60">Pro - $5/month</p>
             </div>
-            <span
-              className={`px-3 py-1 text-sm rounded-full border ${
-                statusColors[data.status.color]
-              }`}
-            >
-              {data.status.status}
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => fetchData(true)}
+                disabled={isRefreshing}
+                className="p-1.5 text-white/40 hover:text-white/80 transition disabled:opacity-50"
+                title="Refresh status"
+              >
+                <svg
+                  className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`}
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                  />
+                </svg>
+              </button>
+              <span
+                className={`px-3 py-1 text-sm rounded-full border ${
+                  statusColors[data.status.color]
+                }`}
+              >
+                {data.status.status}
+              </span>
+            </div>
           </div>
 
           <p className="text-white/60 mb-6">{data.status.description}</p>

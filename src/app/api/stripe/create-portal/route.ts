@@ -55,9 +55,10 @@ export async function POST(request: NextRequest) {
       : (process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`);
 
     // Create Stripe portal session
+    // Include from_portal param so the billing page knows to refresh data
     const portalSession = await createPortalSession({
       customerId: user.stripeCustomerId,
-      returnUrl: `${baseUrl}/dashboard/billing`,
+      returnUrl: `${baseUrl}/dashboard/billing?from_portal=true`,
     });
 
     return NextResponse.json({

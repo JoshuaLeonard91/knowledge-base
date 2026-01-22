@@ -109,7 +109,7 @@ export function MainHeader({ siteName }: MainHeaderProps) {
       return (
         <Link
           href="/signup"
-          className="flex items-center justify-center w-[118px] h-[38px] bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition !text-white"
+          className="flex items-center justify-center px-4 h-[38px] bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition !text-white whitespace-nowrap"
         >
           Continue Setup
         </Link>
