@@ -45,6 +45,8 @@ export interface ParsedSession {
 // Session configuration
 const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 const TOKEN_VERSION = 'v1';
+const HANDOFF_TOKEN_VERSION = 'h1';
+const HANDOFF_EXPIRY_MS = 30 * 1000; // 30 seconds - very short lived
 
 /**
  * Create a new session token
@@ -253,4 +255,82 @@ export function getLogoutCookieOptions(): {
       maxAge: 0, // Immediate expiration
     },
   };
+}
+
+// ============================================
+// HANDOFF TOKENS - Short-lived tokens for OAuth redirect
+// ============================================
+
+/**
+ * Handoff token payload - wraps a session token for secure redirect
+ */
+interface HandoffPayload {
+  sessionToken: string;
+  exp: number;
+  nonce: string; // Random value to ensure uniqueness
+}
+
+/**
+ * Create a short-lived handoff token that wraps a session token
+ * Used to securely pass session token during OAuth redirect
+ *
+ * SECURITY:
+ * - Expires in 30 seconds (useless if logged)
+ * - Single use (nonce makes each token unique)
+ * - Encrypted and signed
+ */
+export function createHandoffToken(sessionToken: string): string {
+  const payload: HandoffPayload = {
+    sessionToken,
+    exp: Date.now() + HANDOFF_EXPIRY_MS,
+    nonce: generateSecureToken(8),
+  };
+
+  const encrypted = encryptToString(JSON.stringify(payload));
+  const signature = sign(encrypted);
+
+  return `${HANDOFF_TOKEN_VERSION}.${encrypted}.${signature}`;
+}
+
+/**
+ * Parse and validate a handoff token, returning the wrapped session token
+ * Returns null if invalid, expired, or tampered
+ */
+export function parseHandoffToken(handoffToken: string): string | null {
+  try {
+    const parts = handoffToken.split('.');
+    if (parts.length !== 3) {
+      return null;
+    }
+
+    const [version, encrypted, signature] = parts;
+
+    // Check version
+    if (version !== HANDOFF_TOKEN_VERSION) {
+      return null;
+    }
+
+    // Verify signature
+    if (!verify(encrypted, signature)) {
+      return null;
+    }
+
+    // Decrypt payload
+    const decrypted = decryptFromString(encrypted);
+    const payload = JSON.parse(decrypted) as HandoffPayload;
+
+    // Check expiration (strict - 30 second window)
+    if (Date.now() > payload.exp) {
+      return null;
+    }
+
+    // Validate the wrapped session token
+    if (!isValidSessionToken(payload.sessionToken)) {
+      return null;
+    }
+
+    return payload.sessionToken;
+  } catch {
+    return null;
+  }
 }

@@ -21,7 +21,7 @@ export {
 } from './client';
 
 // Types
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory } from './client';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from './client';
 
 import { hygraph } from './client';
 
@@ -60,3 +60,9 @@ export const getHeaderData = () => hygraph.getHeaderData();
 
 // Ticket Form
 export const getTicketCategories = () => hygraph.getTicketCategories();
+
+// Landing Page
+export const getLandingPageContent = () => hygraph.getLandingPageContent();
+
+// Pricing Page
+export const getPricingPageContent = () => hygraph.getPricingPageContent();

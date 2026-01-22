@@ -12,10 +12,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import {
-  createSessionToken,
-  SESSION_COOKIE_CONFIG,
-} from '@/lib/security/session';
+import { createSessionToken, createHandoffToken } from '@/lib/security/session';
 import { logAuthAttempt } from '@/lib/security/logger';
 
 const DISCORD_CLIENT_ID = process.env.DISCORD_CLIENT_ID!;
@@ -104,7 +101,6 @@ export async function GET(request: NextRequest) {
     });
 
     if (!tokenResponse.ok) {
-      const errorBody = await tokenResponse.text();
       logAuthAttempt({
         success: false,
         method: 'discord',
@@ -176,21 +172,19 @@ export async function GET(request: NextRequest) {
       details: { username: discordUser.username },
     });
 
-    // Create response with redirect back to tenant origin
-    const response = NextResponse.redirect(`${tenantOrigin}${callbackUrl}`);
+    // Create short-lived handoff token (expires in 30 seconds)
+    // This prevents the actual session token from being logged in URLs
+    const handoffToken = createHandoffToken(sessionToken);
 
-    // Set session cookie with domain for cross-subdomain sharing
-    const cookieDomain = process.env.AUTH_COOKIE_DOMAIN; // e.g., '.helpportal.app'
-    response.cookies.set(SESSION_COOKIE_CONFIG.name, sessionToken, {
-      httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
-      secure: SESSION_COOKIE_CONFIG.secure,
-      sameSite: SESSION_COOKIE_CONFIG.sameSite,
-      path: SESSION_COOKIE_CONFIG.path,
-      maxAge: SESSION_COOKIE_CONFIG.maxAge,
-      ...(cookieDomain ? { domain: cookieDomain } : {}),
-    });
+    // Redirect to subdomain's set-session endpoint to set cookie there
+    // This ensures the session cookie is subdomain-specific (no cross-subdomain sharing)
+    const setSessionUrl = new URL('/api/auth/set-session', tenantOrigin);
+    setSessionUrl.searchParams.set('token', handoffToken);
+    setSessionUrl.searchParams.set('callback', callbackUrl);
 
-    // Clear OAuth state cookies
+    const response = NextResponse.redirect(setSessionUrl.toString());
+
+    // Clear OAuth state cookies (these used domain-wide cookie for the OAuth flow)
     response.cookies.delete('oauth_state');
     response.cookies.delete('oauth_callback');
     response.cookies.delete('oauth_origin');

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../auth/AuthProvider';
+import { useTenant } from '@/lib/tenant/context';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
 import { UserMenu } from './UserMenu';
 import {
@@ -60,7 +61,11 @@ interface NavbarProps {
 export function Navbar({ settings, navLinks }: NavbarProps) {
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
+  const tenant = useTenant();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+
+  // Check if we're on the main domain (no tenant)
+  const isMainDomain = !tenant;
 
   // Get icon component from name, fallback to House
   const getIcon = (iconName: string): Icon => {
@@ -71,8 +76,8 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo */}
-          <Link href="/support" className="flex items-center gap-3 group">
+          {/* Logo - goes to landing page on main domain, support hub on tenant */}
+          <Link href={isMainDomain ? '/' : '/support'} className="flex items-center gap-3 group">
             {settings.logoIcon ? (
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
                 <Image
@@ -116,6 +121,20 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                 </Link>
               );
             })}
+            {/* Main domain: Add Contact Us link to /contact */}
+            {isMainDomain && (
+              <Link
+                href="/contact"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  pathname === '/contact'
+                    ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <Phone size={18} weight="duotone" />
+                Contact Us
+              </Link>
+            )}
           </div>
 
           {/* Auth Section */}
@@ -170,6 +189,21 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                 </Link>
               );
             })}
+            {/* Main domain: Add Contact Us link to /contact */}
+            {isMainDomain && (
+              <Link
+                href="/contact"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                  pathname === '/contact'
+                    ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <Phone size={20} weight="duotone" />
+                Contact Us
+              </Link>
+            )}
             {!user && !isLoading && (
               <div className="pt-2 border-t border-[var(--border-primary)]">
                 <DiscordLoginButton />

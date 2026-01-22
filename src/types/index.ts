@@ -20,28 +20,6 @@ export interface ArticleCategory {
   color?: string; // Optional color override from CMS
 }
 
-// Decision tree types
-export interface TreeNodeOption {
-  label: string;
-  icon?: string;
-  nextId: string;
-}
-
-export interface TreeNodeSolution {
-  steps: string[];
-  articleSlug?: string;
-  canFileTicket: boolean;
-}
-
-export interface TreeNode {
-  id: string;
-  type: 'question' | 'solution';
-  title: string;
-  description?: string;
-  options?: TreeNodeOption[];
-  solution?: TreeNodeSolution;
-}
-
 // User types (for mock auth)
 export interface MockServer {
   id: string;

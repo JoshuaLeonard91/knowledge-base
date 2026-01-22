@@ -1,10 +1,14 @@
 /**
- * Tenant Info API (for testing/debugging)
+ * Tenant Info API
  *
- * GET /api/tenant - Returns current tenant info based on subdomain/query param
+ * GET /api/tenant - Returns current tenant public info
  *
- * Test locally: http://localhost:3000/api/tenant?tenant=demo
- * Test production: https://demo.helpportal.app/api/tenant
+ * SECURITY: Only returns public information needed for the client.
+ * Does NOT expose:
+ * - Internal IDs
+ * - Service configuration status (hygraph, jira details)
+ * - Custom domains
+ * - Any tokens or secrets
  */
 
 import { NextResponse } from 'next/server';
@@ -15,33 +19,37 @@ export async function GET() {
     const tenant = await getTenantFromRequest();
 
     if (!tenant) {
+      // Generic error - don't reveal if tenant exists or not
       return NextResponse.json({
         success: false,
-        error: 'No tenant found',
-        hint: 'Use ?tenant=demo locally or visit demo.yourdomain.com',
+        error: 'Tenant not found',
       }, { status: 404 });
     }
 
-    // Return tenant info (safe data only, no secrets)
+    // Return ONLY public tenant info - no internal IDs or service status
     return NextResponse.json({
       success: true,
       tenant: {
-        id: tenant.id,
         slug: tenant.slug,
         name: tenant.name,
-        status: tenant.status,
         plan: tenant.plan,
-        features: tenant.features,
-        branding: tenant.branding,
-        hygraphConfigured: !!tenant.hygraph,
-        jiraConnected: tenant.jira?.connected ?? false,
+        features: {
+          articlesEnabled: tenant.features.articlesEnabled,
+          servicesEnabled: tenant.features.servicesEnabled,
+          ticketsEnabled: tenant.features.ticketsEnabled,
+          discordLoginEnabled: tenant.features.discordLoginEnabled,
+        },
+        branding: tenant.branding ? {
+          logoUrl: tenant.branding.logoUrl,
+          primaryColor: tenant.branding.primaryColor,
+        } : null,
       },
     });
-  } catch (error) {
-    console.error('[API/Tenant] Error:', error);
+  } catch {
+    // Generic error - don't expose internal details
     return NextResponse.json({
       success: false,
-      error: 'Failed to resolve tenant',
+      error: 'An error occurred',
     }, { status: 500 });
   }
 }

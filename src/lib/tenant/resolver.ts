@@ -72,8 +72,8 @@ export function extractSubdomain(hostname: string): string | null {
   }
 
   // Extract subdomain from hostname
-  // e.g., "acme.supportdesk.io" → "acme"
-  // e.g., "www.supportdesk.io" → null (main site)
+  // e.g., "acme.helpportal.app" → "acme"
+  // e.g., "www.helpportal.app" → null (main site)
   const parts = hostname.split('.');
 
   // Need at least 3 parts for subdomain (sub.domain.tld)

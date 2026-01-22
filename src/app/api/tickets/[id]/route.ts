@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { jiraServiceDesk, JiraIssue } from '@/lib/atlassian/client';
+import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 
 // ADF node type for description parsing
 interface AdfNode {
@@ -57,10 +58,31 @@ function sanitizeDescriptionForClient(description: string): string {
     .trim();
 }
 
-// Helper to verify ticket belongs to user
+/**
+ * Verify ticket belongs to user using structured metadata extraction
+ *
+ * SECURITY: Uses regex to extract the exact Discord User ID from the metadata section,
+ * rather than simple string matching which could match IDs appearing elsewhere.
+ *
+ * Expected format in description:
+ * ----
+ * Discord User ID: 123456789012345678
+ */
 function verifyTicketOwnership(descriptionText: string, user: { id: string; username?: string }): boolean {
-  return descriptionText.includes(user.id) ||
-    (user.username ? descriptionText.includes(user.username) : false);
+  // Extract Discord User ID from the structured metadata section
+  // Format: "Discord User ID: <snowflake>"
+  const discordIdPattern = /Discord User ID:\s*(\d{17,19})/i;
+  const match = descriptionText.match(discordIdPattern);
+
+  if (match && match[1]) {
+    // Exact match on extracted ID
+    return match[1] === user.id;
+  }
+
+  // Fallback: strict pattern match for ID at word boundary
+  // This prevents matching partial IDs (e.g., user "123" matching "12345")
+  const strictIdPattern = new RegExp(`\\b${user.id}\\b`);
+  return strictIdPattern.test(descriptionText);
 }
 
 export async function GET(
@@ -155,6 +177,12 @@ export async function POST(
         { success: false, error: 'Not authenticated' },
         { status: 401 }
       );
+    }
+
+    // Validate CSRF token
+    const csrfResult = await validateCsrfRequest(request);
+    if (!csrfResult.valid) {
+      return csrfErrorResponse();
     }
 
     const user = await getSession();

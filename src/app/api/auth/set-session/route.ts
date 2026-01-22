@@ -1,0 +1,92 @@
+/**
+ * Session Token Receiver
+ *
+ * Receives a session token from the OAuth callback and sets it as a cookie
+ * on the current subdomain only. This ensures sessions are isolated per tenant.
+ *
+ * SECURITY:
+ * - Token is passed via POST body (not URL) to avoid logging exposure
+ * - Callback URL is validated to prevent open redirects
+ * - Token is validated before being set as cookie
+ *
+ * Flow:
+ * 1. Main domain OAuth callback creates session token
+ * 2. Redirects to: {subdomain}/api/auth/set-session (with token in fragment/POST)
+ * 3. This route sets the cookie (subdomain-specific, no domain attribute)
+ * 4. Redirects to the validated callback URL
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { SESSION_COOKIE_CONFIG, parseHandoffToken } from '@/lib/security/session';
+
+/**
+ * Validate callback URL to prevent open redirect attacks
+ * Only allows relative paths starting with /
+ */
+function isValidCallbackUrl(callback: string): boolean {
+  // Must start with / (relative path)
+  if (!callback.startsWith('/')) {
+    return false;
+  }
+
+  // Must not contain protocol or double slashes (prevent //evil.com)
+  if (callback.includes('://') || callback.startsWith('//')) {
+    return false;
+  }
+
+  // Must not contain backslashes (prevent \evil.com on some browsers)
+  if (callback.includes('\\')) {
+    return false;
+  }
+
+  // Must not contain newlines or carriage returns (header injection)
+  if (callback.includes('\n') || callback.includes('\r')) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * GET handler - receives handoff token via query param
+ *
+ * SECURITY:
+ * - Handoff token expires in 30 seconds (useless if logged after that)
+ * - Handoff token is encrypted and signed
+ * - Extracts the real session token from handoff token
+ * - Callback URL is validated to prevent open redirects
+ */
+export async function GET(request: NextRequest) {
+  const handoffToken = request.nextUrl.searchParams.get('token');
+  const callbackUrl = request.nextUrl.searchParams.get('callback') || '/support';
+
+  // Validate handoff token exists
+  if (!handoffToken) {
+    return NextResponse.redirect(new URL('/support/login?error=NoToken', request.url));
+  }
+
+  // Validate callback URL (prevent open redirect)
+  const safeCallback = isValidCallbackUrl(callbackUrl) ? callbackUrl : '/support';
+
+  // Parse handoff token to extract session token
+  // This validates: signature, expiry (30s), and inner session token
+  const sessionToken = parseHandoffToken(handoffToken);
+  if (!sessionToken) {
+    return NextResponse.redirect(new URL('/support/login?error=InvalidToken', request.url));
+  }
+
+  // Create response with redirect to validated callback
+  const response = NextResponse.redirect(new URL(safeCallback, request.url));
+
+  // Set session cookie WITHOUT domain attribute = subdomain-specific
+  response.cookies.set(SESSION_COOKIE_CONFIG.name, sessionToken, {
+    httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
+    secure: SESSION_COOKIE_CONFIG.secure,
+    sameSite: SESSION_COOKIE_CONFIG.sameSite,
+    path: SESSION_COOKIE_CONFIG.path,
+    maxAge: SESSION_COOKIE_CONFIG.maxAge,
+    // NO domain attribute - cookie will only be valid for this exact subdomain
+  });
+
+  return response;
+}

@@ -6,6 +6,7 @@
  * - Rate limiting (in-memory, checked here)
  * - Request validation
  * - Security headers
+ * - Main domain route protection
  *
  * Note: CSRF validation happens in API routes since
  * middleware can't access cookies reliably in all cases
@@ -13,6 +14,16 @@
 
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+
+// ==========================================
+// MAIN DOMAIN ROUTE CONFIGURATION
+// ==========================================
+
+// Routes that require authentication (main domain)
+const PROTECTED_ROUTES = ['/dashboard', '/onboarding'];
+
+// Session cookie name (must match auth module)
+const SESSION_COOKIE_NAME = 'session';
 
 // ==========================================
 // MULTI-TENANT SUBDOMAIN EXTRACTION
@@ -49,7 +60,7 @@ function extractTenantSubdomain(request: NextRequest): string | null {
   }
 
   // Extract subdomain from hostname
-  // e.g., "acme.supportdesk.io" → "acme"
+  // e.g., "acme.helpportal.app" → "acme"
   const parts = hostname.split('.');
 
   // Need at least 3 parts for subdomain (sub.domain.tld)
@@ -73,8 +84,15 @@ const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
 
 // Rate limit configuration
 const RATE_LIMITS = {
-  api: { windowMs: 60 * 1000, maxRequests: 100 },
-  auth: { windowMs: 15 * 60 * 1000, maxRequests: 10 },
+  // General API rate limits
+  api: { windowMs: 60 * 1000, maxRequests: 100 },           // 100 per minute
+  auth: { windowMs: 15 * 60 * 1000, maxRequests: 10 },      // 10 per 15 minutes
+
+  // Sensitive endpoint rate limits (more restrictive)
+  ticketCreate: { windowMs: 60 * 60 * 1000, maxRequests: 5 },       // 5 per hour
+  ticketComment: { windowMs: 60 * 60 * 1000, maxRequests: 15 },     // 15 per hour
+  serviceInquiry: { windowMs: 24 * 60 * 60 * 1000, maxRequests: 5 }, // 5 per day
+  feedback: { windowMs: 60 * 60 * 1000, maxRequests: 5 },           // 5 per hour
 };
 
 /**
@@ -121,6 +139,42 @@ function checkRateLimit(
  */
 function isValidMethod(method: string): boolean {
   return ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD'].includes(method);
+}
+
+/**
+ * Determine rate limit type based on endpoint and method
+ */
+function getRateLimitType(pathname: string, method: string): keyof typeof RATE_LIMITS {
+  // Auth routes have their own limit
+  if (pathname.startsWith('/api/auth/')) {
+    return 'auth';
+  }
+
+  // Sensitive endpoints with POST method get stricter limits
+  if (method === 'POST') {
+    // Ticket creation
+    if (pathname === '/api/ticket') {
+      return 'ticketCreate';
+    }
+
+    // Ticket comments (POST to /api/tickets/[id])
+    if (pathname.match(/^\/api\/tickets\/[^/]+$/)) {
+      return 'ticketComment';
+    }
+
+    // Service inquiries
+    if (pathname === '/api/service-inquiry') {
+      return 'serviceInquiry';
+    }
+
+    // Feedback
+    if (pathname === '/api/feedback') {
+      return 'feedback';
+    }
+  }
+
+  // Default API rate limit for everything else
+  return 'api';
 }
 
 /**
@@ -185,12 +239,39 @@ export async function middleware(request: NextRequest) {
     return new NextResponse('Forbidden', { status: 403 });
   }
 
-  // Rate limiting for API routes (excluding auth which is handled separately)
+  // ==========================================
+  // MAIN DOMAIN ROUTE PROTECTION
+  // ==========================================
+
+  // Only apply to main domain (no tenant subdomain)
+  if (!tenantSlug) {
+    // Check if this is a protected route
+    const isProtectedRoute = PROTECTED_ROUTES.some(
+      (route) => pathname === route || pathname.startsWith(`${route}/`)
+    );
+
+    if (isProtectedRoute) {
+      // Check for session cookie
+      const sessionCookie = request.cookies.get(SESSION_COOKIE_NAME);
+
+      if (!sessionCookie?.value) {
+        // No session - redirect to signup
+        const signupUrl = new URL('/signup', request.url);
+        signupUrl.searchParams.set('redirect', pathname);
+        return NextResponse.redirect(signupUrl);
+      }
+
+      // Session exists - continue (page will do deeper validation)
+      // The page components verify subscription status via API
+    }
+  }
+
+  // Rate limiting for API routes with per-endpoint limits
   if (pathname.startsWith('/api/')) {
-    // Determine rate limit type
-    const isAuthRoute = pathname.startsWith('/api/auth/');
-    const config = isAuthRoute ? RATE_LIMITS.auth : RATE_LIMITS.api;
-    const rateLimitKey = `${ip}:${isAuthRoute ? 'auth' : 'api'}`;
+    // Determine rate limit type based on endpoint and method
+    const rateLimitType = getRateLimitType(pathname, method);
+    const config = RATE_LIMITS[rateLimitType];
+    const rateLimitKey = `${ip}:${rateLimitType}`;
 
     const result = checkRateLimit(rateLimitKey, config);
 

@@ -65,3 +65,6 @@ user\ stories\ -\ user\ stories\ (specific).pdf
 /src/generated/prisma
 prisma/seed-donuts.ts
 prisma/reset-donuts-color.ts
+prisma/migrations/20260120233208_add_user_subscription_models/migration.sql
+prisma/schema.prisma
+prisma/schema.prisma

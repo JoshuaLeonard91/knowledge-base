@@ -21,7 +21,7 @@ import { HygraphClient, createHygraphClient } from '@/lib/hygraph';
 import { getTenantFromRequest } from '@/lib/tenant';
 
 // Re-export service types from Hygraph
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory } from '@/lib/hygraph';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
 
@@ -316,6 +316,11 @@ export async function getContactPageSettings(): Promise<ContactPageSettings> {
     pageSubtitle: undefined,
     discordUrl: undefined,
     emailAddress: undefined,
+    ticketChannel: { enabled: true },
+    discordChannel: { enabled: true },
+    emailChannel: { enabled: true },
+    showDecisionGuide: true,
+    showResponseTimes: true,
   };
 }
 
@@ -504,4 +509,89 @@ export async function getTicketCategories(): Promise<TicketCategory[]> {
     { id: 'feedback', name: 'Feedback & Suggestions', icon: 'ChatCircle', order: 6 },
     { id: 'other', name: 'Other', icon: 'Question', order: 7 },
   ];
+}
+
+// ==========================================
+// LANDING PAGE DATA
+// ==========================================
+
+import type { LandingPageContent, LandingFeature } from '@/lib/hygraph';
+
+/**
+ * Get landing page content
+ * Returns defaults if not configured in CMS
+ */
+export async function getLandingPageContent(): Promise<LandingPageContent> {
+  const client = await getHygraphClient();
+
+  if (client) {
+    return client.getLandingPageContent();
+  }
+
+  // Return defaults for local provider
+  return {
+    heroTitle: 'Your Own',
+    heroHighlight: 'Support Portal',
+    heroSubtitle: 'Create a professional support portal for your Discord community. Knowledge base, service catalog, and Jira integration — all under your brand.',
+    heroCta: 'Get Started — $5/mo',
+    heroCtaLink: '/signup',
+    heroSecondaryCtaText: 'View Pricing',
+    heroSecondaryCtaLink: '/pricing',
+    featuresTitle: 'Everything You Need',
+    featuresSubtitle: 'Launch a fully-featured support portal in minutes, not months.',
+    features: [
+      { id: '1', title: 'Knowledge Base', description: 'Create and organize help articles. Let your users find answers themselves with powerful search.', icon: 'BookOpenText', color: 'indigo', order: 1 },
+      { id: '2', title: 'Custom Branding', description: 'Your subdomain, your logo, your colors. Make the portal feel like part of your brand.', icon: 'Palette', color: 'purple', order: 2 },
+      { id: '3', title: 'Discord Login', description: 'Users sign in with Discord. No passwords, no friction. Perfect for Discord communities.', icon: 'Discord', color: 'blue', order: 3 },
+      { id: '4', title: 'Service Catalog', description: 'Showcase your services and pricing tiers. Let customers know exactly what you offer.', icon: 'Briefcase', color: 'green', order: 4 },
+      { id: '5', title: 'Ticket System', description: 'Users can submit support tickets. Integrates with Jira Service Desk for powerful workflows.', icon: 'Ticket', color: 'yellow', order: 5 },
+      { id: '6', title: 'CMS Powered', description: 'Manage content with Hygraph CMS. Update articles and settings without touching code.', icon: 'Lightning', color: 'red', order: 6 },
+    ],
+    ctaTitle: 'Ready to Get Started?',
+    ctaSubtitle: 'Create your support portal today. $15 to start ($10 setup + $5 first month), then just $5/month. Cancel anytime.',
+    ctaButtonText: 'Create Your Portal',
+    ctaButtonLink: '/signup',
+  };
+}
+
+// ==========================================
+// PRICING PAGE DATA
+// ==========================================
+
+import type { PricingPageContent, PricingFeature } from '@/lib/hygraph';
+
+/**
+ * Get pricing page content
+ * Returns defaults if not configured in CMS
+ */
+export async function getPricingPageContent(): Promise<PricingPageContent> {
+  const client = await getHygraphClient();
+
+  if (client) {
+    return client.getPricingPageContent();
+  }
+
+  // Return defaults for local provider
+  return {
+    pageTitle: 'Simple, Transparent Pricing',
+    pageSubtitle: 'One plan, everything included. No hidden fees, no surprises.',
+    planName: 'Pro',
+    planDescription: 'Everything you need to run a professional support portal',
+    monthlyPrice: '5',
+    setupFee: '10',
+    features: [
+      { id: '1', text: 'Custom branded support portal', order: 1 },
+      { id: '2', text: 'Discord authentication for your users', order: 2 },
+      { id: '3', text: 'Knowledge base with articles', order: 3 },
+      { id: '4', text: 'Service catalog', order: 4 },
+      { id: '5', text: 'Jira Service Desk integration', order: 5 },
+      { id: '6', text: 'Custom subdomain (yourname.helpportal.app)', order: 6 },
+      { id: '7', text: 'Custom logo and colors', order: 7 },
+      { id: '8', text: 'Unlimited articles', order: 8 },
+      { id: '9', text: 'Priority support', order: 9 },
+    ],
+    ctaText: 'Get Started',
+    ctaLink: '/signup',
+    footerNote: 'Cancel anytime. No long-term contracts.',
+  };
 }

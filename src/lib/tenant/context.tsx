@@ -10,8 +10,8 @@
 import { createContext, useContext, ReactNode } from 'react';
 
 // Client-safe tenant config (no sensitive data)
+// NOTE: Do NOT add internal IDs, tokens, or sensitive configuration here
 export interface ClientTenantConfig {
-  id: string;
   slug: string;
   name: string;
   plan: string;
@@ -26,6 +26,7 @@ export interface ClientTenantConfig {
     logoUrl: string | null;
     faviconUrl: string | null;
     primaryColor: string | null;
+    // NOTE: customDomain excluded - internal config
   } | null;
   jiraConnected: boolean;
 }

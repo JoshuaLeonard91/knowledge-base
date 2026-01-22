@@ -31,81 +31,94 @@ const defaults = {
 export default async function ContactPage() {
   const settings = await getContactPageSettings();
 
-  // Only these come from CMS
+  // CMS values with defaults
   const pageTitle = settings.pageTitle || defaults.pageTitle;
   const pageSubtitle = settings.pageSubtitle || defaults.pageSubtitle;
   const discordUrl = settings.discordUrl || defaults.discordUrl;
   const emailAddress = settings.emailAddress || defaults.emailAddress;
 
-  // Channel data (hardcoded - these don't vary between tenants)
-  const channels = [
+  // Channel toggles from CMS (default to enabled)
+  const showTicket = settings.ticketChannel?.enabled !== false;
+  const showDiscord = settings.discordChannel?.enabled !== false;
+  const showEmail = settings.emailChannel?.enabled !== false;
+  const showDecisionGuide = settings.showDecisionGuide !== false;
+  const showResponseTimes = settings.showResponseTimes !== false;
+
+  // Channel data - CMS can override name, description, responseTime, bestFor
+  const allChannels = [
     {
       id: 'ticket',
-      name: 'Submit a Ticket',
+      enabled: showTicket,
+      name: settings.ticketChannel?.name || 'Submit a Ticket',
       icon: PaperPlaneTilt,
       color: 'var(--accent-warning)',
       bgColor: 'var(--accent-warning)',
       href: '/support/ticket',
       external: false,
-      bestFor: [
+      bestFor: settings.ticketChannel?.bestFor || [
         'Technical issues requiring investigation',
         'Account-specific problems',
         'Bug reports with detailed logs',
         'Service requests or feature requests',
       ],
-      responseTime: '24-48 hours',
+      responseTime: settings.ticketChannel?.responseTime || '24-48 hours',
       features: [
         { icon: ShieldCheck, text: 'Private & secure' },
         { icon: Clock, text: 'Tracked SLA response' },
         { icon: CheckCircle, text: 'Full issue history' },
       ],
-      description: 'Best for complex issues that need detailed investigation. Your ticket is tracked and prioritized based on severity.',
+      description: settings.ticketChannel?.description || 'Best for complex issues that need detailed investigation. Your ticket is tracked and prioritized based on severity.',
     },
     {
       id: 'discord',
-      name: 'Join Discord',
+      enabled: showDiscord,
+      name: settings.discordChannel?.name || 'Join Discord',
       icon: DiscordLogo,
       color: '#5865F2',
       bgColor: '#5865F2',
-      href: discordUrl, // CMS value
+      href: discordUrl,
       external: true,
-      bestFor: [
+      bestFor: settings.discordChannel?.bestFor || [
         'Quick questions',
         'Community discussions',
         'General guidance',
         'Networking with other users',
       ],
-      responseTime: 'Usually within hours',
+      responseTime: settings.discordChannel?.responseTime || 'Usually within hours',
       features: [
         { icon: Users, text: 'Community support' },
         { icon: Lightning, text: 'Fast responses' },
         { icon: Question, text: 'Browse past answers' },
       ],
-      description: 'Great for quick questions and community interaction. Get help from both staff and experienced community members.',
+      description: settings.discordChannel?.description || 'Great for quick questions and community interaction. Get help from both staff and experienced community members.',
     },
     {
       id: 'email',
-      name: 'Email Us',
+      enabled: showEmail,
+      name: settings.emailChannel?.name || 'Email Us',
       icon: Envelope,
       color: 'var(--accent-primary)',
       bgColor: 'var(--accent-primary)',
-      href: `mailto:${emailAddress}`, // CMS value
+      href: `mailto:${emailAddress}`,
       external: true,
-      bestFor: [
+      bestFor: settings.emailChannel?.bestFor || [
         'Business inquiries',
         'Partnership opportunities',
         'Billing questions',
         'Formal communication',
       ],
-      responseTime: '2-3 business days',
+      responseTime: settings.emailChannel?.responseTime || '2-3 business days',
       features: [
         { icon: Headset, text: 'Direct to team' },
         { icon: ShieldCheck, text: 'Formal record' },
         { icon: CheckCircle, text: 'Detailed responses' },
       ],
-      description: 'For business matters, partnerships, or when you need formal documentation of your communication.',
+      description: settings.emailChannel?.description || 'For business matters, partnerships, or when you need formal documentation of your communication.',
     },
   ];
+
+  // Filter to only enabled channels
+  const channels = allChannels.filter(c => c.enabled);
 
   // Decision helper
   const decisionGuide = [
@@ -244,7 +257,7 @@ export default async function ContactPage() {
                   {/* CTA Button */}
                   <Component
                     {...props}
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold !text-white transition-all hover:opacity-90"
                     style={{ backgroundColor: channel.bgColor }}
                   >
                     {channel.name}
@@ -258,45 +271,48 @@ export default async function ContactPage() {
       </section>
 
       {/* Decision Helper */}
-      <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="text-center mb-12">
-          <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-4">
-            Not sure which to choose?
-          </h2>
-          <p className="text-[var(--text-secondary)]">
-            Here&apos;s a quick guide to help you pick the right channel
-          </p>
-        </div>
+      {showDecisionGuide && (
+        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-4">
+              Not sure which to choose?
+            </h2>
+            <p className="text-[var(--text-secondary)]">
+              Here&apos;s a quick guide to help you pick the right channel
+            </p>
+          </div>
 
-        <div className="space-y-4">
-          {decisionGuide.map((item, idx) => (
-            <div
-              key={idx}
-              className="p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]"
-            >
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                  <h3 className="font-semibold text-[var(--text-primary)] mb-1">
-                    {item.question}
-                  </h3>
-                  <p className="text-[var(--text-secondary)]">
-                    {item.answer}
-                  </p>
+          <div className="space-y-4">
+            {decisionGuide.map((item, idx) => (
+              <div
+                key={idx}
+                className="p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]"
+              >
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div>
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-1">
+                      {item.question}
+                    </h3>
+                    <p className="text-[var(--text-secondary)]">
+                      {item.answer}
+                    </p>
+                  </div>
+                  <Link
+                    href={item.action.href}
+                    className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium hover:bg-[var(--accent-primary)]/20 transition-colors"
+                  >
+                    {item.action.text}
+                    <CaretRight size={16} weight="bold" />
+                  </Link>
                 </div>
-                <Link
-                  href={item.action.href}
-                  className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium hover:bg-[var(--accent-primary)]/20 transition-colors"
-                >
-                  {item.action.text}
-                  <CaretRight size={16} weight="bold" />
-                </Link>
               </div>
-            </div>
-          ))}
-        </div>
-      </section>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Response Time Expectations */}
+      {showResponseTimes && (
       <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
         <div className="rounded-2xl bg-gradient-to-r from-[var(--bg-tertiary)] to-[var(--bg-secondary)] border border-[var(--border-primary)] p-8">
           <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6 text-center">
@@ -327,6 +343,7 @@ export default async function ContactPage() {
           </p>
         </div>
       </section>
+      )}
     </div>
   );
 }

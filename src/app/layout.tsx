@@ -5,7 +5,7 @@ import { ThemeProvider } from "@/components/theme/ThemeProvider";
 import { LayoutContent } from "@/components/layout/LayoutContent";
 import { HistoryProvider } from "@/components/support/HistoryProvider";
 import { TenantProvider } from "@/lib/tenant/context";
-import { getTenantFromRequest, transformTenantToContext } from "@/lib/tenant/resolver";
+import { getTenantFromRequest } from "@/lib/tenant/resolver";
 import { getTheme, themeToCSSVariables } from "@/lib/theme";
 import { getFooterData, getHeaderData } from "@/lib/cms";
 
@@ -38,16 +38,32 @@ export default async function RootLayout({
       ...cssVariables,
       '--accent-primary': tenant.branding.primaryColor,
     };
+  } else if (!tenant) {
+    // Main domain uses indigo dark theme
+    // Override all accent-related variables to match marketing pages
+    cssVariables = {
+      ...cssVariables,
+      '--accent-primary': '#6366f1',
+      '--accent-hover': '#4f46e5',
+      '--accent-glow': 'rgba(99, 102, 241, 0.4)',
+      '--border-primary': 'rgba(99, 102, 241, 0.06)',
+      '--border-hover': 'rgba(99, 102, 241, 0.1)',
+    };
   }
 
   // Convert tenant to client-safe config for context
+  // NOTE: Do NOT include internal IDs or sensitive config
   const clientTenant = tenant ? {
-    id: tenant.id,
     slug: tenant.slug,
     name: tenant.name,
     plan: tenant.plan,
     features: tenant.features,
-    branding: tenant.branding,
+    branding: tenant.branding ? {
+      logoUrl: tenant.branding.logoUrl,
+      faviconUrl: tenant.branding.faviconUrl,
+      primaryColor: tenant.branding.primaryColor,
+      // NOTE: customDomain intentionally excluded from client
+    } : null,
     jiraConnected: tenant.jira?.connected ?? false,
   } : null;
 

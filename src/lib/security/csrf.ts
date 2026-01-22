@@ -184,3 +184,23 @@ export const CSRF_PROTECTED_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 export function requiresCsrf(method: string): boolean {
   return CSRF_PROTECTED_METHODS.includes(method.toUpperCase());
 }
+
+/**
+ * Create CSRF error response
+ */
+export function csrfErrorResponse(): Response {
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: 'Invalid or missing CSRF token',
+      code: 'CSRF_INVALID',
+    }),
+    {
+      status: 403,
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Content-Type-Options': 'nosniff',
+      },
+    }
+  );
+}

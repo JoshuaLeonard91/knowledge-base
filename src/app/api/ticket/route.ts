@@ -18,6 +18,7 @@ import {
   logAccessDenied,
   getClientIp,
 } from '@/lib/security/logger';
+import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 
 export async function POST(request: NextRequest) {
   const ip = getClientIp(request.headers);
@@ -33,6 +34,18 @@ export async function POST(request: NextRequest) {
         method: 'POST',
       });
       return createErrorResponse('authentication', 401);
+    }
+
+    // Validate CSRF token
+    const csrfResult = await validateCsrfRequest(request);
+    if (!csrfResult.valid) {
+      logAccessDenied({
+        resource: '/api/ticket',
+        reason: `CSRF validation failed: ${csrfResult.error}`,
+        ip,
+        method: 'POST',
+      });
+      return csrfErrorResponse();
     }
 
     // Get user data from session

@@ -12,17 +12,83 @@ datasource db {
 }
 
 // ==========================================
+// USER (Account Owner - Main Domain)
+// ==========================================
+
+model User {
+  id              String    @id @default(cuid())
+  discordId       String    @unique          // Discord user ID (snowflake)
+  discordUsername String                     // For display
+  discordAvatar   String?                    // Avatar URL
+
+  email           String?                    // Optional email for billing notifications
+
+  // Stripe
+  stripeCustomerId String?  @unique          // Stripe customer ID
+
+  // Relations
+  subscription    Subscription?
+  tenants         Tenant[]                   // User can own multiple tenants (future-proof)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([discordId])
+  @@index([stripeCustomerId])
+}
+
+// ==========================================
+// SUBSCRIPTION (Stripe Billing)
+// ==========================================
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  userId               String             @unique
+  user                 User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Stripe IDs
+  stripeSubscriptionId String             @unique
+  stripePriceId        String                      // The price they subscribed to
+
+  // Status
+  status               SubscriptionStatus @default(ACTIVE)
+
+  // Billing period
+  currentPeriodStart   DateTime
+  currentPeriodEnd     DateTime
+  cancelAtPeriodEnd    Boolean            @default(false)
+  canceledAt           DateTime?
+
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  @@index([stripeSubscriptionId])
+  @@index([status])
+}
+
+enum SubscriptionStatus {
+  ACTIVE      // Paid and current
+  PAST_DUE    // Payment failed, in grace period
+  CANCELED    // Canceled but still active until period end
+  EXPIRED     // Subscription ended, no access
+}
+
+// ==========================================
 // TENANT (Core)
 // ==========================================
 
 model Tenant {
   id        String   @id @default(cuid())
-  slug      String   @unique // subdomain: "acme" -> acme.portal.com
+  slug      String   @unique // subdomain: "acme" -> acme.helpportal.app
   name      String // Display name: "Acme Corp Support"
   status    TenantStatus @default(PENDING)
   plan      TenantPlan   @default(FREE)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  // Owner (User who created/pays for this tenant)
+  ownerId   String?
+  owner     User?    @relation(fields: [ownerId], references: [id])
 
   // Relations
   hygraphConfig  TenantHygraphConfig?
@@ -33,6 +99,7 @@ model Tenant {
 
   @@index([slug])
   @@index([status])
+  @@index([ownerId])
 }
 
 enum TenantStatus {

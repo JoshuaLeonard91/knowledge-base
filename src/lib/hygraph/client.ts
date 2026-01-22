@@ -91,12 +91,85 @@ export interface ContactSettings {
   submitButtonText: string;
 }
 
+// Contact channel configuration
+export interface ContactChannel {
+  enabled: boolean;
+  name?: string;
+  description?: string;
+  responseTime?: string;
+  bestFor?: string[];
+}
+
 // Contact page settings (CMS-configurable) - for /support/contact page
 export interface ContactPageSettings {
   pageTitle?: string;
   pageSubtitle?: string;
   discordUrl?: string;
   emailAddress?: string;
+  // Channel-specific settings
+  ticketChannel?: ContactChannel;
+  discordChannel?: ContactChannel;
+  emailChannel?: ContactChannel;
+  // Decision guide toggle
+  showDecisionGuide?: boolean;
+  // Response times section toggle
+  showResponseTimes?: boolean;
+}
+
+// Landing page feature for main domain
+export interface LandingFeature {
+  id: string;
+  title: string;
+  description: string;
+  icon: string;
+  color: string;
+  order: number;
+}
+
+// Landing page content (CMS-configurable) - for main domain /
+export interface LandingPageContent {
+  // Hero section
+  heroTitle: string;
+  heroHighlight: string; // The highlighted/gradient text
+  heroSubtitle: string;
+  heroCta: string;
+  heroCtaLink: string;
+  heroSecondaryCtaText?: string;
+  heroSecondaryCtaLink?: string;
+  // Features section
+  featuresTitle: string;
+  featuresSubtitle: string;
+  features: LandingFeature[];
+  // CTA section
+  ctaTitle: string;
+  ctaSubtitle: string;
+  ctaButtonText: string;
+  ctaButtonLink: string;
+}
+
+// Pricing feature item
+export interface PricingFeature {
+  id: string;
+  text: string;
+  order: number;
+}
+
+// Pricing page content (CMS-configurable) - for main domain /pricing
+export interface PricingPageContent {
+  // Page header
+  pageTitle: string;
+  pageSubtitle: string;
+  // Plan details
+  planName: string;
+  planDescription: string;
+  monthlyPrice: string; // e.g., "5"
+  setupFee: string; // e.g., "10"
+  features: PricingFeature[];
+  // CTA
+  ctaText: string;
+  ctaLink: string;
+  // FAQ or additional info
+  footerNote?: string;
 }
 
 // Inquiry type options for contact form dropdown
@@ -386,6 +459,11 @@ export class HygraphClient {
 
       if (!response.ok) {
         const errorText = await response.text();
+        // Check if this is a "field not defined" error (model doesn't exist in CMS)
+        // This is expected for optional models - silently return null
+        if (errorText.includes('is not defined in')) {
+          return null;
+        }
         console.error('[Hygraph] HTTP error:', response.status, errorText);
         return null;
       }
@@ -393,6 +471,14 @@ export class HygraphClient {
       const result: GraphQLResponse<T> = await response.json();
 
       if (result.errors) {
+        // Check if all errors are "field not defined" (optional model doesn't exist)
+        const allFieldNotDefined = result.errors.every(
+          (e) => e.message?.includes('is not defined')
+        );
+        if (allFieldNotDefined) {
+          // Silently return null for optional models that don't exist
+          return null;
+        }
         // Extract query name for better debugging
         const queryMatch = queryString.match(/query\s+(\w+)/);
         const queryName = queryMatch ? queryMatch[1] : 'Unknown';
@@ -1514,6 +1600,186 @@ export class HygraphClient {
       { id: 'feedback', name: 'Feedback & Suggestions', icon: 'ChatCircle', order: 6 },
       { id: 'other', name: 'Other', icon: 'Question', order: 7 },
     ];
+  }
+
+  // ==========================================
+  // LANDING PAGE DATA
+  // ==========================================
+
+  /**
+   * Get landing page content
+   * Returns defaults if not configured in CMS
+   */
+  async getLandingPageContent(): Promise<LandingPageContent> {
+    const data = await this.query<{
+      landingPageContents: Array<{
+        heroTitle?: string;
+        heroHighlight?: string;
+        heroSubtitle?: string;
+        heroCta?: string;
+        heroCtaLink?: string;
+        heroSecondaryCtaText?: string;
+        heroSecondaryCtaLink?: string;
+        featuresTitle?: string;
+        featuresSubtitle?: string;
+        features?: Array<{
+          id: string;
+          title: string;
+          description: string;
+          icon?: string;
+          color?: string;
+          order?: number;
+        }>;
+        ctaTitle?: string;
+        ctaSubtitle?: string;
+        ctaButtonText?: string;
+        ctaButtonLink?: string;
+      }>;
+    }>(`
+      query GetLandingPageContent {
+        landingPageContents(first: 1) {
+          heroTitle
+          heroHighlight
+          heroSubtitle
+          heroCta
+          heroCtaLink
+          heroSecondaryCtaText
+          heroSecondaryCtaLink
+          featuresTitle
+          featuresSubtitle
+          features {
+            id
+            title
+            description
+            icon
+            color
+            order
+          }
+          ctaTitle
+          ctaSubtitle
+          ctaButtonText
+          ctaButtonLink
+        }
+      }
+    `);
+
+    const content = data?.landingPageContents?.[0];
+
+    // Transform features
+    const features: LandingFeature[] = content?.features?.map((f) => ({
+      id: f.id,
+      title: f.title,
+      description: f.description,
+      icon: f.icon || 'Lightning',
+      color: f.color || 'indigo',
+      order: f.order ?? 0,
+    })) || [];
+
+    // Return with defaults
+    return {
+      heroTitle: content?.heroTitle || 'Your Own',
+      heroHighlight: content?.heroHighlight || 'Support Portal',
+      heroSubtitle: content?.heroSubtitle || 'Create a professional support portal for your Discord community. Knowledge base, service catalog, and Jira integration — all under your brand.',
+      heroCta: content?.heroCta || 'Get Started — $5/mo',
+      heroCtaLink: content?.heroCtaLink || '/signup',
+      heroSecondaryCtaText: content?.heroSecondaryCtaText,
+      heroSecondaryCtaLink: content?.heroSecondaryCtaLink,
+      featuresTitle: content?.featuresTitle || 'Everything You Need',
+      featuresSubtitle: content?.featuresSubtitle || 'Launch a fully-featured support portal in minutes, not months.',
+      features: features.length > 0 ? features : [
+        { id: '1', title: 'Knowledge Base', description: 'Create and organize help articles. Let your users find answers themselves with powerful search.', icon: 'BookOpenText', color: 'indigo', order: 1 },
+        { id: '2', title: 'Custom Branding', description: 'Your subdomain, your logo, your colors. Make the portal feel like part of your brand.', icon: 'Palette', color: 'purple', order: 2 },
+        { id: '3', title: 'Discord Login', description: 'Users sign in with Discord. No passwords, no friction. Perfect for Discord communities.', icon: 'Discord', color: 'blue', order: 3 },
+        { id: '4', title: 'Service Catalog', description: 'Showcase your services and pricing tiers. Let customers know exactly what you offer.', icon: 'Briefcase', color: 'green', order: 4 },
+        { id: '5', title: 'Ticket System', description: 'Users can submit support tickets. Integrates with Jira Service Desk for powerful workflows.', icon: 'Ticket', color: 'yellow', order: 5 },
+        { id: '6', title: 'CMS Powered', description: 'Manage content with Hygraph CMS. Update articles and settings without touching code.', icon: 'Lightning', color: 'red', order: 6 },
+      ],
+      ctaTitle: content?.ctaTitle || 'Ready to Get Started?',
+      ctaSubtitle: content?.ctaSubtitle || 'Create your support portal today. $15 to start ($10 setup + $5 first month), then just $5/month. Cancel anytime.',
+      ctaButtonText: content?.ctaButtonText || 'Create Your Portal',
+      ctaButtonLink: content?.ctaButtonLink || '/signup',
+    };
+  }
+
+  // ==========================================
+  // PRICING PAGE DATA
+  // ==========================================
+
+  /**
+   * Get pricing page content
+   * Returns defaults if not configured in CMS
+   */
+  async getPricingPageContent(): Promise<PricingPageContent> {
+    const data = await this.query<{
+      pricingPageContents: Array<{
+        pageTitle?: string;
+        pageSubtitle?: string;
+        planName?: string;
+        planDescription?: string;
+        monthlyPrice?: string;
+        setupFee?: string;
+        features?: Array<{
+          id: string;
+          text: string;
+          order?: number;
+        }>;
+        ctaText?: string;
+        ctaLink?: string;
+        footerNote?: string;
+      }>;
+    }>(`
+      query GetPricingPageContent {
+        pricingPageContents(first: 1) {
+          pageTitle
+          pageSubtitle
+          planName
+          planDescription
+          monthlyPrice
+          setupFee
+          features {
+            id
+            text
+            order
+          }
+          ctaText
+          ctaLink
+          footerNote
+        }
+      }
+    `);
+
+    const content = data?.pricingPageContents?.[0];
+
+    // Transform features
+    const features: PricingFeature[] = content?.features?.map((f) => ({
+      id: f.id,
+      text: f.text,
+      order: f.order ?? 0,
+    })) || [];
+
+    // Return with defaults
+    return {
+      pageTitle: content?.pageTitle || 'Simple, Transparent Pricing',
+      pageSubtitle: content?.pageSubtitle || 'One plan, everything included. No hidden fees, no surprises.',
+      planName: content?.planName || 'Pro',
+      planDescription: content?.planDescription || 'Everything you need to run a professional support portal',
+      monthlyPrice: content?.monthlyPrice || '5',
+      setupFee: content?.setupFee || '10',
+      features: features.length > 0 ? features : [
+        { id: '1', text: 'Custom branded support portal', order: 1 },
+        { id: '2', text: 'Discord authentication for your users', order: 2 },
+        { id: '3', text: 'Knowledge base with articles', order: 3 },
+        { id: '4', text: 'Service catalog', order: 4 },
+        { id: '5', text: 'Jira Service Desk integration', order: 5 },
+        { id: '6', text: 'Custom subdomain (yourname.helpportal.app)', order: 6 },
+        { id: '7', text: 'Custom logo and colors', order: 7 },
+        { id: '8', text: 'Unlimited articles', order: 8 },
+        { id: '9', text: 'Priority support', order: 9 },
+      ],
+      ctaText: content?.ctaText || 'Get Started',
+      ctaLink: content?.ctaLink || '/signup',
+      footerNote: content?.footerNote || 'Cancel anytime. No long-term contracts.',
+    };
   }
 }
 
