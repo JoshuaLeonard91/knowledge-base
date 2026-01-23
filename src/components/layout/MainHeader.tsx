@@ -30,12 +30,15 @@ export function MainHeader({ siteName }: MainHeaderProps) {
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check user authentication status
+  // Check user authentication status on mount and route changes
   useEffect(() => {
     async function checkAuth() {
+      setIsLoading(true);
       try {
-        // Check session
-        const sessionRes = await fetch('/api/auth/session');
+        // Check session with cache-busting
+        const sessionRes = await fetch('/api/auth/session', {
+          cache: 'no-store',
+        });
         const sessionData = await sessionRes.json();
 
         if (!sessionData.authenticated) {
@@ -45,7 +48,9 @@ export function MainHeader({ siteName }: MainHeaderProps) {
         }
 
         // User is logged in, check subscription status
-        const subRes = await fetch('/api/stripe/subscription');
+        const subRes = await fetch('/api/stripe/subscription', {
+          cache: 'no-store',
+        });
         const subData = await subRes.json();
 
         const hasDashboard = subData.success && subData.nextStep === 'dashboard';
@@ -64,7 +69,7 @@ export function MainHeader({ siteName }: MainHeaderProps) {
     }
 
     checkAuth();
-  }, []);
+  }, [pathname]); // Re-check on every route change
 
   // Don't show buttons on certain pages
   const isSignupPage = pathname === '/signup';

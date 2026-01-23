@@ -1,12 +1,14 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { usePathname } from 'next/navigation';
 import { SafeUser } from '@/lib/security/sanitize';
 
 interface AuthContextType {
   user: SafeUser | null;
   isLoading: boolean;
   authMode: 'discord' | 'mock' | null;
+  csrfToken: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
@@ -18,6 +20,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'discord' | 'mock' | null>(null);
+  const [csrfToken, setCsrfToken] = useState<string | null>(null);
+  const pathname = usePathname();
 
   // Check auth mode on mount
   useEffect(() => {
@@ -37,23 +41,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const res = await fetch('/api/auth/session', {
         credentials: 'include',
+        cache: 'no-store',
       });
       const data = await res.json();
       if (data.authenticated && data.user) {
         setUser(data.user);
+        // Store CSRF token for logout
+        if (data.csrf) {
+          setCsrfToken(data.csrf);
+        }
       } else {
         setUser(null);
+        // Still get CSRF token even when not authenticated (for future requests)
+        if (data.csrf) {
+          setCsrfToken(data.csrf);
+        }
       }
     } catch {
       setUser(null);
+      setCsrfToken(null);
     } finally {
       setIsLoading(false);
     }
   }, []);
 
+  // Re-check session on route changes to catch logouts from other pages
   useEffect(() => {
     checkSession();
-  }, [checkSession]);
+  }, [checkSession, pathname]);
 
   const login = async () => {
     setIsLoading(true);
@@ -93,12 +108,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // Clear our session too
+      // Clear our session with CSRF token
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      if (csrfToken) {
+        headers['X-CSRF-Token'] = csrfToken;
+      }
+
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
+        headers,
       });
       setUser(null);
+      setCsrfToken(null);
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
@@ -107,7 +131,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, authMode, login, logout, checkSession }}>
+    <AuthContext.Provider value={{ user, isLoading, authMode, csrfToken, login, logout, checkSession }}>
       {children}
     </AuthContext.Provider>
   );
