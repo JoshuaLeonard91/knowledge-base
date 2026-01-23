@@ -102,6 +102,11 @@ export async function POST(request: NextRequest) {
         break;
       }
 
+      // These events are handled elsewhere or don't need action
+      case 'customer.subscription.created':
+        // Handled via checkout.session.completed
+        break;
+
       default:
         console.log('[Stripe Webhook] Unhandled event type:', event.type);
     }
