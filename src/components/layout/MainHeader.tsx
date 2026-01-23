@@ -8,8 +8,8 @@
  */
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState, useRef } from 'react';
 
 interface MainHeaderProps {
   siteName: string;
@@ -24,11 +24,44 @@ interface UserStatus {
 
 export function MainHeader({ siteName }: MainHeaderProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const [userStatus, setUserStatus] = useState<UserStatus>({
     isLoggedIn: false,
     hasDashboard: false,
   });
   const [isLoading, setIsLoading] = useState(true);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Handle logout
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      setUserStatus({ isLoggedIn: false, hasDashboard: false });
+      setShowUserMenu(false);
+      router.refresh();
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   // Check user authentication status on mount and route changes
   useEffect(() => {
@@ -90,34 +123,61 @@ export function MainHeader({ siteName }: MainHeaderProps) {
       );
     }
 
-    // Logged in with dashboard access
-    if (userStatus.hasDashboard) {
-      return (
-        <Link
-          href="/dashboard"
-          className="flex items-center justify-center gap-2 px-4 h-[38px] bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition !text-white"
-        >
-          {userStatus.userAvatar ? (
-            <img
-              src={userStatus.userAvatar}
-              alt=""
-              className="w-5 h-5 rounded-full"
-            />
-          ) : null}
-          Dashboard
-        </Link>
-      );
-    }
-
-    // Logged in but no dashboard (needs to complete signup)
+    // Logged in - show user menu
     if (userStatus.isLoggedIn) {
       return (
-        <Link
-          href="/signup"
-          className="flex items-center justify-center px-4 h-[38px] bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition !text-white whitespace-nowrap"
-        >
-          Continue Setup
-        </Link>
+        <div className="relative" ref={menuRef}>
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className="flex items-center gap-2 px-3 h-[38px] bg-white/5 hover:bg-white/10 rounded-lg font-medium transition text-white"
+          >
+            {userStatus.userAvatar ? (
+              <img
+                src={userStatus.userAvatar}
+                alt=""
+                className="w-6 h-6 rounded-full"
+              />
+            ) : (
+              <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-xs">
+                {userStatus.userName?.charAt(0).toUpperCase() || 'U'}
+              </div>
+            )}
+            <span className="hidden sm:inline">{userStatus.userName || 'User'}</span>
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {showUserMenu && (
+            <div className="absolute right-0 mt-2 w-48 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-lg py-1 z-50">
+              {userStatus.hasDashboard ? (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setShowUserMenu(false)}
+                  className="block px-4 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <Link
+                  href="/signup"
+                  onClick={() => setShowUserMenu(false)}
+                  className="block px-4 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white"
+                >
+                  Continue Setup
+                </Link>
+              )}
+              <hr className="my-1 border-white/10" />
+              <button
+                onClick={handleLogout}
+                disabled={isLoggingOut}
+                className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-white/5 hover:text-red-300 disabled:opacity-50"
+              >
+                {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+              </button>
+            </div>
+          )}
+        </div>
       );
     }
 

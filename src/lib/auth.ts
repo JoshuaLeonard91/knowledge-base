@@ -248,9 +248,9 @@ export async function createSession(): Promise<SafeUser> {
  */
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
-  const logoutOptions = getLogoutCookieOptions();
 
-  cookieStore.set(logoutOptions.name, logoutOptions.value, logoutOptions.options);
+  // Delete the session cookie
+  cookieStore.delete(SESSION_COOKIE_CONFIG.name);
 }
 
 /**

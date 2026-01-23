@@ -8,7 +8,6 @@ interface AuthContextType {
   user: SafeUser | null;
   isLoading: boolean;
   authMode: 'discord' | 'mock' | null;
-  csrfToken: string | null;
   login: () => Promise<void>;
   logout: () => Promise<void>;
   checkSession: () => Promise<void>;
@@ -20,7 +19,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'discord' | 'mock' | null>(null);
-  const [csrfToken, setCsrfToken] = useState<string | null>(null);
   const pathname = usePathname();
 
   // Check auth mode on mount
@@ -46,20 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await res.json();
       if (data.authenticated && data.user) {
         setUser(data.user);
-        // Store CSRF token for logout
-        if (data.csrf) {
-          setCsrfToken(data.csrf);
-        }
       } else {
         setUser(null);
-        // Still get CSRF token even when not authenticated (for future requests)
-        if (data.csrf) {
-          setCsrfToken(data.csrf);
-        }
       }
     } catch {
       setUser(null);
-      setCsrfToken(null);
     } finally {
       setIsLoading(false);
     }
@@ -99,30 +88,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setIsLoading(true);
     try {
-      // For Discord OAuth, also sign out via NextAuth
-      if (authMode === 'discord') {
-        // Call NextAuth signout endpoint
-        await fetch('/api/auth/signout', {
-          method: 'POST',
-          credentials: 'include',
-        });
-      }
-
-      // Clear our session with CSRF token
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      if (csrfToken) {
-        headers['X-CSRF-Token'] = csrfToken;
-      }
-
+      // Clear our session
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
-        headers,
       });
       setUser(null);
-      setCsrfToken(null);
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {
@@ -131,7 +102,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, authMode, csrfToken, login, logout, checkSession }}>
+    <AuthContext.Provider value={{ user, isLoading, authMode, login, logout, checkSession }}>
       {children}
     </AuthContext.Provider>
   );
