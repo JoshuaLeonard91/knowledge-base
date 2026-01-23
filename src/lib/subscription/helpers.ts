@@ -225,13 +225,22 @@ export async function syncSubscriptionWithStripe(
       subscription.stripeSubscriptionId
     );
 
+    // Extract data with type assertion for fields not in base type
+    const subData = stripeSubscription as unknown as Record<string, unknown>;
+    const cancelAt = subData.cancel_at as number | null | undefined;
+    const periodStart = subData.current_period_start as number | undefined;
+    const periodEnd = subData.current_period_end as number | undefined;
+
+    // Check if subscription is scheduled for cancellation
+    // Stripe uses either cancel_at_period_end OR cancel_at (specific timestamp)
+    const isScheduledToCancel = stripeSubscription.cancel_at_period_end || !!cancelAt;
+
     // Determine expected status based on Stripe data
     let expectedStatus: SubscriptionStatus;
-    const cancelAtPeriodEnd = stripeSubscription.cancel_at_period_end;
 
     switch (stripeSubscription.status) {
       case 'active':
-        expectedStatus = cancelAtPeriodEnd
+        expectedStatus = isScheduledToCancel
           ? SubscriptionStatus.CANCELED
           : SubscriptionStatus.ACTIVE;
         break;
@@ -250,26 +259,23 @@ export async function syncSubscriptionWithStripe(
     // Check if update is needed
     const needsUpdate =
       subscription.status !== expectedStatus ||
-      subscription.cancelAtPeriodEnd !== cancelAtPeriodEnd;
+      subscription.cancelAtPeriodEnd !== isScheduledToCancel;
 
     if (!needsUpdate) {
       return false;
     }
-
-    // Extract period timestamps
-    const subData = stripeSubscription as unknown as Record<string, unknown>;
-    const periodStart = subData.current_period_start as number | undefined;
-    const periodEnd = subData.current_period_end as number | undefined;
 
     // Update database
     await prisma.subscription.update({
       where: { id: subscription.id },
       data: {
         status: expectedStatus,
-        cancelAtPeriodEnd,
+        cancelAtPeriodEnd: isScheduledToCancel,
         canceledAt: stripeSubscription.canceled_at
           ? new Date(stripeSubscription.canceled_at * 1000)
-          : null,
+          : cancelAt
+            ? new Date() // Use current time if cancel_at is set but canceled_at isn't
+            : null,
         ...(periodStart && { currentPeriodStart: new Date(periodStart * 1000) }),
         ...(periodEnd && { currentPeriodEnd: new Date(periodEnd * 1000) }),
       },

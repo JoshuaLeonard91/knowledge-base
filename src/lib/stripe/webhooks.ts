@@ -181,12 +181,17 @@ export async function handleSubscriptionUpdated(
   const subData = subscription as unknown as Record<string, unknown>;
   const periodStart = subData.current_period_start as number | undefined;
   const periodEnd = subData.current_period_end as number | undefined;
+  const cancelAt = subData.cancel_at as number | null | undefined;
+
+  // Check if subscription is scheduled for cancellation
+  // Stripe uses either cancel_at_period_end OR cancel_at (specific timestamp)
+  const isScheduledToCancel = subscription.cancel_at_period_end || !!cancelAt;
 
   // Determine status based on Stripe subscription status
   let status: SubscriptionStatus;
   switch (subscription.status) {
     case 'active':
-      status = subscription.cancel_at_period_end
+      status = isScheduledToCancel
         ? SubscriptionStatus.CANCELED
         : SubscriptionStatus.ACTIVE;
       break;
@@ -202,13 +207,16 @@ export async function handleSubscriptionUpdated(
   }
 
   // Build update data
+  // Store true in cancelAtPeriodEnd if either cancellation method is used
   const updateData: Record<string, unknown> = {
     status,
     stripePriceId: subscription.items.data[0]?.price.id || existingSubscription.stripePriceId,
-    cancelAtPeriodEnd: subscription.cancel_at_period_end,
+    cancelAtPeriodEnd: isScheduledToCancel,
     canceledAt: subscription.canceled_at
       ? new Date(subscription.canceled_at * 1000)
-      : null,
+      : cancelAt
+        ? new Date() // Use current time if cancel_at is set but canceled_at isn't
+        : null,
   };
   if (periodStart) updateData.currentPeriodStart = new Date(periodStart * 1000);
   if (periodEnd) updateData.currentPeriodEnd = new Date(periodEnd * 1000);
