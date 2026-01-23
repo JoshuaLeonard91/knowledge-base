@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Script from "next/script";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -86,11 +87,12 @@ export default async function RootLayout({
           </AuthProvider>
         </ThemeProvider>
         {process.env.NEXT_PUBLIC_JSM_WIDGET_KEY && (
-          <script
+          <Script
+            src="https://jsd-widget.atlassian.com/assets/embed.js"
+            strategy="lazyOnload"
             data-jsd-embedded
             data-key={process.env.NEXT_PUBLIC_JSM_WIDGET_KEY}
             data-base-url="https://jsd-widget.atlassian.com"
-            src="https://jsd-widget.atlassian.com/assets/embed.js"
           />
         )}
       </body>

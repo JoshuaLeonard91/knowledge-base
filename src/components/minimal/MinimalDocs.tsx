@@ -107,7 +107,7 @@ export function MinimalDocs({ onNavigate, onBack }: MinimalDocsProps) {
         <div className="space-y-2">
           {filteredArticles.length === 0 ? (
             <p className="text-center text-[var(--text-muted)] py-8">
-              No articles found for "{searchQuery}"
+              No articles found for &quot;{searchQuery}&quot;
             </p>
           ) : (
             filteredArticles.map(article => (

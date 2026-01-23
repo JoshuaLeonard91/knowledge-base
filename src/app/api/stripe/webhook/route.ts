@@ -57,12 +57,7 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Invalid signature';
     console.error('[Stripe Webhook] Signature verification failed:', message);
-    console.error('[Stripe Webhook] Debug info:', {
-      signatureHeader: signature.substring(0, 50) + '...',
-      bodyLength: body.length,
-      secretConfigured: !!WEBHOOK_SECRET,
-      secretPrefix: WEBHOOK_SECRET?.substring(0, 10) + '...',
-    });
+    // Don't log sensitive data like signature or secret prefixes
     return NextResponse.json(
       { error: 'Invalid signature' },
       { status: 400 }

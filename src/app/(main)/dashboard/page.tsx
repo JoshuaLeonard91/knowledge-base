@@ -178,7 +178,7 @@ export default function DashboardPage() {
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
         {/* Welcome Section */}
-        <div className="mb-8">
+        <div className="mb-8 animate-slide-up">
           <h1 className="text-2xl font-bold text-white mb-1">
             Welcome back, {userName}
           </h1>
@@ -188,7 +188,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8 stagger-children">
           {/* Portal Status */}
           <div className="bg-[#111118] rounded-xl border border-white/5 p-5">
             <div className="flex items-center justify-between mb-3">
@@ -240,7 +240,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '0.2s' }}>
           {/* Main Column */}
           <div className="lg:col-span-2 space-y-6">
             {/* Portal Card */}

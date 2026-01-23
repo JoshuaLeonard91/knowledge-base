@@ -1,10 +1,13 @@
 'use client';
 
+import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTheme } from '@/components/theme/ThemeProvider';
 import { useTenant } from '@/lib/tenant/context';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
+import { ProgressBar } from './ProgressBar';
+import { PageTransition } from './PageTransition';
 import { MinimalLayout } from '@/components/minimal/MinimalLayout';
 import { MinimalApp } from '@/components/minimal/MinimalApp';
 import type { FooterSettings, FooterLink, HeaderSettings, NavLink } from '@/lib/cms';
@@ -43,9 +46,15 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
   if (tenant || isSupportPage) {
     return (
       <>
+        {/* Progress bar for route transitions */}
+        <Suspense fallback={null}>
+          <ProgressBar />
+        </Suspense>
         <Navbar settings={headerData.settings} navLinks={headerData.navLinks} />
         <main className="flex-1 pt-16">
-          {children}
+          <PageTransition>
+            {children}
+          </PageTransition>
         </main>
         <Footer settings={footerData.settings} links={footerData.links} />
       </>
@@ -54,8 +63,16 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
 
   // Main domain marketing pages - they handle their own layout
   return (
-    <main className="flex-1">
-      {children}
-    </main>
+    <>
+      {/* Progress bar for route transitions */}
+      <Suspense fallback={null}>
+        <ProgressBar />
+      </Suspense>
+      <main className="flex-1">
+        <PageTransition>
+          {children}
+        </PageTransition>
+      </main>
+    </>
   );
 }

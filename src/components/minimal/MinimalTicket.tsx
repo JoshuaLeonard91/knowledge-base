@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { CaretLeft, PaperPlaneTilt, CheckCircle, WarningCircle, SpinnerGap } from '@phosphor-icons/react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { DiscordLoginButton } from '@/components/auth/DiscordLoginButton';
@@ -80,7 +81,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
           Ticket Submitted
         </h2>
         <p className="text-[var(--text-secondary)] mb-2">
-          We'll get back to you as soon as possible.
+          We&apos;ll get back to you as soon as possible.
         </p>
         {ticketId && (
           <p className="text-sm text-[var(--text-muted)] mb-8">
@@ -94,12 +95,12 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
           >
             Back to support
           </button>
-          <a
+          <Link
             href="/support/tickets"
             className="text-[var(--accent-primary)] hover:underline"
           >
             View My Tickets
-          </a>
+          </Link>
         </div>
       </div>
     );
@@ -142,7 +143,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         Submit a Ticket
       </h1>
       <p className="text-[var(--text-secondary)] mb-8">
-        Describe your issue and we'll help you out.
+        Describe your issue and we&apos;ll help you out.
       </p>
 
       {/* Form */}

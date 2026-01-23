@@ -77,7 +77,7 @@ export async function GET(request: NextRequest) {
     const cookieStore = await cookies();
     const prefsCookie = cookieStore.get(PREFS_COOKIE_NAME);
 
-    let preferences: Preferences = {
+    const preferences: Preferences = {
       uiMode: 'classic', // Default
       recentSearches: [],
       viewedArticles: [],

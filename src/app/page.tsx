@@ -82,7 +82,7 @@ export default async function RootPage() {
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-indigo-500/10 blur-[120px]" />
 
         <div className="relative max-w-5xl mx-auto px-6 py-24 md:py-32 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-8 animate-fade-in">
             <span className="relative flex h-2 w-2">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-indigo-400 opacity-75"></span>
               <span className="relative inline-flex rounded-full h-2 w-2 bg-indigo-500"></span>
@@ -90,18 +90,18 @@ export default async function RootPage() {
             <span className="text-sm font-medium text-indigo-400">Now available</span>
           </div>
 
-          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight">
+          <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight animate-slide-up">
             {content.heroTitle}{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
               {content.heroHighlight}
             </span>
           </h1>
 
-          <p className="text-xl text-white/60 max-w-2xl mx-auto mb-10">
+          <p className="text-xl text-white/60 max-w-2xl mx-auto mb-10 animate-slide-up" style={{ animationDelay: '0.1s' }}>
             {content.heroSubtitle}
           </p>
 
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.2s' }}>
             <Link
               href={content.heroCtaLink}
               className="px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition !text-white text-lg"
@@ -123,14 +123,14 @@ export default async function RootPage() {
       {/* Features Section */}
       <section className="py-20 px-6 border-t border-white/10">
         <div className="max-w-6xl mx-auto">
-          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4">
+          <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 animate-slide-up">
             {content.featuresTitle}
           </h2>
-          <p className="text-white/60 text-center mb-16 max-w-2xl mx-auto">
+          <p className="text-white/60 text-center mb-16 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.05s' }}>
             {content.featuresSubtitle}
           </p>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 stagger-children">
             {content.features
               .sort((a: { order: number }, b: { order: number }) => a.order - b.order)
               .map((feature: { id: string; title: string; description: string; icon: string; color: string; order: number }) => {
@@ -139,7 +139,7 @@ export default async function RootPage() {
                 return (
                   <div
                     key={feature.id}
-                    className="bg-[#16161f] rounded-2xl border border-white/10 p-8"
+                    className="bg-[#16161f] rounded-2xl border border-white/10 p-8 hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300"
                   >
                     <div className={`w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center mb-6`}>
                       <div className={colors.text}>{icon}</div>
@@ -156,7 +156,7 @@ export default async function RootPage() {
       {/* CTA Section */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 rounded-3xl border border-indigo-500/20 p-12">
+          <div className="bg-gradient-to-r from-indigo-600/20 to-purple-600/20 rounded-3xl border border-indigo-500/20 p-12 animate-scale-in">
             <h2 className="text-3xl md:text-4xl font-bold mb-4">
               {content.ctaTitle}
             </h2>
@@ -165,7 +165,7 @@ export default async function RootPage() {
             </p>
             <Link
               href={content.ctaButtonLink}
-              className="inline-block px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition !text-white text-lg"
+              className="inline-block px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition !text-white text-lg hover:scale-105"
             >
               {content.ctaButtonText}
             </Link>

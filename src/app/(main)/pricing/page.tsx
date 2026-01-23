@@ -23,10 +23,10 @@ export default async function PricingPage() {
       {/* Hero */}
       <section className="py-20 px-6">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-5xl md:text-6xl font-bold mb-6">
+          <h1 className="text-5xl md:text-6xl font-bold mb-6 animate-slide-up">
             {content.pageTitle}
           </h1>
-          <p className="text-xl text-white/60 mb-8">
+          <p className="text-xl text-white/60 mb-8 animate-slide-up" style={{ animationDelay: '0.1s' }}>
             {content.pageSubtitle}
           </p>
         </div>
@@ -34,8 +34,8 @@ export default async function PricingPage() {
 
       {/* Pricing Card */}
       <section className="pb-20 px-6">
-        <div className="max-w-lg mx-auto">
-          <div className="bg-[#16161f] rounded-2xl border border-white/10 overflow-hidden">
+        <div className="max-w-lg mx-auto animate-scale-in" style={{ animationDelay: '0.15s' }}>
+          <div className="bg-[#16161f] rounded-2xl border border-white/10 overflow-hidden hover:border-indigo-500/30 transition-colors">
             {/* Card Header */}
             <div className="p-8 border-b border-white/10">
               <h2 className="text-xl font-semibold mb-4">{content.planName}</h2>
