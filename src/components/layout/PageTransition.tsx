@@ -4,7 +4,7 @@
  * Page Transition Wrapper
  *
  * Provides smooth fade-in and slide-up animations when page content changes.
- * Detects route changes and re-triggers animation.
+ * Uses GPU-accelerated CSS animations from globals.css for 60fps performance.
  */
 
 import { useEffect, useState, useRef } from 'react';
@@ -17,54 +17,19 @@ interface PageTransitionProps {
 
 export function PageTransition({ children, className = '' }: PageTransitionProps) {
   const pathname = usePathname();
-  const [isAnimating, setIsAnimating] = useState(false);
-  const [shouldRender, setShouldRender] = useState(true);
+  const [key, setKey] = useState(0);
   const previousPathname = useRef(pathname);
-  const isFirstRender = useRef(true);
 
   useEffect(() => {
-    // Skip animation on first render - just fade in
-    if (isFirstRender.current) {
-      isFirstRender.current = false;
-      setIsAnimating(true);
-      return;
-    }
-
-    // Detect route change
+    // Re-key on route change to trigger fresh animation
     if (pathname !== previousPathname.current) {
       previousPathname.current = pathname;
-
-      // Quick fade out
-      setShouldRender(false);
-
-      // Then fade in with new content
-      requestAnimationFrame(() => {
-        setShouldRender(true);
-        setIsAnimating(true);
-      });
+      setKey((prev) => prev + 1);
     }
   }, [pathname]);
 
-  // Reset animation state after animation completes
-  useEffect(() => {
-    if (isAnimating) {
-      const timer = setTimeout(() => {
-        setIsAnimating(false);
-      }, 400); // Match animation duration
-
-      return () => clearTimeout(timer);
-    }
-  }, [isAnimating]);
-
   return (
-    <div
-      className={`${className} ${shouldRender ? 'page-transition-enter' : 'page-transition-exit'}`}
-      style={{
-        opacity: shouldRender ? 1 : 0,
-        transform: shouldRender ? 'translateY(0)' : 'translateY(8px)',
-        transition: 'opacity 0.25s ease-out, transform 0.3s ease-out',
-      }}
-    >
+    <div key={key} className={`animate-page-enter ${className}`}>
       {children}
     </div>
   );
@@ -72,18 +37,17 @@ export function PageTransition({ children, className = '' }: PageTransitionProps
 
 /**
  * Staggered children animation wrapper
- * Each child animates in sequence with a slight delay
+ * Each child animates in sequence with a slight delay.
+ * Uses GPU-accelerated stagger-children class from globals.css.
  */
 interface StaggeredContentProps {
   children: React.ReactNode;
   className?: string;
-  staggerDelay?: number; // Delay between children in ms
 }
 
 export function StaggeredContent({
   children,
   className = '',
-  staggerDelay = 50,
 }: StaggeredContentProps) {
   const pathname = usePathname();
   const [key, setKey] = useState(0);
@@ -94,28 +58,7 @@ export function StaggeredContent({
   }, [pathname]);
 
   return (
-    <div key={key} className={`stagger-animate ${className}`}>
-      <style jsx>{`
-        .stagger-animate > :global(*) {
-          opacity: 0;
-          animation: staggerSlideUp 0.4s ease forwards;
-        }
-        ${Array.from({ length: 12 }, (_, i) => `
-          .stagger-animate > :global(*:nth-child(${i + 1})) {
-            animation-delay: ${i * staggerDelay}ms;
-          }
-        `).join('')}
-        @keyframes staggerSlideUp {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+    <div key={key} className={`stagger-children ${className}`}>
       {children}
     </div>
   );

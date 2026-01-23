@@ -96,10 +96,12 @@ export function ProgressBar() {
       aria-valuemax={100}
     >
       <div
-        className="h-full bg-gradient-to-r from-[var(--accent-primary)] via-[var(--accent-secondary)] to-[var(--accent-primary)] transition-all duration-300 ease-out"
+        className="h-full w-full origin-left bg-gradient-to-r from-[var(--accent-primary)] via-[var(--accent-secondary)] to-[var(--accent-primary)]"
         style={{
-          width: `${progress}%`,
+          transform: `scaleX(${progress / 100})`,
+          transition: 'transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
           boxShadow: '0 0 10px var(--accent-primary), 0 0 5px var(--accent-primary)',
+          willChange: 'transform',
         }}
       />
     </div>
