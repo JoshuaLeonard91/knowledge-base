@@ -21,6 +21,9 @@ const securityHeaders = {
   'Cache-Control': 'no-store, private',
 };
 
+// Valid theme IDs
+const VALID_THEMES = ['discord', 'dark', 'light'];
+
 // Reserved subdomains that cannot be used
 const RESERVED_SUBDOMAINS = [
   'www', 'api', 'app', 'admin', 'dashboard', 'support', 'help',
@@ -63,6 +66,15 @@ function sanitizeOnboardingData(data: Record<string, unknown>): Record<string, u
   const sanitized: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data)) {
     if (typeof value === 'string') {
+      // Special handling for theme - must be a valid theme ID
+      if (key === 'theme') {
+        if (VALID_THEMES.includes(value)) {
+          sanitized[key] = value;
+        }
+        // Invalid theme values are silently dropped
+        continue;
+      }
+
       // Remove potential script tags and limit length
       sanitized[key] = value
         .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
