@@ -150,7 +150,7 @@ export async function GET(request: NextRequest) {
       // Guilds fetch is optional
     }
 
-    // Create session token
+    // Create session token (include access token for revocation on logout)
     const sessionToken = createSessionToken({
       userId: discordUser.id,
       provider: 'discord',
@@ -161,6 +161,8 @@ export async function GET(request: NextRequest) {
           ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
           : null,
         guildCount: guilds.length,
+        // Store access token (encrypted in session) for revocation on logout
+        accessToken: accessToken,
       },
     });
 

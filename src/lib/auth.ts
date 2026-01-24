@@ -108,6 +108,20 @@ async function getSessionFromCookie(): Promise<{
 }
 
 /**
+ * Get Discord access token from session (for token revocation on logout)
+ * Returns null if not a Discord session or no token stored
+ */
+export async function getDiscordAccessToken(): Promise<string | null> {
+  const session = await getSessionFromCookie();
+
+  if (!session || session.provider !== 'discord') {
+    return null;
+  }
+
+  return (session.data.accessToken as string) || null;
+}
+
+/**
  * Get current session
  * Uses our custom encrypted session cookie for both Discord and mock
  */
@@ -249,8 +263,15 @@ export async function createSession(): Promise<SafeUser> {
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
 
-  // Delete the session cookie
-  cookieStore.delete(SESSION_COOKIE_CONFIG.name);
+  // Delete the session cookie by setting it with maxAge: 0
+  // Using delete() alone doesn't work with cookies that have specific options
+  cookieStore.set(SESSION_COOKIE_CONFIG.name, '', {
+    httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
+    secure: SESSION_COOKIE_CONFIG.secure,
+    sameSite: SESSION_COOKIE_CONFIG.sameSite,
+    path: SESSION_COOKIE_CONFIG.path,
+    maxAge: 0, // Immediate expiration
+  });
 }
 
 /**
