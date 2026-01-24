@@ -150,35 +150,20 @@ export async function GET(request: NextRequest) {
       // Guilds fetch is optional
     }
 
-    // Debug: Log Discord user data
-    console.log('[Discord Callback] User data from Discord:', {
-      id: discordUser.id,
-      username: discordUser.username,
-      global_name: discordUser.global_name,
-      avatar: discordUser.avatar,
-    });
-
     // Create session token (include access token for revocation on logout)
-    const sessionData = {
-      username: discordUser.global_name || discordUser.username,
-      discriminator: discordUser.discriminator,
-      avatar: discordUser.avatar
-        ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-        : null,
-      guildCount: guilds.length,
-      // Store access token (encrypted in session) for revocation on logout
-      accessToken: accessToken,
-    };
-
-    console.log('[Discord Callback] Session data being stored:', {
-      username: sessionData.username,
-      avatar: sessionData.avatar ? 'present' : 'missing',
-    });
-
     const sessionToken = createSessionToken({
       userId: discordUser.id,
       provider: 'discord',
-      data: sessionData,
+      data: {
+        username: discordUser.global_name || discordUser.username,
+        discriminator: discordUser.discriminator,
+        avatar: discordUser.avatar
+          ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+          : null,
+        guildCount: guilds.length,
+        // Store access token (encrypted in session) for revocation on logout
+        accessToken: accessToken,
+      },
     });
 
     // Log successful auth

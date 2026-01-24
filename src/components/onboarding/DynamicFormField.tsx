@@ -4,10 +4,60 @@
  * Dynamic Form Field Component
  *
  * Renders a form field based on CMS configuration.
- * Supports various field types: TEXT, EMAIL, SELECT, COLOR, IMAGE_URL, TEXTAREA
+ * Supports various field types: TEXT, EMAIL, SELECT, COLOR, THEME, IMAGE_URL, TEXTAREA
  */
 
 import type { OnboardingField } from '@/lib/cms';
+
+// Theme option type
+export interface ThemeOption {
+  id: string;
+  name: string;
+  description: string;
+  colors: {
+    primary: string;
+    background: string;
+    surface: string;
+    text: string;
+  };
+}
+
+// Predefined theme options - exported for use in theme application
+export const THEME_OPTIONS: ThemeOption[] = [
+  {
+    id: 'discord',
+    name: 'Discord',
+    description: 'Classic Discord-inspired dark theme',
+    colors: {
+      primary: '#5865F2',
+      background: '#36393f',
+      surface: '#2f3136',
+      text: '#ffffff',
+    },
+  },
+  {
+    id: 'dark',
+    name: 'Midnight',
+    description: 'Sleek dark theme with indigo accents',
+    colors: {
+      primary: '#6366f1',
+      background: '#0a0a0f',
+      surface: '#16161f',
+      text: '#ffffff',
+    },
+  },
+  {
+    id: 'light',
+    name: 'Soft Light',
+    description: 'Easy-on-the-eyes light theme',
+    colors: {
+      primary: '#4f46e5',
+      background: '#f8fafc',
+      surface: '#ffffff',
+      text: '#1e293b',
+    },
+  },
+];
 
 interface DynamicFormFieldProps {
   field: OnboardingField;
@@ -94,29 +144,73 @@ export function DynamicFormField({ field, value, onChange, error }: DynamicFormF
       );
 
     case 'COLOR':
+    case 'THEME':
       return (
         <div>
-          <label className="block text-sm font-medium text-white/80 mb-2">
+          <label className="block text-sm font-medium text-white/80 mb-3">
             {field.label}
             {field.required && <span className="text-red-400 ml-1">*</span>}
           </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="color"
-              name={field.name}
-              value={value || '#6366f1'}
-              onChange={handleChange}
-              className="w-12 h-12 rounded-lg border border-white/10 cursor-pointer bg-transparent"
-            />
-            <input
-              type="text"
-              value={value || '#6366f1'}
-              onChange={handleChange}
-              placeholder="#6366f1"
-              className={`flex-1 ${baseInputClasses} ${errorClasses}`}
-            />
+          <div className="grid gap-3">
+            {THEME_OPTIONS.map((theme) => {
+              const isSelected = value === theme.id;
+              return (
+                <button
+                  key={theme.id}
+                  type="button"
+                  onClick={() => onChange(field.name, theme.id)}
+                  className={`relative flex items-center gap-4 p-4 rounded-xl border-2 transition-all text-left ${
+                    isSelected
+                      ? 'border-indigo-500 bg-indigo-500/10'
+                      : 'border-white/10 hover:border-white/20 bg-white/5'
+                  }`}
+                >
+                  {/* Theme Preview */}
+                  <div
+                    className="w-16 h-12 rounded-lg overflow-hidden flex-shrink-0 border border-white/10"
+                    style={{ backgroundColor: theme.colors.background }}
+                  >
+                    <div
+                      className="h-3 w-full"
+                      style={{ backgroundColor: theme.colors.surface }}
+                    />
+                    <div className="p-1.5 flex gap-1">
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: theme.colors.primary }}
+                      />
+                      <div
+                        className="flex-1 h-2 rounded"
+                        style={{ backgroundColor: theme.colors.surface }}
+                      />
+                    </div>
+                    <div className="px-1.5">
+                      <div
+                        className="h-1.5 w-3/4 rounded"
+                        style={{ backgroundColor: theme.colors.text, opacity: 0.3 }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Theme Info */}
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-white">{theme.name}</div>
+                    <div className="text-sm text-white/50">{theme.description}</div>
+                  </div>
+
+                  {/* Selected Indicator */}
+                  {isSelected && (
+                    <div className="w-6 h-6 rounded-full bg-indigo-500 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
           </div>
-          {error && <p className="mt-1 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-2 text-sm text-red-400">{error}</p>}
         </div>
       );
 

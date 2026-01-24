@@ -18,6 +18,7 @@ interface OnboardingWizardProps {
   config: OnboardingConfig;
   isAuthenticated?: boolean;
   userId?: string;
+  csrfToken?: string;           // CSRF token for API requests
 }
 
 export function OnboardingWizard({
@@ -25,6 +26,7 @@ export function OnboardingWizard({
   config,
   isAuthenticated = false,
   userId,
+  csrfToken: initialCsrfToken,
 }: OnboardingWizardProps) {
   const router = useRouter();
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
@@ -32,6 +34,23 @@ export function OnboardingWizard({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isComplete, setIsComplete] = useState(false);
+  const [csrfToken, setCsrfToken] = useState(initialCsrfToken);
+
+  // Fetch fresh CSRF token on mount to ensure it's valid
+  useEffect(() => {
+    async function fetchCsrf() {
+      try {
+        const res = await fetch('/api/auth/session', { cache: 'no-store' });
+        const data = await res.json();
+        if (data.csrf) {
+          setCsrfToken(data.csrf);
+        }
+      } catch (err) {
+        console.error('Failed to fetch CSRF token:', err);
+      }
+    }
+    fetchCsrf();
+  }, []);
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -67,9 +86,25 @@ export function OnboardingWizard({
     setError(null);
 
     try {
+      // Fetch fresh CSRF token before submitting
+      let token = csrfToken;
+      try {
+        const csrfRes = await fetch('/api/auth/session', { cache: 'no-store' });
+        const csrfData = await csrfRes.json();
+        if (csrfData.csrf) {
+          token = csrfData.csrf;
+          setCsrfToken(token);
+        }
+      } catch {
+        // Use existing token if refresh fails
+      }
+
       const response = await fetch('/api/onboarding/complete', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': token || '',
+        },
         body: JSON.stringify({
           context,
           data: formData,

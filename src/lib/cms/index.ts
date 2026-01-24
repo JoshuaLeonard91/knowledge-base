@@ -638,7 +638,7 @@ export interface SignupConfig {
 export interface OnboardingField {
   name: string;
   label: string;
-  type: 'TEXT' | 'EMAIL' | 'SELECT' | 'COLOR' | 'IMAGE_URL' | 'TEXTAREA';
+  type: 'TEXT' | 'EMAIL' | 'SELECT' | 'COLOR' | 'THEME' | 'IMAGE_URL' | 'TEXTAREA';
   required: boolean;
   placeholder?: string;
   options?: string[];
@@ -766,13 +766,13 @@ export async function getOnboardingConfig(context: string): Promise<OnboardingCo
         {
           id: 'branding',
           title: 'Customize Your Portal',
-          description: 'Add your logo and choose your brand colors',
+          description: 'Choose a theme and optionally add your logo',
           type: 'BRANDING',
           required: false,
           fields: [
             { name: 'portalName', label: 'Portal Name', type: 'TEXT', required: false, placeholder: 'My Support Portal' },
-            { name: 'logoUrl', label: 'Logo URL', type: 'IMAGE_URL', required: false, placeholder: 'https://...' },
-            { name: 'primaryColor', label: 'Primary Color', type: 'COLOR', required: false },
+            { name: 'theme', label: 'Choose Your Theme', type: 'THEME', required: false },
+            { name: 'logoUrl', label: 'Logo URL (optional)', type: 'IMAGE_URL', required: false, placeholder: 'https://...' },
           ],
         },
       ],

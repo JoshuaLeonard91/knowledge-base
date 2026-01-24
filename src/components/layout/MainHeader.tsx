@@ -91,8 +91,8 @@ export function MainHeader({ siteName }: MainHeaderProps) {
         setUserStatus({
           isLoggedIn: true,
           hasDashboard,
-          userName: sessionData.user?.username,
-          userAvatar: sessionData.user?.avatar,
+          userName: sessionData.user?.displayName,
+          userAvatar: sessionData.user?.avatarUrl,
         });
       } catch {
         setUserStatus({ isLoggedIn: false, hasDashboard: false });

@@ -97,13 +97,13 @@ export default function OnboardingPage() {
                 {
                   id: 'branding',
                   title: 'Customize Your Portal',
-                  description: 'Add your logo and choose your brand colors',
+                  description: 'Choose a theme and optionally add your logo',
                   type: 'BRANDING',
                   required: false,
                   fields: [
                     { name: 'portalName', label: 'Portal Name', type: 'TEXT', required: false, placeholder: 'My Support Portal' },
-                    { name: 'logoUrl', label: 'Logo URL', type: 'IMAGE_URL', required: false, placeholder: 'https://...' },
-                    { name: 'primaryColor', label: 'Primary Color', type: 'COLOR', required: false },
+                    { name: 'theme', label: 'Choose Your Theme', type: 'THEME', required: false },
+                    { name: 'logoUrl', label: 'Logo URL (optional)', type: 'IMAGE_URL', required: false, placeholder: 'https://...' },
                   ],
                 },
               ],

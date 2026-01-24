@@ -163,14 +163,6 @@ export async function getSafeUser(): Promise<SafeUser | null> {
 
   // Discord OAuth session
   if (session.provider === 'discord') {
-    // Debug: Log session data to trace username/avatar issue
-    console.log('[getSafeUser] Discord session data:', {
-      hasData: !!session.data,
-      dataKeys: Object.keys(session.data || {}),
-      username: session.data?.username,
-      avatar: session.data?.avatar ? 'present' : 'missing',
-    });
-
     return toSafeUser({
       username: (session.data.username as string) || 'User',
       avatar: session.data.avatar as string | null,
