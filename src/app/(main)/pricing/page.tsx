@@ -24,14 +24,14 @@ export default async function PricingPage() {
   const isMainDomain = !tenant;
 
   // Fetch data in parallel
-  const [products, headerData, authenticated] = await Promise.all([
+  const [products, headerData] = await Promise.all([
     getCheckoutProducts(context),
     getHeaderData(),
-    isAuthenticated(),
   ]);
 
-  // Get current subscription if authenticated
+  // Check for current subscription (shows "Current Plan" badge)
   let currentProductSlug: string | undefined;
+  const authenticated = await isAuthenticated();
 
   if (authenticated) {
     const session = await getSession();
@@ -42,8 +42,6 @@ export default async function PricingPage() {
           where: { discordId: session.id },
           include: { subscription: true },
         });
-        // Main domain doesn't have product slugs in old system
-        // Just check if they have active subscription
         if (user?.subscription?.status === 'ACTIVE') {
           currentProductSlug = 'pro'; // Default product
         }
@@ -72,11 +70,9 @@ export default async function PricingPage() {
       <MainHeader siteName={siteName} />
 
       <GenericPricingPage
-        context={context}
         title={isMainDomain ? 'Simple, Transparent Pricing' : 'Choose Your Plan'}
         subtitle={isMainDomain ? 'One plan, everything included. No hidden fees.' : 'Select the plan that works best for you'}
         products={products}
-        isAuthenticated={authenticated}
         currentProductSlug={currentProductSlug}
       />
 

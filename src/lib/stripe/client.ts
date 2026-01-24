@@ -166,7 +166,10 @@ export async function getStripeCustomer(
 
 /**
  * Create a checkout session for a specific product (CMS-driven)
- * Supports both main Stripe account and connected accounts
+ *
+ * Supports Stripe Connect for both main domain and tenant payments:
+ * - Main domain: Uses PLATFORM_STRIPE_ACCOUNT_ID (no application fee)
+ * - Tenant: Uses tenant's connected account (with application fee)
  */
 export async function createGenericCheckoutSession({
   productSlug,
@@ -179,7 +182,8 @@ export async function createGenericCheckoutSession({
   successUrl,
   cancelUrl,
   connectedAccountId,
-  applicationFeePercent = 10,
+  applicationFeePercent = 0, // Default to 0 (platform doesn't take a cut)
+  isMainDomain = false,
 }: {
   productSlug: string;
   priceId?: string;
@@ -192,6 +196,7 @@ export async function createGenericCheckoutSession({
   cancelUrl: string;
   connectedAccountId?: string;
   applicationFeePercent?: number;
+  isMainDomain?: boolean;
 }): Promise<Stripe.Checkout.Session> {
   // Build line items
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
@@ -231,8 +236,9 @@ export async function createGenericCheckoutSession({
     allow_promotion_codes: true,
   };
 
-  // If using connected account, add application fee
-  if (connectedAccountId) {
+  // Add application fee for tenant checkouts (not main domain)
+  // Main domain payments don't need an application fee since it's your own account
+  if (connectedAccountId && !isMainDomain && applicationFeePercent > 0) {
     sessionParams.subscription_data!.application_fee_percent = applicationFeePercent;
   }
 

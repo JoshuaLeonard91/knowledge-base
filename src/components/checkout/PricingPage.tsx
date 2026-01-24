@@ -4,74 +4,40 @@
  * Generic Pricing Page Component
  *
  * CMS-driven pricing page that works on both main domain and tenant subdomains.
- * Fetches products based on context and handles checkout initiation.
+ * Always redirects to signup page to ensure login is required before checkout.
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProductCard } from './ProductCard';
 import type { CheckoutProduct } from '@/lib/cms';
 
 interface PricingPageProps {
-  context: string;              // "main" or tenant slug
   title?: string;
   subtitle?: string;
   products: CheckoutProduct[];
-  isAuthenticated?: boolean;
   currentProductSlug?: string;  // If user already has a subscription
 }
 
 export function PricingPage({
-  context,
   title = 'Choose Your Plan',
   subtitle = 'Select the plan that works best for you',
   products,
-  isAuthenticated = false,
   currentProductSlug,
 }: PricingPageProps) {
   const router = useRouter();
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleSelectProduct = async (product: CheckoutProduct) => {
-    setError(null);
+  const handleSelectProduct = (product: CheckoutProduct) => {
     setLoadingProduct(product.slug);
 
-    try {
-      // If not authenticated, redirect to signup with product info
-      if (!isAuthenticated) {
-        const params = new URLSearchParams({
-          product: product.slug,
-          redirect: '/checkout/success',
-        });
-        router.push(`/signup?${params.toString()}`);
-        return;
-      }
-
-      // Create checkout session
-      const response = await fetch('/api/checkout/create-session', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productSlug: product.slug,
-          context,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to create checkout session');
-      }
-
-      // Redirect to Stripe Checkout
-      if (data.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
-      }
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong');
-      setLoadingProduct(null);
-    }
+    // Always redirect to signup page
+    // This ensures login is required before checkout (unified flow)
+    // The signup page handles the complete flow: login → product selection → payment
+    const params = new URLSearchParams({
+      product: product.slug,
+    });
+    router.push(`/signup?${params.toString()}`);
   };
 
   // Sort products by sortOrder
@@ -99,13 +65,6 @@ export function PricingPage({
           <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{title}</h1>
           {subtitle && <p className="text-xl text-white/60 max-w-2xl mx-auto">{subtitle}</p>}
         </div>
-
-        {/* Error Message */}
-        {error && (
-          <div className="max-w-lg mx-auto mb-8 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400 text-center">
-            {error}
-          </div>
-        )}
 
         {/* Products Grid */}
         <div

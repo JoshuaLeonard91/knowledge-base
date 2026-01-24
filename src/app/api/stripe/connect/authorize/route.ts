@@ -50,11 +50,17 @@ export async function GET(request: NextRequest) {
     });
 
     if (existingConfig?.chargesEnabled) {
-      return NextResponse.redirect(new URL('/dashboard/settings/payments?already_connected=true', request.url));
+      return NextResponse.redirect(new URL('/dashboard/payments?already_connected=true', request.url));
     }
 
     // Get return URL from query params or default
-    const returnUrl = request.nextUrl.searchParams.get('return_url') || '/dashboard/settings/payments';
+    // SECURITY: Only allow relative paths to prevent open redirect
+    let returnUrl = request.nextUrl.searchParams.get('return_url') || '/dashboard/payments';
+
+    // Validate return URL is a safe relative path
+    if (!returnUrl.startsWith('/') || returnUrl.startsWith('//') || returnUrl.includes('://')) {
+      returnUrl = '/dashboard/payments';
+    }
 
     // Generate OAuth URL with session ID for extra security
     const oauthUrl = getStripeConnectOAuthUrl(tenant.id, returnUrl, session.id);

@@ -130,37 +130,40 @@ export default function SignupPage() {
     window.location.href = `/api/auth/discord?callbackUrl=${encodeURIComponent(callbackUrl)}`;
   };
 
-  // Handle payment
+  // Handle payment - uses unified checkout endpoint for all contexts
   const handlePayment = async () => {
     setIsProcessing(true);
     setError(null);
 
     try {
+      // Get CSRF token
       const csrfRes = await fetch('/api/auth/session');
       const csrfData = await csrfRes.json();
 
-      const endpoint = context === 'main'
-        ? '/api/stripe/create-checkout'
-        : '/api/checkout/create-session';
+      // Determine which product to use
+      const productToUse = selectedProduct || products[0];
+      if (!productToUse) {
+        setError('No product available');
+        setIsProcessing(false);
+        return;
+      }
 
-      const body = context === 'main'
-        ? {}
-        : { productSlug: selectedProduct?.slug, context };
-
-      const res = await fetch(endpoint, {
+      // Unified checkout endpoint for all contexts
+      const res = await fetch('/api/checkout/create-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'X-CSRF-Token': csrfData.csrf,
         },
-        body: JSON.stringify(body),
+        body: JSON.stringify({
+          productSlug: productToUse.slug,
+          context,
+        }),
       });
 
       const data = await res.json();
 
-      if (data.success && data.url) {
-        window.location.href = data.url;
-      } else if (data.checkoutUrl) {
+      if (data.checkoutUrl) {
         window.location.href = data.checkoutUrl;
       } else {
         setError(data.error || 'Failed to start checkout');

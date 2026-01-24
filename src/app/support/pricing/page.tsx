@@ -51,11 +51,9 @@ export default async function TenantPricingPage() {
   return (
     <div className="min-h-screen bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]">
       <PricingPage
-        context={context}
         title={`${siteName} Plans`}
         subtitle="Choose the plan that works best for you"
         products={products}
-        isAuthenticated={authenticated}
         currentProductSlug={currentProductSlug}
       />
     </div>

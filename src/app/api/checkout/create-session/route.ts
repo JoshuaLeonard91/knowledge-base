@@ -1,10 +1,12 @@
 /**
- * Generic Checkout Session API
+ * Unified Checkout Session API
  *
  * POST /api/checkout/create-session
  *
  * Creates a Stripe Checkout session for any context (main domain or tenant).
- * Supports both main Stripe account and connected accounts via Stripe Connect.
+ * ALL payments go through Stripe Connect:
+ * - Main domain: Uses PLATFORM_STRIPE_ACCOUNT_ID
+ * - Tenant: Uses tenant's connected account (TenantStripeConfig)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -74,25 +76,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine context - from request body or from tenant detection
+    // Determine context and connected account
     let context = requestContext || 'main';
     let connectedAccountId: string | undefined;
     let tenantId: string | undefined;
 
     // Check if we're on a tenant subdomain
     const tenant = await getTenantFromRequest();
+
     if (tenant) {
+      // Tenant subdomain - use tenant's connected Stripe account
       context = tenant.slug;
       tenantId = tenant.id;
 
-      // Get tenant's Stripe Connect config if available
+      // Get tenant's Stripe Connect config
       const stripeConfig = await prisma.tenantStripeConfig.findUnique({
         where: { tenantId: tenant.id },
       });
 
-      if (stripeConfig?.chargesEnabled) {
-        connectedAccountId = stripeConfig.stripeAccountId;
+      if (!stripeConfig?.chargesEnabled) {
+        // Tenant hasn't connected Stripe - payments not available
+        return NextResponse.json(
+          { error: 'Payments are not enabled for this portal', code: 'PAYMENTS_DISABLED' },
+          { status: 400, headers: securityHeaders }
+        );
       }
+
+      connectedAccountId = stripeConfig.stripeAccountId;
+    } else {
+      // Main domain - use platform's Stripe account via Connect
+      // If PLATFORM_STRIPE_ACCOUNT_ID is set, use it for unified Connect flow
+      // If not set, falls back to direct platform account (no Connect)
+      connectedAccountId = process.env.PLATFORM_STRIPE_ACCOUNT_ID;
     }
 
     // Get products for this context
@@ -161,6 +176,7 @@ export async function POST(request: NextRequest) {
       successUrl: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/pricing?canceled=true`,
       connectedAccountId,
+      isMainDomain: !tenant, // True if main domain, false if tenant
     });
 
     return NextResponse.json(

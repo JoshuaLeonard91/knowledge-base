@@ -3,14 +3,16 @@
  *
  * POST /api/stripe/webhook
  *
- * Handles Stripe webhook events to sync subscription state.
- * Verifies webhook signature for security.
+ * Handles Stripe webhook events for both platform and Connect accounts.
+ * Supports unified payment flow for main domain and tenant subdomains.
  *
  * IMPORTANT: If you get signature verification errors:
  * 1. Go to Stripe Dashboard → Developers → Webhooks
  * 2. Click on your webhook endpoint
  * 3. Click "Reveal" on the Signing secret
  * 4. Copy that value to STRIPE_WEBHOOK_SECRET in your environment
+ *
+ * For Connect events, also configure STRIPE_CONNECT_WEBHOOK_SECRET.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -21,6 +23,7 @@ import {
   handleInvoicePaymentFailed,
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
+  handleAccountUpdated,
 } from '@/lib/stripe/webhooks';
 import Stripe from 'stripe';
 
@@ -64,18 +67,26 @@ export async function POST(request: NextRequest) {
     );
   }
 
+  // Extract connected account ID if this is a Connect event
+  // The 'account' field is present when the event is from a connected account
+  const connectedAccountId = (event as unknown as { account?: string }).account;
+
+  if (connectedAccountId) {
+    console.log('[Stripe Webhook] Connect event from account:', connectedAccountId);
+  }
+
   // Handle the event
   try {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
-        await handleCheckoutCompleted(session);
+        await handleCheckoutCompleted(session, connectedAccountId);
         break;
       }
 
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        await handleInvoicePaid(invoice);
+        await handleInvoicePaid(invoice, connectedAccountId);
         break;
       }
 
@@ -94,6 +105,20 @@ export async function POST(request: NextRequest) {
       case 'customer.subscription.deleted': {
         const subscription = event.data.object as Stripe.Subscription;
         await handleSubscriptionDeleted(subscription);
+        break;
+      }
+
+      // Connect-specific events
+      case 'account.updated': {
+        // Handle connected account status changes
+        const account = event.data.object as Stripe.Account;
+        console.log('[Stripe Webhook] Account updated:', account.id, 'charges_enabled:', account.charges_enabled);
+        await handleAccountUpdated({
+          id: account.id,
+          charges_enabled: account.charges_enabled,
+          payouts_enabled: account.payouts_enabled,
+          details_submitted: account.details_submitted,
+        });
         break;
       }
 

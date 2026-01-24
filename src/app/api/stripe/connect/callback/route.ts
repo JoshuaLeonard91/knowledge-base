@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     // Handle OAuth errors
     if (error) {
       console.error('[Stripe Connect Callback] OAuth error:', error, errorDescription);
-      const returnUrl = '/dashboard/settings/payments';
+      const returnUrl = '/dashboard/payments';
       return NextResponse.redirect(
         new URL(`${returnUrl}?error=${encodeURIComponent(errorDescription || error)}`, request.url)
       );
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
 
     if (!code || !state) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings/payments?error=missing_params', request.url)
+        new URL('/dashboard/payments?error=missing_params', request.url)
       );
     }
 
@@ -58,11 +58,27 @@ export async function GET(request: NextRequest) {
     try {
       const stateData = JSON.parse(Buffer.from(state, 'base64').toString());
       tenantId = stateData.tenantId;
-      returnUrl = stateData.returnUrl || '/dashboard/settings/payments';
-      stateSessionId = stateData.sessionId; // Optional session binding
+      returnUrl = stateData.returnUrl || '/dashboard/payments';
+      stateSessionId = stateData.sessionId;
+
+      // SECURITY: Validate return URL is a safe relative path
+      if (!returnUrl.startsWith('/') || returnUrl.startsWith('//') || returnUrl.includes('://')) {
+        returnUrl = '/dashboard/payments';
+      }
     } catch {
       return NextResponse.redirect(
-        new URL('/dashboard/settings/payments?error=invalid_state', request.url)
+        new URL('/dashboard/payments?error=invalid_state', request.url)
+      );
+    }
+
+    // SECURITY: Verify session ID matches if it was included in state
+    if (stateSessionId && stateSessionId !== session.id) {
+      console.error('[Stripe Connect Callback] Session mismatch:', {
+        stateSessionId,
+        currentSessionId: session.id,
+      });
+      return NextResponse.redirect(
+        new URL('/dashboard/payments?error=session_mismatch', request.url)
       );
     }
 
@@ -74,7 +90,7 @@ export async function GET(request: NextRequest) {
 
     if (!tenant) {
       return NextResponse.redirect(
-        new URL('/dashboard/settings/payments?error=tenant_not_found', request.url)
+        new URL('/dashboard/payments?error=tenant_not_found', request.url)
       );
     }
 
@@ -86,7 +102,7 @@ export async function GET(request: NextRequest) {
         tenantId,
       });
       return NextResponse.redirect(
-        new URL('/dashboard/settings/payments?error=unauthorized', request.url)
+        new URL('/dashboard/payments?error=unauthorized', request.url)
       );
     }
 
@@ -142,7 +158,7 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('[Stripe Connect Callback] Error:', error);
     return NextResponse.redirect(
-      new URL('/dashboard/settings/payments?error=connection_failed', request.url)
+      new URL('/dashboard/payments?error=connection_failed', request.url)
     );
   }
 }

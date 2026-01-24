@@ -25,4 +25,5 @@ export {
   handleInvoicePaymentFailed,
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
+  handleAccountUpdated,
 } from './webhooks';
