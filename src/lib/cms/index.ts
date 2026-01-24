@@ -595,3 +595,208 @@ export async function getPricingPageContent(): Promise<PricingPageContent> {
     footerNote: 'Cancel anytime. No long-term contracts.',
   };
 }
+
+// ==========================================
+// GENERIC CHECKOUT DATA (Context-aware)
+// ==========================================
+
+/**
+ * Product for checkout (CMS-driven)
+ */
+export interface CheckoutProduct {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  priceAmount: number;       // cents
+  priceCurrency: string;
+  priceInterval: 'MONTHLY' | 'YEARLY' | 'ONE_TIME';
+  stripePriceId?: string;
+  features: string[];
+  badge?: string;
+  sortOrder: number;
+  isActive: boolean;
+  isFeatured: boolean;
+}
+
+/**
+ * Signup configuration (CMS-driven)
+ */
+export interface SignupConfig {
+  signupEnabled: boolean;
+  requirePayment: boolean;
+  allowFreeSignup: boolean;
+  welcomeTitle: string;
+  welcomeSubtitle?: string;
+  loginButtonText: string;
+  successRedirect: string;
+}
+
+/**
+ * Onboarding step field (CMS-driven)
+ */
+export interface OnboardingField {
+  name: string;
+  label: string;
+  type: 'TEXT' | 'EMAIL' | 'SELECT' | 'COLOR' | 'IMAGE_URL' | 'TEXTAREA';
+  required: boolean;
+  placeholder?: string;
+  options?: string[];
+}
+
+/**
+ * Onboarding step (CMS-driven)
+ */
+export interface OnboardingStep {
+  id: string;
+  title: string;
+  description?: string;
+  type: 'SUBDOMAIN' | 'BRANDING' | 'CUSTOM_FIELDS' | 'WELCOME';
+  required: boolean;
+  fields?: OnboardingField[];
+}
+
+/**
+ * Onboarding configuration (CMS-driven)
+ */
+export interface OnboardingConfig {
+  steps: OnboardingStep[];
+  completionTitle: string;
+  completionMessage?: string;
+  completionCtaText: string;
+  completionCtaLink: string;
+}
+
+/**
+ * Get products for checkout by context
+ * Context is "main" for main domain, or tenant slug for subdomains
+ */
+export async function getCheckoutProducts(context: string): Promise<CheckoutProduct[]> {
+  const client = await getHygraphClient() as HygraphClient & {
+    getCheckoutProducts?: (context: string) => Promise<CheckoutProduct[]>;
+  };
+
+  if (client && typeof client.getCheckoutProducts === 'function') {
+    return client.getCheckoutProducts(context);
+  }
+
+  // Return defaults for main domain
+  if (context === 'main') {
+    return [
+      {
+        id: 'default-pro',
+        name: 'Pro',
+        slug: 'pro',
+        description: 'Everything you need to run a professional support portal',
+        priceAmount: 500,
+        priceCurrency: 'usd',
+        priceInterval: 'MONTHLY',
+        stripePriceId: process.env.STRIPE_PRICE_ID,
+        features: [
+          'Custom branded support portal',
+          'Discord authentication for your users',
+          'Knowledge base with articles',
+          'Service catalog',
+          'Jira Service Desk integration',
+          'Custom subdomain',
+          'Custom logo and colors',
+          'Unlimited articles',
+        ],
+        badge: undefined,
+        sortOrder: 1,
+        isActive: true,
+        isFeatured: true,
+      },
+    ];
+  }
+
+  // No default products for tenant subdomains
+  return [];
+}
+
+/**
+ * Get signup configuration by context
+ */
+export async function getSignupConfig(context: string): Promise<SignupConfig> {
+  const client = await getHygraphClient() as HygraphClient & {
+    getSignupConfig?: (context: string) => Promise<SignupConfig>;
+  };
+
+  if (client && typeof client.getSignupConfig === 'function') {
+    return client.getSignupConfig(context);
+  }
+
+  // Return defaults
+  return {
+    signupEnabled: true,
+    requirePayment: context === 'main', // Main domain requires payment
+    allowFreeSignup: context !== 'main', // Subdomains allow free signup by default
+    welcomeTitle: context === 'main' ? 'Create Your Support Portal' : 'Join Our Community',
+    welcomeSubtitle: context === 'main'
+      ? 'Sign in with Discord to get started'
+      : 'Sign in to access exclusive features',
+    loginButtonText: 'Sign in with Discord',
+    successRedirect: context === 'main' ? '/onboarding' : '/dashboard',
+  };
+}
+
+/**
+ * Get onboarding configuration by context
+ */
+export async function getOnboardingConfig(context: string): Promise<OnboardingConfig> {
+  const client = await getHygraphClient() as HygraphClient & {
+    getOnboardingConfig?: (context: string) => Promise<OnboardingConfig>;
+  };
+
+  if (client && typeof client.getOnboardingConfig === 'function') {
+    return client.getOnboardingConfig(context);
+  }
+
+  // Return defaults for main domain (full portal setup)
+  if (context === 'main') {
+    return {
+      steps: [
+        {
+          id: 'subdomain',
+          title: 'Choose Your Subdomain',
+          description: 'Pick a unique subdomain for your support portal',
+          type: 'SUBDOMAIN',
+          required: true,
+        },
+        {
+          id: 'branding',
+          title: 'Customize Your Portal',
+          description: 'Add your logo and choose your brand colors',
+          type: 'BRANDING',
+          required: false,
+          fields: [
+            { name: 'portalName', label: 'Portal Name', type: 'TEXT', required: false, placeholder: 'My Support Portal' },
+            { name: 'logoUrl', label: 'Logo URL', type: 'IMAGE_URL', required: false, placeholder: 'https://...' },
+            { name: 'primaryColor', label: 'Primary Color', type: 'COLOR', required: false },
+          ],
+        },
+      ],
+      completionTitle: 'Your Portal is Ready!',
+      completionMessage: 'Your support portal has been created successfully.',
+      completionCtaText: 'Go to Dashboard',
+      completionCtaLink: '/dashboard',
+    };
+  }
+
+  // Return minimal onboarding for tenant subdomains
+  return {
+    steps: [
+      {
+        id: 'welcome',
+        title: 'Welcome!',
+        description: 'Your account has been created.',
+        type: 'WELCOME',
+        required: true,
+      },
+    ],
+    completionTitle: 'Welcome!',
+    completionMessage: 'Your account is ready.',
+    completionCtaText: 'Go to Dashboard',
+    completionCtaLink: '/dashboard',
+  };
+}

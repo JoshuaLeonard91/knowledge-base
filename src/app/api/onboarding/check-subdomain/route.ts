@@ -13,6 +13,12 @@ import { getUserByDiscordId, hasActiveAccess } from '@/lib/subscription/helpers'
 import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 
+// Security headers for API responses
+const securityHeaders = {
+  'X-Content-Type-Options': 'nosniff',
+  'Cache-Control': 'no-store, private',
+};
+
 // Reserved subdomains that can't be used
 const RESERVED_SUBDOMAINS = [
   'www',
@@ -51,6 +57,60 @@ const RESERVED_SUBDOMAINS = [
 // Subdomain validation regex
 const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
+// GET handler for quick subdomain availability check (used by onboarding wizard)
+export async function GET(request: NextRequest) {
+  try {
+    const subdomain = request.nextUrl.searchParams.get('subdomain');
+
+    if (!subdomain) {
+      return NextResponse.json({ available: false, message: 'Subdomain is required' }, { headers: securityHeaders });
+    }
+
+    const normalizedSubdomain = subdomain.toLowerCase().trim();
+
+    // Validate format
+    if (!SUBDOMAIN_REGEX.test(normalizedSubdomain)) {
+      return NextResponse.json({
+        available: false,
+        message: 'Invalid format. Use lowercase letters, numbers, and hyphens.',
+      }, { headers: securityHeaders });
+    }
+
+    // Check length
+    if (normalizedSubdomain.length < 3 || normalizedSubdomain.length > 63) {
+      return NextResponse.json({
+        available: false,
+        message: 'Subdomain must be 3-63 characters.',
+      }, { headers: securityHeaders });
+    }
+
+    // Check reserved
+    if (RESERVED_SUBDOMAINS.includes(normalizedSubdomain)) {
+      return NextResponse.json({
+        available: false,
+        message: 'This subdomain is reserved.',
+      }, { headers: securityHeaders });
+    }
+
+    // Check if taken
+    const existingTenant = await prisma.tenant.findUnique({
+      where: { slug: normalizedSubdomain },
+    });
+
+    if (existingTenant) {
+      return NextResponse.json({
+        available: false,
+        message: 'This subdomain is already taken.',
+      }, { headers: securityHeaders });
+    }
+
+    return NextResponse.json({ available: true }, { headers: securityHeaders });
+  } catch (error) {
+    console.error('[Check Subdomain GET] Error:', error);
+    return NextResponse.json({ available: false, message: 'Error checking availability' }, { headers: securityHeaders });
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     // Check authentication
@@ -58,7 +118,7 @@ export async function POST(request: NextRequest) {
     if (!authenticated) {
       return NextResponse.json(
         { success: false, error: 'Not authenticated' },
-        { status: 401 }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -73,7 +133,7 @@ export async function POST(request: NextRequest) {
     if (!session) {
       return NextResponse.json(
         { success: false, error: 'User not found' },
-        { status: 401 }
+        { status: 401, headers: securityHeaders }
       );
     }
 
@@ -82,7 +142,7 @@ export async function POST(request: NextRequest) {
     if (!user || !hasActiveAccess(user.subscription)) {
       return NextResponse.json(
         { success: false, error: 'Active subscription required' },
-        { status: 403 }
+        { status: 403, headers: securityHeaders }
       );
     }
 
@@ -93,7 +153,7 @@ export async function POST(request: NextRequest) {
     if (!subdomain || typeof subdomain !== 'string') {
       return NextResponse.json(
         { success: false, error: 'Subdomain is required' },
-        { status: 400 }
+        { status: 400, headers: securityHeaders }
       );
     }
 
@@ -106,7 +166,7 @@ export async function POST(request: NextRequest) {
         success: true,
         available: false,
         reason: 'Invalid format. Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number.',
-      });
+      }, { headers: securityHeaders });
     }
 
     // Check minimum length
@@ -115,7 +175,7 @@ export async function POST(request: NextRequest) {
         success: true,
         available: false,
         reason: 'Subdomain must be at least 3 characters long.',
-      });
+      }, { headers: securityHeaders });
     }
 
     // Check maximum length
@@ -124,7 +184,7 @@ export async function POST(request: NextRequest) {
         success: true,
         available: false,
         reason: 'Subdomain must be no more than 63 characters long.',
-      });
+      }, { headers: securityHeaders });
     }
 
     // Check reserved subdomains
@@ -133,7 +193,7 @@ export async function POST(request: NextRequest) {
         success: true,
         available: false,
         reason: 'This subdomain is reserved and cannot be used.',
-      });
+      }, { headers: securityHeaders });
     }
 
     // Check if subdomain is already taken
@@ -146,19 +206,19 @@ export async function POST(request: NextRequest) {
         success: true,
         available: false,
         reason: 'This subdomain is already taken.',
-      });
+      }, { headers: securityHeaders });
     }
 
     return NextResponse.json({
       success: true,
       available: true,
       subdomain: normalizedSubdomain,
-    });
+    }, { headers: securityHeaders });
   } catch (error) {
     console.error('[Check Subdomain] Error:', error);
     return NextResponse.json(
       { success: false, error: 'Failed to check subdomain availability' },
-      { status: 500 }
+      { status: 500, headers: securityHeaders }
     );
   }
 }

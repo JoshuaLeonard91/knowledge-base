@@ -159,3 +159,161 @@ export async function getStripeCustomer(
     return null;
   }
 }
+
+// ==========================================
+// STRIPE CONNECT & GENERIC CHECKOUT
+// ==========================================
+
+/**
+ * Create a checkout session for a specific product (CMS-driven)
+ * Supports both main Stripe account and connected accounts
+ */
+export async function createGenericCheckoutSession({
+  productSlug,
+  priceId,
+  priceAmount,
+  productName,
+  userId,
+  userEmail,
+  context,
+  successUrl,
+  cancelUrl,
+  connectedAccountId,
+  applicationFeePercent = 10,
+}: {
+  productSlug: string;
+  priceId?: string;
+  priceAmount: number;
+  productName: string;
+  userId: string;
+  userEmail?: string | null;
+  context: string;
+  successUrl: string;
+  cancelUrl: string;
+  connectedAccountId?: string;
+  applicationFeePercent?: number;
+}): Promise<Stripe.Checkout.Session> {
+  // Build line items
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
+    ? [{ price: priceId, quantity: 1 }]
+    : [
+        {
+          price_data: {
+            currency: 'usd',
+            product_data: { name: productName },
+            unit_amount: priceAmount,
+            recurring: { interval: 'month' },
+          },
+          quantity: 1,
+        },
+      ];
+
+  // Base session params
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+    mode: 'subscription',
+    payment_method_types: ['card'],
+    line_items: lineItems,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+    customer_email: userEmail || undefined,
+    metadata: {
+      userId,
+      productSlug,
+      context,
+    },
+    subscription_data: {
+      metadata: {
+        userId,
+        productSlug,
+        context,
+      },
+    },
+    allow_promotion_codes: true,
+  };
+
+  // If using connected account, add application fee
+  if (connectedAccountId) {
+    sessionParams.subscription_data!.application_fee_percent = applicationFeePercent;
+  }
+
+  // Create session (on connected account if specified)
+  const session = connectedAccountId
+    ? await stripe.checkout.sessions.create(sessionParams, {
+        stripeAccount: connectedAccountId,
+      })
+    : await stripe.checkout.sessions.create(sessionParams);
+
+  return session;
+}
+
+/**
+ * Create a Stripe Connect OAuth link for tenant onboarding
+ */
+export function getStripeConnectOAuthUrl(
+  tenantId: string,
+  returnUrl: string,
+  sessionId?: string
+): string {
+  const clientId = process.env.STRIPE_CONNECT_CLIENT_ID;
+  if (!clientId) {
+    throw new Error('STRIPE_CONNECT_CLIENT_ID not configured');
+  }
+
+  // Include session ID in state for extra security binding
+  const stateData: { tenantId: string; returnUrl: string; sessionId?: string; ts: number } = {
+    tenantId,
+    returnUrl,
+    ts: Date.now(), // Timestamp to prevent replay attacks
+  };
+  if (sessionId) {
+    stateData.sessionId = sessionId;
+  }
+
+  const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    response_type: 'code',
+    scope: 'read_write',
+    state,
+    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`,
+  });
+
+  return `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
+}
+
+/**
+ * Exchange OAuth code for connected account ID
+ */
+export async function exchangeStripeConnectCode(code: string): Promise<{
+  stripeAccountId: string;
+  accessToken: string;
+}> {
+  const response = await stripe.oauth.token({
+    grant_type: 'authorization_code',
+    code,
+  });
+
+  if (!response.stripe_user_id) {
+    throw new Error('No Stripe account ID returned');
+  }
+
+  return {
+    stripeAccountId: response.stripe_user_id,
+    accessToken: response.access_token || '',
+  };
+}
+
+/**
+ * Get connected account details
+ */
+export async function getConnectedAccount(
+  accountId: string
+): Promise<Stripe.Account | null> {
+  try {
+    const account = await stripe.accounts.retrieve(accountId);
+    return account;
+  } catch {
+    return null;
+  }
+}
