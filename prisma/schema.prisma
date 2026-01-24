@@ -168,7 +168,8 @@ model TenantBranding {
 
   logoUrl       String?  // Custom logo
   faviconUrl    String?  // Custom favicon
-  primaryColor  String?  // Hex color override
+  primaryColor  String?  // Hex color override (legacy, prefer theme)
+  theme         String?  // Theme ID: "discord", "dark", "light"
   customDomain  String?  // e.g., "support.acmecorp.com"
 
   createdAt DateTime @default(now())

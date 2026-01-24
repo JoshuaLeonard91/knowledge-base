@@ -48,6 +48,7 @@ export interface TenantContext {
     logoUrl: string | null;
     faviconUrl: string | null;
     primaryColor: string | null;
+    theme: string | null;  // Theme ID: "discord", "dark", "light"
     customDomain: string | null;
   } | null;
 }
@@ -201,6 +202,7 @@ export function transformTenantToContext(tenant: TenantWithConfig): TenantContex
           logoUrl: tenant.branding.logoUrl,
           faviconUrl: tenant.branding.faviconUrl,
           primaryColor: tenant.branding.primaryColor,
+          theme: tenant.branding.theme,
           customDomain: tenant.branding.customDomain,
         }
       : null,

@@ -68,3 +68,6 @@ prisma/reset-donuts-color.ts
 prisma/migrations/20260120233208_add_user_subscription_models/migration.sql
 prisma/schema.prisma
 prisma/schema.prisma
+prisma/schema.prisma
+prisma/schema.prisma
+prisma/migrations/20260124083832_add_theme_to_branding/migration.sql

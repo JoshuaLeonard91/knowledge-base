@@ -33,8 +33,15 @@ export default async function RootLayout({
   // Build CSS variables from theme
   let cssVariables = themeToCSSVariables(theme);
 
-  // Override with tenant branding if available
-  if (tenant?.branding?.primaryColor) {
+  // Determine the theme to apply (data-theme attribute)
+  // Priority: tenant theme > default based on context
+  let dataTheme = 'dark'; // Default for main domain
+  if (tenant?.branding?.theme) {
+    dataTheme = tenant.branding.theme;
+  }
+
+  // Override with tenant branding if available (legacy primaryColor support)
+  if (tenant?.branding?.primaryColor && !tenant?.branding?.theme) {
     cssVariables = {
       ...cssVariables,
       '--accent-primary': tenant.branding.primaryColor,
@@ -64,13 +71,14 @@ export default async function RootLayout({
       logoUrl: tenant.branding.logoUrl,
       faviconUrl: tenant.branding.faviconUrl,
       primaryColor: tenant.branding.primaryColor,
+      theme: tenant.branding.theme,
       // NOTE: customDomain intentionally excluded from client
     } : null,
     jiraConnected: tenant.jira?.connected ?? false,
   } : null;
 
   return (
-    <html lang="en" className="dark" style={cssVariables as React.CSSProperties}>
+    <html lang="en" className="dark" data-theme={dataTheme} style={cssVariables as React.CSSProperties}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

@@ -192,17 +192,19 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Upsert branding
-      if (sanitizedData.logoUrl || sanitizedData.primaryColor) {
+      // Upsert branding (theme, logo, or legacy primaryColor)
+      if (sanitizedData.logoUrl || sanitizedData.theme || sanitizedData.primaryColor) {
         await prisma.tenantBranding.upsert({
           where: { tenantId: existingTenant.id },
           create: {
             tenantId: existingTenant.id,
             logoUrl: sanitizedData.logoUrl as string | undefined,
+            theme: sanitizedData.theme as string | undefined,
             primaryColor: sanitizedData.primaryColor as string | undefined,
           },
           update: {
             logoUrl: sanitizedData.logoUrl as string | undefined,
+            theme: sanitizedData.theme as string | undefined,
             primaryColor: sanitizedData.primaryColor as string | undefined,
           },
         });
@@ -254,12 +256,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create branding if provided
-    if (sanitizedData.logoUrl || sanitizedData.primaryColor) {
+    // Create branding if provided (theme, logo, or legacy primaryColor)
+    if (sanitizedData.logoUrl || sanitizedData.theme || sanitizedData.primaryColor) {
       await prisma.tenantBranding.create({
         data: {
           tenantId: newTenant.id,
           logoUrl: sanitizedData.logoUrl as string | undefined,
+          theme: sanitizedData.theme as string | undefined,
           primaryColor: sanitizedData.primaryColor as string | undefined,
         },
       });
