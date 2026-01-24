@@ -43,6 +43,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Clear session cookie by setting it with maxAge=0
+    // No domain = subdomain-specific (matches how it was set)
     response.cookies.set(SESSION_COOKIE_CONFIG.name, '', {
       httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
       secure: SESSION_COOKIE_CONFIG.secure,

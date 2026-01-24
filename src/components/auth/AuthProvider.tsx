@@ -89,11 +89,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     try {
       // Clear our session
-      await fetch('/api/auth/logout', {
+      const res = await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
       });
-      setUser(null);
+
+      if (res.ok) {
+        setUser(null);
+        // Force a hard refresh to ensure all cached state is cleared
+        // This is more reliable than just setting state
+        window.location.href = '/';
+      } else {
+        console.error('Logout failed:', await res.text());
+      }
     } catch (error) {
       console.error('Logout failed:', error);
     } finally {

@@ -264,7 +264,7 @@ export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
 
   // Delete the session cookie by setting it with maxAge: 0
-  // Using delete() alone doesn't work with cookies that have specific options
+  // No domain = subdomain-specific (matches how it was set)
   cookieStore.set(SESSION_COOKIE_CONFIG.name, '', {
     httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
     secure: SESSION_COOKIE_CONFIG.secure,

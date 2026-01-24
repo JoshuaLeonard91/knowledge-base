@@ -78,14 +78,15 @@ export async function GET(request: NextRequest) {
   // Create response with redirect to validated callback
   const response = NextResponse.redirect(new URL(safeCallback, request.url));
 
-  // Set session cookie WITHOUT domain attribute = subdomain-specific
+  // Set session cookie WITHOUT domain = subdomain-isolated
+  // Cookie will only be valid for this exact subdomain (e.g., acme.helpportal.app)
+  // Users on other subdomains will need to log in separately
   response.cookies.set(SESSION_COOKIE_CONFIG.name, sessionToken, {
     httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
     secure: SESSION_COOKIE_CONFIG.secure,
     sameSite: SESSION_COOKIE_CONFIG.sameSite,
     path: SESSION_COOKIE_CONFIG.path,
     maxAge: SESSION_COOKIE_CONFIG.maxAge,
-    // NO domain attribute - cookie will only be valid for this exact subdomain
   });
 
   return response;

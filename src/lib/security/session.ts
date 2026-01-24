@@ -192,6 +192,10 @@ export function generateSessionId(): string {
 
 /**
  * Cookie configuration for sessions
+ *
+ * NOTE: No domain attribute = subdomain-isolated sessions
+ * Each subdomain (tenant) has its own session, users must log in per-tenant.
+ * This is the recommended approach for multi-tenant SaaS.
  */
 export const SESSION_COOKIE_CONFIG = {
   name: 'session',
@@ -200,6 +204,7 @@ export const SESSION_COOKIE_CONFIG = {
   sameSite: 'lax' as const,
   path: '/',
   maxAge: SESSION_DURATION_MS / 1000, // Convert to seconds for cookie
+  // NO domain = cookie is specific to the exact subdomain that sets it
 };
 
 /**
