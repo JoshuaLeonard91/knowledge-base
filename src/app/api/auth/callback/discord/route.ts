@@ -186,10 +186,18 @@ export async function GET(request: NextRequest) {
 
     const response = NextResponse.redirect(setSessionUrl.toString());
 
-    // Clear OAuth state cookies (these used domain-wide cookie for the OAuth flow)
-    response.cookies.delete('oauth_state');
-    response.cookies.delete('oauth_callback');
-    response.cookies.delete('oauth_origin');
+    // Clear OAuth state cookies (must specify domain since they were set with domain)
+    const oauthCookieDomain = process.env.AUTH_COOKIE_DOMAIN;
+    const deleteOptions = {
+      path: '/',
+      ...(process.env.NODE_ENV === 'production' && oauthCookieDomain
+        ? { domain: oauthCookieDomain }
+        : {}),
+    };
+
+    response.cookies.set('oauth_state', '', { ...deleteOptions, maxAge: 0 });
+    response.cookies.set('oauth_callback', '', { ...deleteOptions, maxAge: 0 });
+    response.cookies.set('oauth_origin', '', { ...deleteOptions, maxAge: 0 });
 
     return response;
   } catch {
