@@ -562,6 +562,7 @@ export class HygraphClient {
 
     return data.articleCategories.map((cat) => ({
       id: cat.slug,
+      slug: cat.slug,
       name: cat.name,
       description: cat.description || '',
       icon: cat.icon || this.getCategoryIcon(cat.slug),

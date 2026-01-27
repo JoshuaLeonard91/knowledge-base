@@ -14,6 +14,7 @@ export interface Article {
 
 export interface ArticleCategory {
   id: string; // Dynamic - defined in CMS
+  slug: string; // URL-friendly identifier
   name: string;
   description: string;
   icon: string;
