@@ -34,7 +34,9 @@ const code = (content: string) => ({ text: content, code: true });
 const h1 = (content: string) => ({ type: 'heading-one', children: [text(content)] });
 const h2 = (content: string) => ({ type: 'heading-two', children: [text(content)] });
 const h3 = (content: string) => ({ type: 'heading-three', children: [text(content)] });
-// Note: H4 not well supported in renderer, use H3 or bold paragraphs instead
+const h4 = (content: string) => ({ type: 'heading-four', children: [text(content)] });
+const h5 = (content: string) => ({ type: 'heading-five', children: [text(content)] });
+const h6 = (content: string) => ({ type: 'heading-six', children: [text(content)] });
 
 const p = (...children: any[]) => ({
   type: 'paragraph',
@@ -134,29 +136,58 @@ const richContent = {
       'Enter a clear, descriptive title that tells users what the article covers. ',
       'This appears as the main heading and in search results.'
     ),
+
+    h4('Good Title Examples'),
     bulletList(
-      [text('Example: '), code('How to Reset Your Password')],
-      [text('Avoid vague titles like '), code('Password Help'), text(' or '), code('Info')]
+      [code('How to Reset Your Password')],
+      [code('Getting Started with Discord Integration')],
+      [code('Understanding Your Billing Statement')],
+      [code('Troubleshooting Login Errors')]
+    ),
+
+    h4('Titles to Avoid'),
+    bulletList(
+      [code('Password'), text(' — Too vague, does not describe what the article covers')],
+      [code('Help'), text(' — Not specific enough')],
+      [code('FAQ'), text(' — Use for a collection, not individual articles')],
+      [code('Click Here'), text(' — Not descriptive')]
     ),
 
     h3('Slug'),
     p(
-      'The slug is the URL-friendly identifier for your article. It should be lowercase, use hyphens instead of spaces, and contain no special characters.'
+      'The slug is the URL-friendly identifier for your article. It appears in the browser address bar when someone views your article.'
     ),
+
+    h4('Slug Format Rules'),
     bulletList(
-      [text('Format: '), code('lowercase-words-separated-by-hyphens')],
-      [text('Example: '), code('how-to-reset-your-password')],
-      [text('Invalid: '), code('How To Reset Password'), text(' (contains spaces and capitals)')]
+      'Use only lowercase letters',
+      'Replace spaces with hyphens',
+      'Remove special characters (no !, ?, &, etc.)',
+      'Keep it concise but descriptive'
     ),
-    warning('Each slug must be unique. If you receive an error, choose a different slug.'),
+
+    h4('Slug Examples'),
+    bulletList(
+      [text('Title: "How to Reset Your Password" '), text(' — Slug: '), code('how-to-reset-your-password')],
+      [text('Title: "What is Two-Factor Authentication?" '), text(' — Slug: '), code('what-is-two-factor-authentication')],
+      [text('Title: "Billing & Payments FAQ" '), text(' — Slug: '), code('billing-payments-faq')]
+    ),
+    warning('Each slug must be unique. If you receive an error, the slug is already in use by another article.'),
 
     h3('Excerpt'),
     p(
-      'Write a brief summary of the article in one or two sentences. ',
-      'This appears in article listings and search results to help users decide if the article answers their question.'
+      'Write a brief summary (one to two sentences) that appears in article listings. This helps users decide if the article answers their question before they click.'
+    ),
+
+    h4('Excerpt Examples'),
+    blockquote(
+      p(italic('"Step-by-step instructions for resetting your account password, including what to do if you no longer have access to your email."'))
     ),
     blockquote(
-      p(italic('Example: "Step-by-step instructions for resetting your account password, including what to do if you no longer have access to your email."'))
+      p(italic('"Learn how to connect your Discord server to enable single sign-on for your community members."'))
+    ),
+    blockquote(
+      p(italic('"Common solutions for login problems, including browser issues, expired sessions, and account lockouts."'))
     ),
 
     h3('Content'),
@@ -174,7 +205,7 @@ const richContent = {
       [text('Links — Reference external resources or other articles')]
     ),
 
-    p(bold('Writing Tips')),
+    h4('Writing Tips'),
     bulletList(
       'Start with a brief introduction explaining what the user will learn',
       'Use headings to break content into logical sections',
@@ -344,6 +375,46 @@ const richContent = {
     p(
       'Check that you selected the correct formatting option in the toolbar. For code, use the code formatting button rather than quotes.'
     ),
+
+    h2('Complete Example'),
+
+    p('Here is a complete example showing how to fill in all fields for a sample article:'),
+
+    h3('Example: Password Reset Article'),
+
+    h4('Field Values'),
+    bulletList(
+      [bold('Title: '), code('How to Reset Your Password')],
+      [bold('Slug: '), code('how-to-reset-your-password')],
+      [bold('Category: '), code('account-billing')],
+      [bold('Icon: '), code('Shield')],
+      [bold('Read Time: '), code('3')]
+    ),
+
+    h4('Excerpt'),
+    blockquote(
+      p(italic('Learn how to reset your account password using email verification. Includes steps for users who no longer have access to their registered email.'))
+    ),
+
+    h4('Keywords'),
+    codeBlock('password, reset, forgot, login, access, security, email, verification'),
+
+    h4('Content Structure'),
+    p('The article content would be structured like this:'),
+
+    bulletList(
+      [bold('Introduction'), text(' — Brief explanation of when users need to reset their password')],
+      [bold('H2: Reset via Email'), text(' — Steps for standard password reset')],
+      [bold('H3: Step 1'), text(' — Click "Forgot Password" on the login page')],
+      [bold('H3: Step 2'), text(' — Enter your email address')],
+      [bold('H3: Step 3'), text(' — Check your inbox for the reset link')],
+      [bold('H3: Step 4'), text(' — Create a new password')],
+      [bold('H2: No Access to Email'), text(' — Alternative steps for users who cannot access their email')],
+      [bold('H2: Password Requirements'), text(' — List of requirements for new passwords')],
+      [bold('H2: Still Need Help?'), text(' — Contact information for additional support')]
+    ),
+
+    tip('Use this example as a template when creating your own articles. Adjust the structure based on your content.'),
 
     h2('Getting Help'),
 

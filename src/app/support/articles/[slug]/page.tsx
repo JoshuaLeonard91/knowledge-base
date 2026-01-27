@@ -201,6 +201,42 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         );
         return;
       }
+      if (line.startsWith('#### ')) {
+        flushList();
+        const headerText = line.replace('#### ', '');
+        const headerId = generateHeaderId(headerText);
+        elements.push(
+          <h4 key={index} id={headerId} className="group text-lg font-semibold text-[var(--text-primary)] mb-2 mt-5 flex items-center">
+            <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
+            <HeaderLink id={headerId} />
+          </h4>
+        );
+        return;
+      }
+      if (line.startsWith('##### ')) {
+        flushList();
+        const headerText = line.replace('##### ', '');
+        const headerId = generateHeaderId(headerText);
+        elements.push(
+          <h5 key={index} id={headerId} className="group text-base font-semibold text-[var(--text-primary)] mb-2 mt-4 flex items-center">
+            <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
+            <HeaderLink id={headerId} />
+          </h5>
+        );
+        return;
+      }
+      if (line.startsWith('###### ')) {
+        flushList();
+        const headerText = line.replace('###### ', '');
+        const headerId = generateHeaderId(headerText);
+        elements.push(
+          <h6 key={index} id={headerId} className="group text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide mb-2 mt-4 flex items-center">
+            <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
+            <HeaderLink id={headerId} />
+          </h6>
+        );
+        return;
+      }
 
       // Lists
       if (line.match(/^[-*]\s/)) {
