@@ -74,11 +74,15 @@ export function getCMSProvider(): CMSProvider {
  */
 export async function getArticles(): Promise<Article[]> {
   const client = await getHygraphClient();
+  console.log('[CMS] getArticles - client available:', !!client);
 
   if (client) {
-    return client.getArticles();
+    const articles = await client.getArticles();
+    console.log('[CMS] getArticles - got', articles.length, 'articles from Hygraph');
+    return articles;
   }
 
+  console.log('[CMS] getArticles - using local fallback');
   return localData.articles;
 }
 

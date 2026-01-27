@@ -507,6 +507,7 @@ export class HygraphClient {
    * Get all articles
    */
   async getArticles(): Promise<Article[]> {
+    console.log('[Hygraph] getArticles called, isConfigured:', this.isConfigured);
     const data = await this.query<{ articles: HygraphArticle[] }>(`
       query GetArticles {
         articles(first: 100, orderBy: createdAt_DESC) {
@@ -526,6 +527,7 @@ export class HygraphClient {
       }
     `);
 
+    console.log('[Hygraph] getArticles response:', data ? `${data.articles?.length || 0} articles` : 'null');
     if (!data?.articles) {
       return [];
     }
