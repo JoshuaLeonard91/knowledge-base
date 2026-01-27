@@ -22,6 +22,8 @@ async function main() {
         content { markdown html text }
         category
         keywords
+        icon
+        readTime
       }
     }
   `;
