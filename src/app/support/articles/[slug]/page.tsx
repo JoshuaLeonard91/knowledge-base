@@ -5,6 +5,8 @@ import { ArticleCard } from '@/components/support/ArticleCard';
 import { ArticleFeedback } from './ArticleFeedback';
 import { ArticleViewTracker } from './ArticleViewTracker';
 import { HeaderLink } from './HeaderLink';
+import { RichTextRenderer } from '@/components/content/RichTextRenderer';
+import type { RichTextContent } from '@graphcms/rich-text-types';
 import {
   CaretLeft, Clock, BookOpenText, Tag,
   Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
@@ -43,6 +45,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   if (!article) {
     notFound();
+  }
+
+  // Debug logging
+  console.log('[ArticlePage] Content type:', typeof article.content);
+  console.log('[ArticlePage] Is object:', typeof article.content === 'object' && article.content !== null);
+  if (typeof article.content === 'object' && article.content !== null) {
+    console.log('[ArticlePage] Has children:', 'children' in article.content);
   }
 
   const [relatedArticles, categories] = await Promise.all([
@@ -348,7 +357,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Article Content */}
         <article className="prose max-w-none">
-          {renderContent(article.content)}
+          {typeof article.content === 'object' && article.content !== null ? (
+            // Rich text AST - use RichTextRenderer
+            <RichTextRenderer content={article.content as RichTextContent} />
+          ) : (
+            // Legacy markdown string - use custom renderer
+            renderContent(article.content as string)
+          )}
         </article>
 
         {/* Keywords */}

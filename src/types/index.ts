@@ -1,3 +1,8 @@
+import type { RichTextContent } from '@graphcms/rich-text-types';
+
+// Article content can be markdown string (legacy) or rich text AST
+export type ArticleContent = string | RichTextContent;
+
 // Article types - categories are dynamic from CMS
 export interface Article {
   slug: string;
@@ -6,7 +11,7 @@ export interface Article {
   topic: string;
   keywords: string[];
   excerpt: string;
-  content: string;
+  content: ArticleContent; // Can be markdown string or rich text AST
   relatedSlugs: string[];
   icon: string;
   readTime: number;

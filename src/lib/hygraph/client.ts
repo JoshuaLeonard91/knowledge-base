@@ -5,7 +5,8 @@
  * Uses native fetch for GraphQL queries - no Apollo dependency needed.
  */
 
-import { Article, ArticleCategory } from '@/types';
+import { Article, ArticleCategory, ArticleContent } from '@/types';
+import type { RichTextContent } from '@graphcms/rich-text-types';
 
 // Service types for CMS
 export interface Service {
@@ -355,6 +356,7 @@ interface HygraphArticle {
   title: string;
   excerpt: string;
   content: {
+    raw?: RichTextContent; // Rich text AST (preferred)
     markdown?: string;
     html?: string;
     text?: string;
@@ -517,8 +519,7 @@ export class HygraphClient {
           title
           excerpt
           content {
-            markdown
-            html
+            raw
             text
           }
           category
@@ -577,8 +578,7 @@ export class HygraphClient {
           title
           excerpt
           content {
-            markdown
-            html
+            raw
             text
           }
           category
@@ -622,8 +622,7 @@ export class HygraphClient {
           title
           excerpt
           content {
-            markdown
-            html
+            raw
             text
           }
           category
@@ -659,8 +658,7 @@ export class HygraphClient {
           title
           excerpt
           content {
-            markdown
-            html
+            raw
             text
           }
           category
@@ -700,25 +698,43 @@ export class HygraphClient {
       ? article.category
       : 'general';
 
-    // Get content - prefer markdown, fallback to html or text
-    let content = '';
-    if (article.content?.markdown) {
+    // Get content - prefer raw AST for rich text rendering, fallback to markdown/text
+    let content: ArticleContent;
+    let textContent = ''; // For excerpt/readTime estimation
+
+    // Debug logging
+    console.log('[transformArticle] raw exists:', !!article.content?.raw);
+    console.log('[transformArticle] raw type:', typeof article.content?.raw);
+
+    if (article.content?.raw) {
+      // Rich text AST (preferred) - use directly with RichTextRenderer
+      content = article.content.raw;
+      textContent = article.content.text || '';
+      console.log('[transformArticle] Using raw AST, has children:', !!(content as any)?.children);
+    } else if (article.content?.markdown) {
+      // Legacy markdown string
       content = article.content.markdown;
+      textContent = article.content.markdown;
     } else if (article.content?.html) {
       content = this.htmlToMarkdown(article.content.html);
+      textContent = content;
     } else if (article.content?.text) {
       content = article.content.text;
+      textContent = article.content.text;
+    } else {
+      content = '';
+      textContent = '';
     }
 
     return {
       slug: article.slug,
       title: article.title,
-      excerpt: article.excerpt || this.extractExcerpt(content),
+      excerpt: article.excerpt || this.extractExcerpt(textContent),
       category: categorySlug,
       content,
       keywords: Array.isArray(article.keywords) ? article.keywords : [],
       icon: article.icon || 'Article',
-      readTime: article.readTime || this.estimateReadTime(content),
+      readTime: article.readTime || this.estimateReadTime(textContent),
       topic: 'general',
       relatedSlugs: [],
     };

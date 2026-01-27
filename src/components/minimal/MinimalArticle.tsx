@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import { CaretLeft, Clock, SpinnerGap } from '@phosphor-icons/react';
 import { MinimalView } from './MinimalApp';
 import { Article } from '@/types';
+import { RichTextRenderer } from '@/components/content/RichTextRenderer';
+import type { RichTextContent } from '@graphcms/rich-text-types';
 
 interface MinimalArticleProps {
   slug: string;
@@ -160,7 +162,13 @@ export function MinimalArticle({ slug, onBack }: MinimalArticleProps) {
 
       {/* Content */}
       <article className="prose-minimal">
-        {renderContent(article.content)}
+        {typeof article.content === 'object' && article.content !== null ? (
+          // Rich text AST - use RichTextRenderer
+          <RichTextRenderer content={article.content as RichTextContent} />
+        ) : (
+          // Legacy markdown string - use custom renderer
+          renderContent(article.content as string)
+        )}
       </article>
 
       {/* Keywords */}

@@ -12,6 +12,8 @@
   },
   "dependencies": {
     "@auth/core": "^0.41.0",
+    "@graphcms/rich-text-react-renderer": "^0.6.2",
+    "@graphcms/rich-text-types": "^0.5.1",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.19.2",
     "@vercel/blob": "^2.0.0",
