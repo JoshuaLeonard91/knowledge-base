@@ -2,7 +2,9 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { ServiceContactModal } from '@/components/support/ServiceContactModal';
+import { useIsMainSite } from '@/lib/tenant/context';
 import type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, InquiryType } from '@/lib/cms';
 import {
   ArrowRight, Check, CaretLeft, Sparkle, Star, BookOpenText, CaretRight, CaretDown, CaretUp,
@@ -45,6 +47,8 @@ interface ServicesContentProps {
 }
 
 export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources, pageContent, contactSettings, inquiryTypes }: ServicesContentProps) {
+  const router = useRouter();
+  const isMainSite = useIsMainSite();
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
   const [selectedService, setSelectedService] = useState<string>('');
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
@@ -52,6 +56,30 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
   const openContactModal = (serviceId?: string) => {
     setSelectedService(serviceId || '');
     setIsContactModalOpen(true);
+  };
+
+  // Handle button click
+  // - If buttonUrl is set, redirect to that URL (works for both main site and tenants)
+  // - On main site without buttonUrl, redirect to /pricing for internal checkout
+  // - On tenant subdomains without buttonUrl, open contact modal
+  const handleServiceClick = (service: Service) => {
+    if (service.buttonUrl) {
+      window.location.href = service.buttonUrl;
+    } else if (isMainSite) {
+      router.push('/pricing');
+    } else {
+      openContactModal(service.id);
+    }
+  };
+
+  const handleTierClick = (tier: ServiceTier) => {
+    if (tier.buttonUrl) {
+      window.location.href = tier.buttonUrl;
+    } else if (isMainSite) {
+      router.push('/pricing');
+    } else {
+      openContactModal();
+    }
   };
 
   const toggleServiceFeatures = (serviceId: string) => {
@@ -249,7 +277,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
                 {/* CTA Button - pushed to bottom */}
                 <div className="mt-auto">
                   <button
-                    onClick={() => openContactModal(service.id)}
+                    onClick={() => handleServiceClick(service)}
                     className="btn btn-secondary w-full"
                   >
                     {service.buttonText || 'Get Started'}
@@ -391,7 +419,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
                       {/* Button pushed to bottom */}
                       <div className="mt-auto">
                         <button
-                          onClick={() => openContactModal()}
+                          onClick={() => handleTierClick(tier)}
                           className={`btn w-full ${tier.highlighted ? 'btn-primary' : 'btn-secondary'}`}
                           style={!tier.highlighted && tier.accentColor ? {
                             borderColor: `${tier.accentColor}40`,

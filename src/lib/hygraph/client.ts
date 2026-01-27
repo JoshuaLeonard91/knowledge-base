@@ -22,6 +22,7 @@ export interface Service {
   // Optional pricing and button customization
   priceLabel?: string; // e.g., "Starting at $99/mo" - empty = no badge
   buttonText?: string; // e.g., "View Plans" - empty = "Get Started"
+  buttonUrl?: string; // External URL for payment link (Stripe Payment Link)
 }
 
 export interface ServiceTier {
@@ -39,6 +40,7 @@ export interface ServiceTier {
   accentColor?: string; // Hex color for tier differentiation
   price?: string; // e.g., "Free", "$49/mo", "Custom"
   buttonText?: string; // e.g., "Get Started Free" - empty = "Contact Sales"
+  buttonUrl?: string; // External URL for payment link (Stripe Payment Link)
 }
 
 export interface SLAHighlight {
@@ -239,6 +241,7 @@ interface HygraphService {
   order?: number;
   priceLabel?: string;
   buttonText?: string;
+  buttonUrl?: string;
 }
 
 interface HygraphServiceTier {
@@ -255,6 +258,7 @@ interface HygraphServiceTier {
   accentColor?: { hex: string };
   price?: string;
   buttonText?: string;
+  buttonUrl?: string;
 }
 
 interface HygraphSLAHighlight {
@@ -822,6 +826,7 @@ export class HygraphClient {
           order
           priceLabel
           buttonText
+          buttonUrl
         }
       }
     `);
@@ -888,6 +893,7 @@ export class HygraphClient {
           accentColor { hex }
           price
           buttonText
+          buttonUrl
         }
       }
     `);
@@ -959,6 +965,7 @@ export class HygraphClient {
       order: service.order ?? 0,
       priceLabel: service.priceLabel,
       buttonText: service.buttonText,
+      buttonUrl: service.buttonUrl,
     };
   }
 
@@ -980,6 +987,7 @@ export class HygraphClient {
       accentColor: tier.accentColor?.hex,
       price: tier.price,
       buttonText: tier.buttonText,
+      buttonUrl: tier.buttonUrl,
     };
   }
 
@@ -1221,6 +1229,7 @@ export class HygraphClient {
           order
           priceLabel
           buttonText
+          buttonUrl
         }
         serviceTiers(first: 4, orderBy: order_ASC) {
           id
@@ -1236,6 +1245,7 @@ export class HygraphClient {
           accentColor { hex }
           price
           buttonText
+          buttonUrl
         }
         slaHighlights(first: 6, orderBy: order_ASC) {
           id
