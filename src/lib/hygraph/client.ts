@@ -360,7 +360,7 @@ interface HygraphArticle {
     text?: string;
   };
   category?: string; // Simple string field (slug), not a relation
-  keywords?: string;
+  keywords?: string[]; // Array of keyword strings
   icon?: string;
   readTime?: number;
 }
@@ -716,7 +716,7 @@ export class HygraphClient {
       excerpt: article.excerpt || this.extractExcerpt(content),
       category: categorySlug,
       content,
-      keywords: article.keywords ? article.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : [],
+      keywords: Array.isArray(article.keywords) ? article.keywords : [],
       icon: article.icon || 'Article',
       readTime: article.readTime || this.estimateReadTime(content),
       topic: 'general',
