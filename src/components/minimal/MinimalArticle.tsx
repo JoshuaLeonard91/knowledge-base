@@ -164,18 +164,20 @@ export function MinimalArticle({ slug, onBack }: MinimalArticleProps) {
       </article>
 
       {/* Keywords */}
-      <div className="mt-8 pt-6 border-t border-[var(--border-primary)]">
-        <div className="flex flex-wrap gap-2">
-          {article.keywords.map((keyword) => (
-            <span
-              key={keyword}
-              className="px-2.5 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)] text-xs"
-            >
-              {keyword}
-            </span>
-          ))}
+      {article.keywords && article.keywords.length > 0 && (
+        <div className="mt-8 pt-6 border-t border-[var(--border-primary)]">
+          <div className="flex flex-wrap gap-2">
+            {article.keywords.map((keyword) => (
+              <span
+                key={keyword}
+                className="px-2.5 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)] text-xs"
+              >
+                {keyword}
+              </span>
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

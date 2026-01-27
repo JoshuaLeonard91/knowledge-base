@@ -360,7 +360,7 @@ interface HygraphArticle {
     description?: string;
     icon?: string;
   };
-  keywords: string[];
+  keywords?: string;
   icon?: string;
   readTime?: number;
 }
@@ -708,7 +708,7 @@ export class HygraphClient {
       excerpt: article.excerpt || this.extractExcerpt(content),
       category: categorySlug,
       content,
-      keywords: article.keywords || [],
+      keywords: article.keywords ? article.keywords.split(',').map((k: string) => k.trim()).filter(Boolean) : [],
       icon: article.icon || 'Article',
       readTime: article.readTime || this.estimateReadTime(content),
       topic: 'general',

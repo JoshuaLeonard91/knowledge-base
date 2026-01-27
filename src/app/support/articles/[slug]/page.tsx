@@ -316,22 +316,24 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         </article>
 
         {/* Keywords */}
-        <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
-          <div className="flex items-center gap-2 mb-4">
-            <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
-            <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
+        {article.keywords && article.keywords.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
+            <div className="flex items-center gap-2 mb-4">
+              <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
+              <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {article.keywords.map((keyword) => (
+                <span
+                  key={keyword}
+                  className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
+                >
+                  {keyword}
+                </span>
+              ))}
+            </div>
           </div>
-          <div className="flex flex-wrap gap-2">
-            {article.keywords.map((keyword) => (
-              <span
-                key={keyword}
-                className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
-              >
-                {keyword}
-              </span>
-            ))}
-          </div>
-        </div>
+        )}
 
         {/* Feedback */}
         <ArticleFeedback articleSlug={article.slug} />
