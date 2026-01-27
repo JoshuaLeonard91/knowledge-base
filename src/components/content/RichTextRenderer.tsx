@@ -22,17 +22,17 @@ export function RichTextRenderer({ content, className = '' }: RichTextRendererPr
             </h1>
           ),
           h2: ({ children }) => (
-            <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-5 mt-12 leading-tight border-b-2 border-[var(--accent-primary)]/30 pb-3">
+            <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-5 mt-12 leading-tight">
               {children}
             </h2>
           ),
           h3: ({ children }) => (
-            <h3 className="text-2xl font-semibold text-[var(--accent-primary)] mb-4 mt-10 leading-snug">
+            <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-10 leading-snug">
               {children}
             </h3>
           ),
           h4: ({ children }) => (
-            <h4 className="text-xl font-semibold text-[var(--accent-primary)] mb-3 mt-8 leading-snug">
+            <h4 className="text-xl font-semibold text-[var(--text-primary)] mb-3 mt-8 leading-snug">
               {children}
             </h4>
           ),
@@ -62,12 +62,12 @@ export function RichTextRenderer({ content, className = '' }: RichTextRendererPr
             <em className="italic">{children}</em>
           ),
           underline: ({ children }) => (
-            <span className="underline decoration-[var(--accent-primary)]">{children}</span>
+            <span className="underline">{children}</span>
           ),
 
           // Code
           code: ({ children }) => (
-            <code className="bg-[var(--bg-tertiary)] text-[var(--accent-primary)] px-1.5 py-0.5 rounded text-sm font-mono">
+            <code className="bg-[var(--bg-tertiary)] text-[var(--text-primary)] px-1.5 py-0.5 rounded text-sm font-mono">
               {children}
             </code>
           ),
