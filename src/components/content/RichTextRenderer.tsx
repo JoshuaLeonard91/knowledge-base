@@ -37,12 +37,12 @@ export function RichTextRenderer({ content, className = '' }: RichTextRendererPr
             </h4>
           ),
           h5: ({ children }) => (
-            <h5 className="text-lg font-medium text-[var(--text-secondary)] mb-2 mt-6 leading-normal">
+            <h5 className="text-lg font-medium text-[var(--text-primary)] mb-2 mt-6 leading-normal">
               {children}
             </h5>
           ),
           h6: ({ children }) => (
-            <h6 className="text-base font-medium text-[var(--text-muted)] uppercase tracking-wider mb-2 mt-5 leading-normal">
+            <h6 className="text-base font-medium text-[var(--text-primary)] uppercase tracking-wider mb-2 mt-5 leading-normal">
               {children}
             </h6>
           ),
@@ -77,10 +77,10 @@ export function RichTextRenderer({ content, className = '' }: RichTextRendererPr
             </pre>
           ),
 
-          // Block quote - used for tips, warnings, notes
+          // Block quote - generic styling for any quoted content
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-[var(--accent-primary)] bg-[var(--bg-tertiary)] pl-4 pr-4 py-3 mb-4 rounded-r-lg">
-              <div className="text-[var(--text-secondary)] italic">{children}</div>
+            <blockquote className="border-l-4 border-[var(--border-primary)] pl-4 mb-4">
+              <div className="text-[var(--text-secondary)]">{children}</div>
             </blockquote>
           ),
 
