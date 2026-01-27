@@ -392,7 +392,14 @@ export class HygraphClient {
   private token: string | null;
   private isConfigured: boolean;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
-  private cacheDuration = process.env.NODE_ENV === 'production' ? 300000 : 0; // 5 min in prod, no cache in dev
+  // Cache durations for different content types (in ms)
+  // Balances freshness with API efficiency (500k/mo free tier limit)
+  static readonly CACHE_TTL = {
+    SHORT: 60000,    // 1 min - articles, dynamic content
+    MEDIUM: 180000,  // 3 min - services, pricing
+    LONG: 300000,    // 5 min - navigation, footer, settings (rarely change)
+  };
+  private defaultCacheDuration = HygraphClient.CACHE_TTL.SHORT;
 
   /**
    * Clear the internal query cache
@@ -428,16 +435,18 @@ export class HygraphClient {
    */
   private async query<T>(
     queryString: string,
-    variables?: Record<string, unknown>
+    variables?: Record<string, unknown>,
+    ttl?: number
   ): Promise<T | null> {
     if (!this.isConfigured || !this.endpoint) {
       return null;
     }
 
-    // Check cache
+    // Check cache with configurable TTL
+    const cacheDuration = ttl ?? this.defaultCacheDuration;
     const cacheKey = JSON.stringify({ queryString, variables });
     const cached = this.cache.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < this.cacheDuration) {
+    if (cached && Date.now() - cached.timestamp < cacheDuration) {
       return cached.data as T;
     }
 
@@ -452,10 +461,9 @@ export class HygraphClient {
           query: queryString,
           variables,
         }),
-        // No cache in dev, 5 min revalidation in production
-        ...(process.env.NODE_ENV === 'production'
-          ? { next: { revalidate: 300 } }
-          : { cache: 'no-store' }),
+        // Disable Next.js Data Cache - it's too sticky and caused 1hr+ stale data
+        // Our in-memory cache (60s) handles caching with predictable behavior
+        cache: 'no-store',
       });
 
       if (!response.ok) {
@@ -1301,7 +1309,7 @@ export class HygraphClient {
           order
         }
       }
-    `);
+    `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
 
     // Transform services
     const services = (data?.services || []).map((s) => this.transformService(s));
@@ -1413,9 +1421,10 @@ export class HygraphClient {
           order
         }
       }
-    `);
+    `, undefined, HygraphClient.CACHE_TTL.LONG);
 
     // Try to fetch logoIcon separately (optional - won't break if it fails)
+    // Use LONG TTL - logo rarely changes
     let logoIconUrl: string | undefined;
     try {
       const logoData = await this.query<{
@@ -1426,7 +1435,7 @@ export class HygraphClient {
             logoIcon { url }
           }
         }
-      `);
+      `, undefined, HygraphClient.CACHE_TTL.LONG);
       logoIconUrl = logoData?.siteSettingsEntries?.[0]?.logoIcon?.url;
     } catch {
       // Ignore logoIcon errors - use default icon
@@ -1496,6 +1505,7 @@ export class HygraphClient {
     navLinks: NavLink[];
   }> {
     // Query without logoIcon first (it can fail due to permission issues)
+    // Use LONG TTL (5 min) - navigation/settings rarely change
     const data = await this.query<{
       siteSettingsEntries: HygraphSiteSettings[];
       navigationLinks: HygraphNavigationLink[];
@@ -1517,9 +1527,10 @@ export class HygraphClient {
           order
         }
       }
-    `);
+    `, undefined, HygraphClient.CACHE_TTL.LONG);
 
     // Try to fetch logoIcon separately (optional - won't break if it fails)
+    // Use LONG TTL - logo rarely changes
     let logoIconUrl: string | undefined;
     try {
       const logoData = await this.query<{
@@ -1530,7 +1541,7 @@ export class HygraphClient {
             logoIcon { url }
           }
         }
-      `);
+      `, undefined, HygraphClient.CACHE_TTL.LONG);
       logoIconUrl = logoData?.siteSettingsEntries?.[0]?.logoIcon?.url;
     } catch {
       // Ignore logoIcon errors - use default icon
