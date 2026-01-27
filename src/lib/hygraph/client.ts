@@ -523,8 +523,6 @@ export class HygraphClient {
           }
           category
           keywords
-          icon
-          readTime
         }
       }
     `);
@@ -583,8 +581,6 @@ export class HygraphClient {
           }
           category
           keywords
-          icon
-          readTime
         }
       }
     `,
@@ -628,8 +624,6 @@ export class HygraphClient {
           }
           category
           keywords
-          icon
-          readTime
         }
       }
     `,
@@ -665,8 +659,6 @@ export class HygraphClient {
           }
           category
           keywords
-          icon
-          readTime
         }
       }
     `,
