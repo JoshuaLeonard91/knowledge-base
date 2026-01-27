@@ -476,18 +476,20 @@ export class HygraphClient {
       const result: GraphQLResponse<T> = await response.json();
 
       if (result.errors) {
+        // Extract query name for better debugging
+        const queryMatch = queryString.match(/query\s+(\w+)/);
+        const queryName = queryMatch ? queryMatch[1] : 'Unknown';
+
+        // Always log errors for debugging
+        console.error(`[Hygraph] GraphQL errors in ${queryName}:`, JSON.stringify(result.errors, null, 2));
+
         // Check if all errors are "field not defined" (optional model doesn't exist)
         const allFieldNotDefined = result.errors.every(
           (e) => e.message?.includes('is not defined')
         );
         if (allFieldNotDefined) {
-          // Silently return null for optional models that don't exist
-          return null;
+          console.log(`[Hygraph] ${queryName}: Model/field not defined (optional)`);
         }
-        // Extract query name for better debugging
-        const queryMatch = queryString.match(/query\s+(\w+)/);
-        const queryName = queryMatch ? queryMatch[1] : 'Unknown';
-        console.error(`[Hygraph] GraphQL errors in ${queryName}:`, JSON.stringify(result.errors, null, 2));
         return null;
       }
 
