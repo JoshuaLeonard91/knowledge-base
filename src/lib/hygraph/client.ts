@@ -392,7 +392,14 @@ export class HygraphClient {
   private token: string | null;
   private isConfigured: boolean;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
-  private cacheDuration = 300000; // 5 minutes
+  private cacheDuration = process.env.NODE_ENV === 'production' ? 300000 : 0; // 5 min in prod, no cache in dev
+
+  /**
+   * Clear the internal query cache
+   */
+  clearCache(): void {
+    this.cache.clear();
+  }
 
   /**
    * Create a Hygraph client
@@ -445,7 +452,10 @@ export class HygraphClient {
           query: queryString,
           variables,
         }),
-        next: { revalidate: 300 },
+        // No cache in dev, 5 min revalidation in production
+        ...(process.env.NODE_ENV === 'production'
+          ? { next: { revalidate: 300 } }
+          : { cache: 'no-store' }),
       });
 
       if (!response.ok) {

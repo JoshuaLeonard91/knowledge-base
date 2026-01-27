@@ -107,9 +107,9 @@ export function ArticlesContent({ articles, categories }: ArticlesContentProps) 
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(selectedCategory === cat.id ? null : cat.id)}
+              onClick={() => setSelectedCategory(selectedCategory === cat.slug ? null : cat.slug)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                selectedCategory === cat.id
+                selectedCategory === cat.slug
                   ? 'bg-[var(--accent-primary)] text-white'
                   : 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
               }`}
