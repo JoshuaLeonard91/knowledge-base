@@ -96,7 +96,6 @@ model Tenant {
   branding       TenantBranding?
   features       TenantFeatures?
   webhookConfig  TenantWebhookConfig?
-  stripeConfig   TenantStripeConfig?
   users          TenantUser[]
 
   @@index([slug])
@@ -226,7 +225,7 @@ model TenantUser {
   discordAvatar   String?
   email           String?
 
-  // Stripe (customer in connected account or main account)
+  // Stripe customer ID (main domain only)
   stripeCustomerId String?
 
   // Status
@@ -263,7 +262,7 @@ model TenantSubscription {
   // Product reference (slug from CMS)
   productSlug          String
 
-  // Stripe IDs (in connected account or main account)
+  // Stripe IDs
   stripeSubscriptionId String   @unique
   stripePriceId        String
 
@@ -283,31 +282,3 @@ model TenantSubscription {
   @@index([productSlug])
 }
 
-// ==========================================
-// TENANT STRIPE CONFIG (Stripe Connect)
-// ==========================================
-
-model TenantStripeConfig {
-  tenantId              String   @id
-  tenant                Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  // Stripe Connect account
-  stripeAccountId       String   @unique  // acct_xxx
-  stripeAccountStatus   StripeAccountStatus @default(PENDING)
-
-  // Account capabilities
-  chargesEnabled        Boolean  @default(false)
-  payoutsEnabled        Boolean  @default(false)
-
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-
-  @@index([stripeAccountId])
-}
-
-enum StripeAccountStatus {
-  PENDING      // OAuth started but not completed
-  CONNECTED    // Connected but not fully onboarded
-  ACTIVE       // Fully onboarded, can accept payments
-  RESTRICTED   // Account has restrictions
-}

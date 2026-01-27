@@ -6,7 +6,6 @@
  * Configure third-party integrations:
  * - Hygraph CMS (endpoint + token)
  * - Jira Service Desk (URL + email + token)
- * - Stripe Connect (links to payments page)
  *
  * Security:
  * - Credentials are encrypted before storage
@@ -35,7 +34,6 @@ export default function IntegrationsPage() {
   // Integration statuses
   const [hygraphStatus, setHygraphStatus] = useState<IntegrationStatus | null>(null);
   const [jiraStatus, setJiraStatus] = useState<IntegrationStatus | null>(null);
-  const [stripeStatus, setStripeStatus] = useState<{ connected: boolean } | null>(null);
 
   // Form states
   const [hygraphForm, setHygraphForm] = useState({ endpoint: '', token: '' });
@@ -52,10 +50,9 @@ export default function IntegrationsPage() {
   // Fetch all statuses
   const fetchStatuses = async () => {
     try {
-      const [hygraphRes, jiraRes, stripeRes] = await Promise.all([
+      const [hygraphRes, jiraRes] = await Promise.all([
         fetch('/api/dashboard/integrations/hygraph'),
         fetch('/api/dashboard/integrations/jira'),
-        fetch('/api/stripe/connect/status'),
       ]);
 
       if (hygraphRes.status === 401) {
@@ -63,15 +60,13 @@ export default function IntegrationsPage() {
         return;
       }
 
-      const [hygraphData, jiraData, stripeData] = await Promise.all([
+      const [hygraphData, jiraData] = await Promise.all([
         hygraphRes.json(),
         jiraRes.json(),
-        stripeRes.json(),
       ]);
 
       setHygraphStatus(hygraphData);
       setJiraStatus(jiraData);
-      setStripeStatus(stripeData);
     } catch (err) {
       console.error('Failed to fetch statuses:', err);
       setError('Failed to load integration statuses');
@@ -545,44 +540,6 @@ export default function IntegrationsPage() {
                 </div>
               </div>
             )}
-          </div>
-
-          {/* Stripe Card */}
-          <div className="bg-[#16161f] rounded-2xl border border-white/10 overflow-hidden">
-            <div className="p-6 flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-[#635BFF]/10 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-[#635BFF]" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M13.976 9.15c-2.172-.806-3.356-1.426-3.356-2.409 0-.831.683-1.305 1.901-1.305 2.227 0 4.515.858 6.09 1.631l.89-5.494C18.252.975 15.697 0 12.165 0 9.667 0 7.589.654 6.104 1.872 4.56 3.147 3.757 4.992 3.757 7.218c0 4.039 2.467 5.76 6.476 7.219 2.585.92 3.445 1.574 3.445 2.583 0 .98-.84 1.545-2.354 1.545-1.875 0-4.965-.921-6.99-2.109l-.9 5.555C5.175 22.99 8.385 24 11.714 24c2.641 0 4.843-.624 6.328-1.813 1.664-1.305 2.525-3.236 2.525-5.732 0-4.128-2.524-5.851-6.591-7.305z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Stripe Connect</h3>
-                  <p className="text-sm text-white/60">Accept payments from your customers</p>
-                </div>
-              </div>
-              <span className={`px-3 py-1 text-sm rounded-full ${
-                stripeStatus?.connected
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
-              }`}>
-                {stripeStatus?.connected ? 'Connected' : 'Not Connected'}
-              </span>
-            </div>
-
-            <div className="px-6 pb-6">
-              <p className="text-sm text-white/60 mb-4">
-                {stripeStatus?.connected
-                  ? 'Your Stripe account is connected. Manage settings in the Payments page.'
-                  : 'Connect your Stripe account to accept payments from your portal customers.'}
-              </p>
-              <Link
-                href="/dashboard/payments"
-                className="inline-block px-4 py-2 bg-[#635BFF]/20 hover:bg-[#635BFF]/30 text-[#635BFF] rounded-lg text-sm font-medium transition"
-              >
-                {stripeStatus?.connected ? 'Manage Payments' : 'Set Up Stripe'}
-              </Link>
-            </div>
           </div>
         </div>
       </main>

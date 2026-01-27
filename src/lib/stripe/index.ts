@@ -2,6 +2,7 @@
  * Stripe Module
  *
  * Export all Stripe-related utilities.
+ * Handles main domain payments only - tenants use external Payment Links.
  */
 
 export {
@@ -14,9 +15,6 @@ export {
   resumeSubscription,
   getStripeSubscription,
   getStripeCustomer,
-  getStripeConnectOAuthUrl,
-  exchangeStripeConnectCode,
-  getConnectedAccount,
 } from './client';
 
 export {
@@ -25,5 +23,4 @@ export {
   handleInvoicePaymentFailed,
   handleSubscriptionUpdated,
   handleSubscriptionDeleted,
-  handleAccountUpdated,
 } from './webhooks';

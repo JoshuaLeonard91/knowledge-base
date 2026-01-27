@@ -150,23 +150,13 @@ export function MainHeader({ siteName }: MainHeaderProps) {
 
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-[#1a1a2e] border border-white/10 rounded-lg shadow-lg py-1 z-50">
-              {userStatus.hasDashboard ? (
-                <Link
-                  href="/dashboard"
-                  onClick={() => setShowUserMenu(false)}
-                  className="block px-4 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white"
-                >
-                  Dashboard
-                </Link>
-              ) : (
-                <Link
-                  href="/signup"
-                  onClick={() => setShowUserMenu(false)}
-                  className="block px-4 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white"
-                >
-                  Continue Setup
-                </Link>
-              )}
+              <Link
+                href="/dashboard"
+                onClick={() => setShowUserMenu(false)}
+                className="block px-4 py-2 text-sm text-white/80 hover:bg-white/5 hover:text-white"
+              >
+                Dashboard
+              </Link>
               <hr className="my-1 border-white/10" />
               <button
                 onClick={handleLogout}
@@ -181,10 +171,10 @@ export function MainHeader({ siteName }: MainHeaderProps) {
       );
     }
 
-    // Not logged in
+    // Not logged in - go directly to Discord OAuth
     return (
       <Link
-        href="/signup"
+        href="/api/auth/discord?callbackUrl=/dashboard"
         className="flex items-center justify-center w-[118px] h-[38px] bg-indigo-600 hover:bg-indigo-500 rounded-lg font-medium transition !text-white"
       >
         Get Started

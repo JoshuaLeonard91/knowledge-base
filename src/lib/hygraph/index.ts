@@ -20,8 +20,11 @@ export {
   clearTenantClientCache,
 } from './client';
 
-// Types
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from './client';
+// Types - new consolidated schema
+export type { SiteSettings, NavigationLink, NavigationLocation, LandingFeature, LandingFeatureWithStyle, PricingFeature } from './client';
+
+// Types - legacy aliases (for backwards compatibility)
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingPageContent, PricingPageContent } from './client';
 
 import { hygraph } from './client';
 

@@ -116,14 +116,12 @@ export interface ContactPageSettings {
   showResponseTimes?: boolean;
 }
 
-// Landing page feature for main domain
+// Landing page feature for main domain (component)
 export interface LandingFeature {
-  id: string;
+  id?: string;
   title: string;
   description: string;
-  icon: string;
-  color: string;
-  order: number;
+  icon?: string;
 }
 
 // Landing page content (CMS-configurable) - for main domain /
@@ -139,7 +137,7 @@ export interface LandingPageContent {
   // Features section
   featuresTitle: string;
   featuresSubtitle: string;
-  features: LandingFeature[];
+  features: LandingFeature[]; // Components with title, description, icon
   // CTA section
   ctaTitle: string;
   ctaSubtitle: string;
@@ -147,11 +145,17 @@ export interface LandingPageContent {
   ctaButtonLink: string;
 }
 
-// Pricing feature item
+// Extended LandingFeature with optional styling (for UI rendering)
+export interface LandingFeatureWithStyle extends LandingFeature {
+  color?: string; // Can be added at UI layer for styling
+  order?: number; // Can be inferred from array position
+}
+
+// Pricing feature item (component)
 export interface PricingFeature {
-  id: string;
+  id?: string;
   text: string;
-  order: number;
+  included?: boolean;
 }
 
 // Pricing page content (CMS-configurable) - for main domain /pricing
@@ -179,9 +183,10 @@ export interface InquiryType {
   order: number;
 }
 
-// Footer settings (CMS-configurable)
-export interface FooterSettings {
+// Site settings (CMS-configurable) - merged Header + Footer settings
+export interface SiteSettings {
   siteName: string;
+  subtitle: string;
   tagline: string;
   logoIcon?: string; // URL to custom logo image
   quickLinksTitle: string;
@@ -192,32 +197,25 @@ export interface FooterSettings {
   termsOfServiceUrl: string;
 }
 
-// Footer link for dynamic footer sections
-export interface FooterLink {
+// Navigation link location enum values
+export type NavigationLocation = 'header' | 'footerQuickLinks' | 'footerResources' | 'footerCommunity';
+
+// Navigation link (unified for header and footer)
+export interface NavigationLink {
   id: string;
   title: string;
   url: string;
   icon?: string; // Phosphor icon name
   external: boolean;
-  section: 'quickLinks' | 'resources' | 'community';
+  location: NavigationLocation;
   order: number;
 }
 
-// Header/Navbar settings (CMS-configurable)
-export interface HeaderSettings {
-  siteName: string;
-  subtitle: string;
-  logoIcon?: string; // URL to custom logo image
-}
-
-// Navigation link for navbar
-export interface NavLink {
-  id: string;
-  title: string;
-  url: string;
-  icon: string; // Phosphor icon name (e.g., "House", "BookOpenText")
-  order: number;
-}
+// Legacy type aliases for backwards compatibility
+export type HeaderSettings = Pick<SiteSettings, 'siteName' | 'subtitle' | 'logoIcon'>;
+export type FooterSettings = SiteSettings;
+export type NavLink = Omit<NavigationLink, 'location' | 'external'> & { icon: string };
+export type FooterLink = NavigationLink & { section: 'quickLinks' | 'resources' | 'community' };
 
 // Ticket form category (CMS-configurable) - single simplified model
 export interface TicketCategory {
@@ -315,8 +313,10 @@ interface HygraphInquiryType {
   order?: number;
 }
 
-interface HygraphFooterSettings {
+// Hygraph response type for SiteSettings (merged header + footer)
+interface HygraphSiteSettings {
   siteName?: string;
+  subtitle?: string;
   tagline?: string;
   logoIcon?: { url: string };
   quickLinksTitle?: string;
@@ -327,27 +327,14 @@ interface HygraphFooterSettings {
   termsOfServiceUrl?: string;
 }
 
-interface HygraphFooterLink {
+// Hygraph response type for NavigationLink (unified)
+interface HygraphNavigationLink {
   id: string;
   title: string;
   url: string;
   icon?: string;
   external?: boolean;
-  section: string;
-  order?: number;
-}
-
-interface HygraphHeaderSettings {
-  siteName?: string;
-  subtitle?: string;
-  logoIcon?: { url: string };
-}
-
-interface HygraphNavLink {
-  id: string;
-  title: string;
-  url: string;
-  icon?: string;
+  location: string; // enum value: header, footerQuickLinks, footerResources, footerCommunity
   order?: number;
 }
 
@@ -536,9 +523,9 @@ export class HygraphClient {
    * Get all categories
    */
   async getCategories(): Promise<ArticleCategory[]> {
-    const data = await this.query<{ categories: HygraphCategory[] }>(`
+    const data = await this.query<{ articleCategories: HygraphCategory[] }>(`
       query GetCategories {
-        categories(first: 50) {
+        articleCategories(first: 50) {
           slug
           name
           description
@@ -547,11 +534,11 @@ export class HygraphClient {
       }
     `);
 
-    if (!data?.categories) {
+    if (!data?.articleCategories) {
       return [];
     }
 
-    return data.categories.map((cat) => ({
+    return data.articleCategories.map((cat) => ({
       id: cat.slug,
       name: cat.name,
       description: cat.description || '',
@@ -688,31 +675,13 @@ export class HygraphClient {
 
   /**
    * Get site theme configuration
-   * Each tenant has their own Hygraph project with one SiteTheme entry
+   * @deprecated SiteTheme model removed - themes are now predefined at subdomain creation
+   * This method is kept for backwards compatibility but always returns null
    */
   async getSiteTheme(): Promise<{ name?: string; accentPrimary: string } | null> {
-    const data = await this.query<{
-      siteThemes: Array<{ name?: string; accentPrimary: { hex: string } }>;
-    }>(
-      `
-      query GetSiteTheme {
-        siteThemes(first: 1) {
-          name
-          accentPrimary { hex }
-        }
-      }
-      `
-    );
-
-    if (!data?.siteThemes?.[0]) {
-      return null;
-    }
-
-    const theme = data.siteThemes[0];
-    return {
-      name: theme.name,
-      accentPrimary: theme.accentPrimary.hex,
-    };
+    // SiteTheme model has been removed from the schema
+    // Themes are now selected at subdomain creation time and stored in the database
+    return null;
   }
 
   /**
@@ -1126,9 +1095,9 @@ export class HygraphClient {
    * Returns defaults if not configured in CMS
    */
   async getContactSettings(): Promise<ContactSettings> {
-    const data = await this.query<{ contactSettings: HygraphContactSettings[] }>(`
+    const data = await this.query<{ contactSettingsEntries: HygraphContactSettings[] }>(`
       query GetContactSettings {
-        contactSettings(first: 1) {
+        contactSettingsEntries(first: 1) {
           formTitle
           formSubtitle
           companyFieldLabel
@@ -1140,7 +1109,7 @@ export class HygraphClient {
       }
     `);
 
-    const settings = data?.contactSettings?.[0];
+    const settings = data?.contactSettingsEntries?.[0];
     const companyLabel = settings?.companyFieldLabel || 'Company / Server Name';
 
     return {
@@ -1159,9 +1128,9 @@ export class HygraphClient {
    * Returns defaults if not configured in CMS
    */
   async getContactPageSettings(): Promise<ContactPageSettings> {
-    const data = await this.query<{ contactPageSettings: HygraphContactPageSettings[] }>(`
+    const data = await this.query<{ contactPageSettingsEntries: HygraphContactPageSettings[] }>(`
       query GetContactPageSettings {
-        contactPageSettings(first: 1) {
+        contactPageSettingsEntries(first: 1) {
           pageTitle
           pageSubtitle
           discordUrl
@@ -1170,7 +1139,7 @@ export class HygraphClient {
       }
     `);
 
-    const settings = data?.contactPageSettings?.[0];
+    const settings = data?.contactPageSettingsEntries?.[0];
 
     return {
       pageTitle: settings?.pageTitle,
@@ -1235,7 +1204,7 @@ export class HygraphClient {
       slaHighlights: HygraphSLAHighlight[];
       helpfulResources: HygraphHelpfulResource[];
       servicesPageContents: HygraphServicesPageContent[];
-      contactSettings: HygraphContactSettings[];
+      contactSettingsEntries: HygraphContactSettings[];
       inquiryTypes: HygraphInquiryType[];
     }>(`
       query GetServicesPageData {
@@ -1297,7 +1266,7 @@ export class HygraphClient {
           ctaTitle
           ctaSubtitle
         }
-        contactSettings(first: 1) {
+        contactSettingsEntries(first: 1) {
           formTitle
           formSubtitle
           companyFieldLabel
@@ -1342,7 +1311,7 @@ export class HygraphClient {
     };
 
     // Contact settings with defaults (form fields only - page fields fetched separately)
-    const settings = data?.contactSettings?.[0];
+    const settings = data?.contactSettingsEntries?.[0];
     const companyLabel = settings?.companyFieldLabel || 'Company / Server Name';
     const contactSettings: ContactSettings = {
       formTitle: settings?.formTitle || 'Contact Us',
@@ -1388,19 +1357,20 @@ export class HygraphClient {
 
   /**
    * Get footer data (settings + links) in a single query
-   * Used by LayoutContent to render CMS-driven footer
+   * Uses consolidated SiteSettings and NavigationLink models
    */
   async getFooterData(): Promise<{
     settings: FooterSettings;
     links: FooterLink[];
   }> {
     const data = await this.query<{
-      footerSettings: HygraphFooterSettings[];
-      footerLinks: HygraphFooterLink[];
+      siteSettingsEntries: HygraphSiteSettings[];
+      navigationLinks: HygraphNavigationLink[];
     }>(`
       query GetFooterData {
-        footerSettings(first: 1) {
+        siteSettingsEntries(first: 1) {
           siteName
+          subtitle
           tagline
           quickLinksTitle
           resourcesTitle
@@ -1409,13 +1379,17 @@ export class HygraphClient {
           privacyPolicyUrl
           termsOfServiceUrl
         }
-        footerLinks(first: 15, orderBy: order_ASC) {
+        navigationLinks(
+          where: { location_in: [footerQuickLinks, footerResources, footerCommunity] }
+          first: 15
+          orderBy: order_ASC
+        ) {
           id
           title
           url
           icon
           external
-          section
+          location
           order
         }
       }
@@ -1425,23 +1399,24 @@ export class HygraphClient {
     let logoIconUrl: string | undefined;
     try {
       const logoData = await this.query<{
-        footerSettings: Array<{ logoIcon?: { url: string } }>;
+        siteSettingsEntries: Array<{ logoIcon?: { url: string } }>;
       }>(`
-        query GetFooterLogo {
-          footerSettings(first: 1) {
+        query GetSiteLogo {
+          siteSettingsEntries(first: 1) {
             logoIcon { url }
           }
         }
       `);
-      logoIconUrl = logoData?.footerSettings?.[0]?.logoIcon?.url;
+      logoIconUrl = logoData?.siteSettingsEntries?.[0]?.logoIcon?.url;
     } catch {
       // Ignore logoIcon errors - use default icon
     }
 
     // Settings with defaults
-    const s = data?.footerSettings?.[0];
+    const s = data?.siteSettingsEntries?.[0];
     const settings: FooterSettings = {
       siteName: s?.siteName || 'Support Portal',
+      subtitle: s?.subtitle || 'Help Center',
       tagline: s?.tagline || 'Get help with your Discord integrations and server management.',
       logoIcon: logoIconUrl,
       quickLinksTitle: s?.quickLinksTitle || 'Quick Links',
@@ -1452,28 +1427,36 @@ export class HygraphClient {
       termsOfServiceUrl: s?.termsOfServiceUrl || '#',
     };
 
+    // Map location to section for backwards compatibility
+    const locationToSection: Record<string, FooterLink['section']> = {
+      footerQuickLinks: 'quickLinks',
+      footerResources: 'resources',
+      footerCommunity: 'community',
+    };
+
     // Links with defaults if none exist
     let links: FooterLink[];
-    if (data?.footerLinks && data.footerLinks.length > 0) {
-      links = data.footerLinks.map((link) => ({
+    if (data?.navigationLinks && data.navigationLinks.length > 0) {
+      links = data.navigationLinks.map((link) => ({
         id: link.id,
         title: link.title,
         url: link.url,
         icon: link.icon,
         external: link.external ?? false,
-        section: link.section as FooterLink['section'],
+        location: link.location as NavigationLocation,
+        section: locationToSection[link.location] || 'quickLinks',
         order: link.order ?? 0,
       }));
     } else {
       // Default links when CMS is empty
       links = [
-        { id: 'default-1', title: 'Support Hub', url: '/support', section: 'quickLinks', external: false, order: 1 },
-        { id: 'default-2', title: 'Knowledge Base', url: '/support/articles', section: 'quickLinks', external: false, order: 2 },
-        { id: 'default-3', title: 'Submit Ticket', url: '/support/ticket', section: 'quickLinks', external: false, order: 3 },
-        { id: 'default-4', title: 'Documentation', url: '#', icon: 'ArrowSquareOut', section: 'resources', external: true, order: 1 },
-        { id: 'default-5', title: 'Discord Server', url: '#', icon: 'ArrowSquareOut', section: 'community', external: true, order: 1 },
-        { id: 'default-6', title: 'Twitter', url: '#', icon: 'ArrowSquareOut', section: 'community', external: true, order: 2 },
-        { id: 'default-7', title: 'GitHub', url: '#', icon: 'ArrowSquareOut', section: 'community', external: true, order: 3 },
+        { id: 'default-1', title: 'Support Hub', url: '/support', section: 'quickLinks', location: 'footerQuickLinks', external: false, order: 1 },
+        { id: 'default-2', title: 'Knowledge Base', url: '/support/articles', section: 'quickLinks', location: 'footerQuickLinks', external: false, order: 2 },
+        { id: 'default-3', title: 'Submit Ticket', url: '/support/ticket', section: 'quickLinks', location: 'footerQuickLinks', external: false, order: 3 },
+        { id: 'default-4', title: 'Documentation', url: '#', icon: 'ArrowSquareOut', section: 'resources', location: 'footerResources', external: true, order: 1 },
+        { id: 'default-5', title: 'Discord Server', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity', external: true, order: 1 },
+        { id: 'default-6', title: 'Twitter', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity', external: true, order: 2 },
+        { id: 'default-7', title: 'GitHub', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity', external: true, order: 3 },
       ];
     }
 
@@ -1486,7 +1469,7 @@ export class HygraphClient {
 
   /**
    * Get header data (settings + nav links) in a single query
-   * Used by LayoutContent to render CMS-driven navbar
+   * Uses consolidated SiteSettings and NavigationLink models
    */
   async getHeaderData(): Promise<{
     settings: HeaderSettings;
@@ -1494,15 +1477,19 @@ export class HygraphClient {
   }> {
     // Query without logoIcon first (it can fail due to permission issues)
     const data = await this.query<{
-      headerSettings: HygraphHeaderSettings[];
-      navLinks: HygraphNavLink[];
+      siteSettingsEntries: HygraphSiteSettings[];
+      navigationLinks: HygraphNavigationLink[];
     }>(`
       query GetHeaderData {
-        headerSettings(first: 1) {
+        siteSettingsEntries(first: 1) {
           siteName
           subtitle
         }
-        navLinks(first: 10, orderBy: order_ASC) {
+        navigationLinks(
+          where: { location: header }
+          first: 10
+          orderBy: order_ASC
+        ) {
           id
           title
           url
@@ -1516,21 +1503,21 @@ export class HygraphClient {
     let logoIconUrl: string | undefined;
     try {
       const logoData = await this.query<{
-        headerSettings: Array<{ logoIcon?: { url: string } }>;
+        siteSettingsEntries: Array<{ logoIcon?: { url: string } }>;
       }>(`
-        query GetHeaderLogo {
-          headerSettings(first: 1) {
+        query GetSiteLogo {
+          siteSettingsEntries(first: 1) {
             logoIcon { url }
           }
         }
       `);
-      logoIconUrl = logoData?.headerSettings?.[0]?.logoIcon?.url;
+      logoIconUrl = logoData?.siteSettingsEntries?.[0]?.logoIcon?.url;
     } catch {
       // Ignore logoIcon errors - use default icon
     }
 
     // Settings with defaults
-    const s = data?.headerSettings?.[0];
+    const s = data?.siteSettingsEntries?.[0];
     const settings: HeaderSettings = {
       siteName: s?.siteName || 'Support Portal',
       subtitle: s?.subtitle || 'Help Center',
@@ -1539,8 +1526,8 @@ export class HygraphClient {
 
     // Nav links with defaults if none exist
     let navLinks: NavLink[];
-    if (data?.navLinks && data.navLinks.length > 0) {
-      navLinks = data.navLinks.map((link) => ({
+    if (data?.navigationLinks && data.navigationLinks.length > 0) {
+      navLinks = data.navigationLinks.map((link) => ({
         id: link.id,
         title: link.title,
         url: link.url,
@@ -1623,12 +1610,9 @@ export class HygraphClient {
         featuresTitle?: string;
         featuresSubtitle?: string;
         features?: Array<{
-          id: string;
           title: string;
           description: string;
           icon?: string;
-          color?: string;
-          order?: number;
         }>;
         ctaTitle?: string;
         ctaSubtitle?: string;
@@ -1648,12 +1632,9 @@ export class HygraphClient {
           featuresTitle
           featuresSubtitle
           features {
-            id
             title
             description
             icon
-            color
-            order
           }
           ctaTitle
           ctaSubtitle
@@ -1665,14 +1646,11 @@ export class HygraphClient {
 
     const content = data?.landingPageContents?.[0];
 
-    // Transform features
+    // Transform features (component no longer has id, color, order)
     const features: LandingFeature[] = content?.features?.map((f) => ({
-      id: f.id,
       title: f.title,
       description: f.description,
       icon: f.icon || 'Lightning',
-      color: f.color || 'indigo',
-      order: f.order ?? 0,
     })) || [];
 
     // Return with defaults
@@ -1687,12 +1665,12 @@ export class HygraphClient {
       featuresTitle: content?.featuresTitle || 'Everything You Need',
       featuresSubtitle: content?.featuresSubtitle || 'Launch a fully-featured support portal in minutes, not months.',
       features: features.length > 0 ? features : [
-        { id: '1', title: 'Knowledge Base', description: 'Create and organize help articles. Let your users find answers themselves with powerful search.', icon: 'BookOpenText', color: 'indigo', order: 1 },
-        { id: '2', title: 'Custom Branding', description: 'Your subdomain, your logo, your colors. Make the portal feel like part of your brand.', icon: 'Palette', color: 'purple', order: 2 },
-        { id: '3', title: 'Discord Login', description: 'Users sign in with Discord. No passwords, no friction. Perfect for Discord communities.', icon: 'Discord', color: 'blue', order: 3 },
-        { id: '4', title: 'Service Catalog', description: 'Showcase your services and pricing tiers. Let customers know exactly what you offer.', icon: 'Briefcase', color: 'green', order: 4 },
-        { id: '5', title: 'Ticket System', description: 'Users can submit support tickets. Integrates with Jira Service Desk for powerful workflows.', icon: 'Ticket', color: 'yellow', order: 5 },
-        { id: '6', title: 'CMS Powered', description: 'Manage content with Hygraph CMS. Update articles and settings without touching code.', icon: 'Lightning', color: 'red', order: 6 },
+        { title: 'Knowledge Base', description: 'Create and organize help articles. Let your users find answers themselves with powerful search.', icon: 'BookOpenText' },
+        { title: 'Custom Branding', description: 'Your subdomain, your logo, your colors. Make the portal feel like part of your brand.', icon: 'Palette' },
+        { title: 'Discord Login', description: 'Users sign in with Discord. No passwords, no friction. Perfect for Discord communities.', icon: 'Discord' },
+        { title: 'Service Catalog', description: 'Showcase your services and pricing tiers. Let customers know exactly what you offer.', icon: 'Briefcase' },
+        { title: 'Ticket System', description: 'Users can submit support tickets. Integrates with Jira Service Desk for powerful workflows.', icon: 'Ticket' },
+        { title: 'CMS Powered', description: 'Manage content with Hygraph CMS. Update articles and settings without touching code.', icon: 'Lightning' },
       ],
       ctaTitle: content?.ctaTitle || 'Ready to Get Started?',
       ctaSubtitle: content?.ctaSubtitle || 'Create your support portal today. $15 to start ($10 setup + $5 first month), then just $5/month. Cancel anytime.',
@@ -1719,9 +1697,8 @@ export class HygraphClient {
         monthlyPrice?: string;
         setupFee?: string;
         features?: Array<{
-          id: string;
           text: string;
-          order?: number;
+          included?: boolean;
         }>;
         ctaText?: string;
         ctaLink?: string;
@@ -1737,9 +1714,8 @@ export class HygraphClient {
           monthlyPrice
           setupFee
           features {
-            id
             text
-            order
+            included
           }
           ctaText
           ctaLink
@@ -1750,11 +1726,10 @@ export class HygraphClient {
 
     const content = data?.pricingPageContents?.[0];
 
-    // Transform features
+    // Transform features (component no longer has id, order - now has included)
     const features: PricingFeature[] = content?.features?.map((f) => ({
-      id: f.id,
       text: f.text,
-      order: f.order ?? 0,
+      included: f.included ?? true,
     })) || [];
 
     // Return with defaults
@@ -1766,15 +1741,15 @@ export class HygraphClient {
       monthlyPrice: content?.monthlyPrice || '5',
       setupFee: content?.setupFee || '10',
       features: features.length > 0 ? features : [
-        { id: '1', text: 'Custom branded support portal', order: 1 },
-        { id: '2', text: 'Discord authentication for your users', order: 2 },
-        { id: '3', text: 'Knowledge base with articles', order: 3 },
-        { id: '4', text: 'Service catalog', order: 4 },
-        { id: '5', text: 'Jira Service Desk integration', order: 5 },
-        { id: '6', text: 'Custom subdomain (yourname.helpportal.app)', order: 6 },
-        { id: '7', text: 'Custom logo and colors', order: 7 },
-        { id: '8', text: 'Unlimited articles', order: 8 },
-        { id: '9', text: 'Priority support', order: 9 },
+        { text: 'Custom branded support portal', included: true },
+        { text: 'Discord authentication for your users', included: true },
+        { text: 'Knowledge base with articles', included: true },
+        { text: 'Service catalog', included: true },
+        { text: 'Jira Service Desk integration', included: true },
+        { text: 'Custom subdomain (yourname.helpportal.app)', included: true },
+        { text: 'Custom logo and colors', included: true },
+        { text: 'Unlimited articles', included: true },
+        { text: 'Priority support', included: true },
       ],
       ctaText: content?.ctaText || 'Get Started',
       ctaLink: content?.ctaLink || '/signup',

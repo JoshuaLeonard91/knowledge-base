@@ -161,15 +161,13 @@ export async function getStripeCustomer(
 }
 
 // ==========================================
-// STRIPE CONNECT & GENERIC CHECKOUT
+// GENERIC CHECKOUT (CMS-driven products)
 // ==========================================
 
 /**
  * Create a checkout session for a specific product (CMS-driven)
  *
- * Supports Stripe Connect for both main domain and tenant payments:
- * - Main domain: Uses PLATFORM_STRIPE_ACCOUNT_ID (no application fee)
- * - Tenant: Uses tenant's connected account (with application fee)
+ * Used for main domain payments only. Tenants use external Payment Links.
  */
 export async function createGenericCheckoutSession({
   productSlug,
@@ -181,9 +179,6 @@ export async function createGenericCheckoutSession({
   context,
   successUrl,
   cancelUrl,
-  connectedAccountId,
-  applicationFeePercent = 0, // Default to 0 (platform doesn't take a cut)
-  isMainDomain = false,
 }: {
   productSlug: string;
   priceId?: string;
@@ -194,9 +189,6 @@ export async function createGenericCheckoutSession({
   context: string;
   successUrl: string;
   cancelUrl: string;
-  connectedAccountId?: string;
-  applicationFeePercent?: number;
-  isMainDomain?: boolean;
 }): Promise<Stripe.Checkout.Session> {
   // Build line items
   const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
@@ -213,8 +205,8 @@ export async function createGenericCheckoutSession({
         },
       ];
 
-  // Base session params
-  const sessionParams: Stripe.Checkout.SessionCreateParams = {
+  // Create checkout session
+  const session = await stripe.checkout.sessions.create({
     mode: 'subscription',
     payment_method_types: ['card'],
     line_items: lineItems,
@@ -234,92 +226,7 @@ export async function createGenericCheckoutSession({
       },
     },
     allow_promotion_codes: true,
-  };
-
-  // Add application fee for tenant checkouts (not main domain)
-  // Main domain payments don't need an application fee since it's your own account
-  if (connectedAccountId && !isMainDomain && applicationFeePercent > 0) {
-    sessionParams.subscription_data!.application_fee_percent = applicationFeePercent;
-  }
-
-  // Create session (on connected account if specified)
-  const session = connectedAccountId
-    ? await stripe.checkout.sessions.create(sessionParams, {
-        stripeAccount: connectedAccountId,
-      })
-    : await stripe.checkout.sessions.create(sessionParams);
+  });
 
   return session;
-}
-
-/**
- * Create a Stripe Connect OAuth link for tenant onboarding
- */
-export function getStripeConnectOAuthUrl(
-  tenantId: string,
-  returnUrl: string,
-  sessionId?: string
-): string {
-  const clientId = process.env.STRIPE_CONNECT_CLIENT_ID;
-  if (!clientId) {
-    throw new Error('STRIPE_CONNECT_CLIENT_ID not configured');
-  }
-
-  // Include session ID in state for extra security binding
-  const stateData: { tenantId: string; returnUrl: string; sessionId?: string; ts: number } = {
-    tenantId,
-    returnUrl,
-    ts: Date.now(), // Timestamp to prevent replay attacks
-  };
-  if (sessionId) {
-    stateData.sessionId = sessionId;
-  }
-
-  const state = Buffer.from(JSON.stringify(stateData)).toString('base64');
-
-  const params = new URLSearchParams({
-    client_id: clientId,
-    response_type: 'code',
-    scope: 'read_write',
-    state,
-    redirect_uri: `${process.env.NEXT_PUBLIC_APP_URL}/api/stripe/connect/callback`,
-  });
-
-  return `https://connect.stripe.com/oauth/authorize?${params.toString()}`;
-}
-
-/**
- * Exchange OAuth code for connected account ID
- */
-export async function exchangeStripeConnectCode(code: string): Promise<{
-  stripeAccountId: string;
-  accessToken: string;
-}> {
-  const response = await stripe.oauth.token({
-    grant_type: 'authorization_code',
-    code,
-  });
-
-  if (!response.stripe_user_id) {
-    throw new Error('No Stripe account ID returned');
-  }
-
-  return {
-    stripeAccountId: response.stripe_user_id,
-    accessToken: response.access_token || '',
-  };
-}
-
-/**
- * Get connected account details
- */
-export async function getConnectedAccount(
-  accountId: string
-): Promise<Stripe.Account | null> {
-  try {
-    const account = await stripe.accounts.retrieve(accountId);
-    return account;
-  } catch {
-    return null;
-  }
 }

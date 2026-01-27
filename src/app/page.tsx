@@ -56,6 +56,9 @@ const colorClasses: Record<string, { bg: string; text: string }> = {
   red: { bg: 'bg-red-500/20', text: 'text-red-400' },
 };
 
+// Color cycle for features (assigned by index)
+const featureColorCycle = ['indigo', 'purple', 'blue', 'green', 'yellow', 'red'];
+
 export default async function RootPage() {
   // Check if we're on a tenant subdomain
   const tenant = await getTenantFromRequest();
@@ -131,14 +134,14 @@ export default async function RootPage() {
           </p>
 
           <div className="grid md:grid-cols-3 gap-8 stagger-children">
-            {content.features
-              .sort((a: { order: number }, b: { order: number }) => a.order - b.order)
-              .map((feature: { id: string; title: string; description: string; icon: string; color: string; order: number }) => {
-                const colors = colorClasses[feature.color] || colorClasses.indigo;
-                const icon = featureIcons[feature.icon];
+            {content.features.map((feature: { title: string; description: string; icon?: string }, index: number) => {
+                // Assign color based on index (cycles through available colors)
+                const colorName = featureColorCycle[index % featureColorCycle.length];
+                const colors = colorClasses[colorName];
+                const icon = featureIcons[feature.icon || 'Lightning'];
                 return (
                   <div
-                    key={feature.id}
+                    key={`feature-${index}`}
                     className="bg-[#16161f] rounded-2xl border border-white/10 p-8 hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300"
                   >
                     <div className={`w-12 h-12 ${colors.bg} rounded-xl flex items-center justify-center mb-6`}>

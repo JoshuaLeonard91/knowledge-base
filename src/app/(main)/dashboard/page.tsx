@@ -4,16 +4,19 @@
  * Unified Dashboard Page (Context-aware)
  *
  * Works on both main domain and tenant subdomains.
- * Shows similar layout with context-appropriate content.
  *
- * Main domain: Tenant management, subscription, portal settings
+ * Main domain states:
+ * - No subscription: Shows "Choose a Plan" UI
+ * - Has subscription, no tenant: Shows "Complete Setup" UI
+ * - Full access: Shows portal management dashboard
+ *
  * Tenant subdomain: User profile, subscription (if any), features
  */
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { MainHeader } from '@/components/layout/MainHeader';
+import type { CheckoutProduct } from '@/lib/cms';
 
 interface DashboardData {
   context: 'main' | 'tenant';
@@ -41,14 +44,21 @@ interface DashboardData {
     description: string;
     color: 'green' | 'yellow' | 'red' | 'gray';
   };
+  // New fields for signup flow
+  hasSubscription: boolean;
+  hasTenant: boolean;
+  nextStep: 'subscribe' | 'onboarding' | 'dashboard' | 'resubscribe';
 }
 
 export default function DashboardPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
+  const [products, setProducts] = useState<CheckoutProduct[]>([]);
   const [siteName, setSiteName] = useState('HelpPortal');
   const [isMainDomain, setIsMainDomain] = useState(true);
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
 
   // Fetch dashboard data
   useEffect(() => {
@@ -76,21 +86,17 @@ export default function DashboardPage() {
           const subRes = await fetch('/api/stripe/subscription');
           const subData = await subRes.json();
 
-          if (!subData.success) {
-            router.push('/signup');
-            return;
+          // Get products for plan selection
+          const productsRes = await fetch('/api/checkout/products');
+          if (productsRes.ok) {
+            const productsData = await productsRes.json();
+            setProducts(productsData.products || []);
           }
 
-          // Redirect based on step
-          if (subData.nextStep === 'subscribe' || subData.nextStep === 'resubscribe') {
-            router.push('/signup');
-            return;
-          }
-
-          if (subData.nextStep === 'onboarding') {
-            router.push('/onboarding');
-            return;
-          }
+          // Determine state
+          const hasSubscription = subData.success &&
+            (subData.nextStep === 'onboarding' || subData.nextStep === 'dashboard');
+          const hasTenant = subData.tenant && subData.nextStep === 'dashboard';
 
           setData({
             context: 'main',
@@ -107,7 +113,14 @@ export default function DashboardPage() {
               price: 5,
             } : undefined,
             tenant: subData.tenant,
-            status: subData.status,
+            status: subData.status || {
+              status: 'Pending',
+              description: 'No subscription',
+              color: 'gray',
+            },
+            hasSubscription,
+            hasTenant,
+            nextStep: subData.nextStep || 'subscribe',
           });
         } else {
           // Tenant subdomain: Get TenantUser + TenantSubscription
@@ -134,6 +147,9 @@ export default function DashboardPage() {
               description: userData.subscription ? 'Active membership' : 'No subscription',
               color: userData.subscription?.status === 'ACTIVE' ? 'green' : 'gray',
             },
+            hasSubscription: !!userData.subscription,
+            hasTenant: true,
+            nextStep: 'dashboard',
           });
         }
       } catch (err) {
@@ -154,6 +170,43 @@ export default function DashboardPage() {
       router.push('/');
     } catch (err) {
       console.error('Logout failed:', err);
+    }
+  };
+
+  // Handle checkout for a product
+  const handleCheckout = async (productSlug: string) => {
+    setIsProcessingPayment(true);
+    setPaymentError(null);
+
+    try {
+      // Get CSRF token
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
+
+      const res = await fetch('/api/checkout/create-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfData.csrf,
+        },
+        body: JSON.stringify({
+          productSlug,
+          context: 'main',
+        }),
+      });
+
+      const result = await res.json();
+
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      } else {
+        setPaymentError(result.error || 'Failed to start checkout');
+      }
+    } catch (err) {
+      console.error('Checkout failed:', err);
+      setPaymentError('Something went wrong. Please try again.');
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -178,69 +231,233 @@ export default function DashboardPage() {
 
   const status = statusColors[data.status.color];
 
+  // Render header (common across all states)
+  const renderHeader = () => (
+    <header className="border-b border-white/5 bg-[#0a0a0f]/95 backdrop-blur-sm sticky top-0 z-50">
+      <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+        <div className="flex items-center gap-8">
+          <Link href="/" className="text-xl font-bold text-white">
+            {siteName}
+          </Link>
+          <div className="hidden md:flex items-center gap-1">
+            <Link
+              href="/dashboard"
+              className="px-3 py-2 text-sm font-medium text-white bg-white/5 rounded-lg"
+            >
+              Dashboard
+            </Link>
+            {isMainDomain && data.hasTenant && data.tenant && (
+              <a
+                href={`https://${data.tenant.slug}.helpportal.app`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition flex items-center gap-1"
+              >
+                Visit Portal
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
+            )}
+            {!isMainDomain && (
+              <Link
+                href="/support"
+                className="px-3 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition"
+              >
+                Support
+              </Link>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            {data.user.avatar ? (
+              <img
+                src={data.user.avatar}
+                alt={data.user.username}
+                className="w-8 h-8 rounded-full ring-2 ring-white/10"
+              />
+            ) : (
+              <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-medium">
+                {data.user.username.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <span className="text-sm font-medium text-white hidden sm:block">{data.user.username}</span>
+          </div>
+          <button
+            onClick={handleLogout}
+            className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition"
+          >
+            Logout
+          </button>
+        </div>
+      </nav>
+    </header>
+  );
+
+  // STATE 1: No subscription - Show "Choose a Plan" UI
+  if (isMainDomain && !data.hasSubscription) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        {renderHeader()}
+
+        <main className="max-w-4xl mx-auto px-6 py-12">
+          {/* Welcome Section */}
+          <div className="text-center mb-10">
+            <h1 className="text-3xl font-bold text-white mb-3">
+              Welcome, {data.user.username}!
+            </h1>
+            <p className="text-white/60 text-lg">
+              Choose a plan to create your support portal
+            </p>
+          </div>
+
+          {/* Error Message */}
+          {paymentError && (
+            <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-center">
+              <p className="text-red-400">{paymentError}</p>
+            </div>
+          )}
+
+          {/* Products Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+            {products.map((product) => (
+              <div
+                key={product.slug}
+                className="bg-[#111118] rounded-2xl border border-white/10 overflow-hidden hover:border-indigo-500/50 transition"
+              >
+                <div className="p-6">
+                  <h3 className="text-xl font-bold text-white mb-2">{product.name}</h3>
+                  <p className="text-white/60 text-sm mb-4">{product.description}</p>
+
+                  <div className="flex items-baseline gap-1 mb-6">
+                    <span className="text-4xl font-bold text-white">
+                      ${(product.priceAmount / 100).toFixed(0)}
+                    </span>
+                    <span className="text-white/50">/month</span>
+                  </div>
+
+                  {product.features && product.features.length > 0 && (
+                    <ul className="space-y-2 mb-6">
+                      {product.features.slice(0, 4).map((feature, idx) => (
+                        <li key={idx} className="flex items-center gap-2 text-sm text-white/70">
+                          <svg className="w-4 h-4 text-green-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                          </svg>
+                          {feature}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+
+                  <button
+                    onClick={() => handleCheckout(product.slug)}
+                    disabled={isProcessingPayment}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 disabled:cursor-not-allowed rounded-xl font-semibold transition text-white flex items-center justify-center gap-2"
+                  >
+                    {isProcessingPayment ? (
+                      <>
+                        <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white" />
+                        Processing...
+                      </>
+                    ) : (
+                      'Get Started'
+                    )}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* View All Plans Link */}
+          <div className="text-center">
+            <Link
+              href="/pricing"
+              className="text-indigo-400 hover:text-indigo-300 transition flex items-center justify-center gap-2"
+            >
+              View all plans and compare features
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // STATE 2: Has subscription but no tenant - Show "Complete Setup" UI
+  if (isMainDomain && data.hasSubscription && !data.hasTenant) {
+    return (
+      <div className="min-h-screen bg-[#0a0a0f]">
+        {renderHeader()}
+
+        <main className="max-w-2xl mx-auto px-6 py-12">
+          {/* Welcome Section */}
+          <div className="text-center mb-10">
+            <div className="w-20 h-20 mx-auto mb-6 bg-green-500/20 rounded-full flex items-center justify-center">
+              <svg className="w-10 h-10 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <h1 className="text-3xl font-bold text-white mb-3">
+              You&apos;re Subscribed!
+            </h1>
+            <p className="text-white/60 text-lg">
+              Now let&apos;s create your support portal
+            </p>
+          </div>
+
+          {/* Subscription Info Card */}
+          {data.subscription && (
+            <div className="bg-[#111118] rounded-xl border border-white/10 p-6 mb-8">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-indigo-500/20 rounded-lg flex items-center justify-center">
+                    <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div>
+                    <p className="font-medium text-white">{data.subscription.productName} Plan</p>
+                    <p className="text-sm text-white/50">${data.subscription.price}/month</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10">
+                  <span className="w-2 h-2 rounded-full bg-green-400" />
+                  <span className="text-sm text-green-400">Active</span>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Create Portal CTA */}
+          <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl border border-indigo-500/20 p-8 text-center">
+            <h2 className="text-xl font-bold text-white mb-3">
+              Create Your Portal
+            </h2>
+            <p className="text-white/60 mb-6">
+              Choose a subdomain and customize your support portal
+            </p>
+            <Link
+              href="/onboarding"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition text-white"
+            >
+              Continue Setup
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14 5l7 7m0 0l-7 7m7-7H3" />
+              </svg>
+            </Link>
+          </div>
+        </main>
+      </div>
+    );
+  }
+
+  // STATE 3: Full access - Show full dashboard
   return (
     <div className="min-h-screen bg-[#0a0a0f]">
-      {/* Header */}
-      <header className="border-b border-white/5 bg-[#0a0a0f]/95 backdrop-blur-sm sticky top-0 z-50">
-        <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="text-xl font-bold text-white">
-              {siteName}
-            </Link>
-            <div className="hidden md:flex items-center gap-1">
-              <Link
-                href="/dashboard"
-                className="px-3 py-2 text-sm font-medium text-white bg-white/5 rounded-lg"
-              >
-                Dashboard
-              </Link>
-              {isMainDomain && data.tenant && (
-                <a
-                  href={`https://${data.tenant.slug}.helpportal.app`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition flex items-center gap-1"
-                >
-                  Visit Portal
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-              )}
-              {!isMainDomain && (
-                <Link
-                  href="/support"
-                  className="px-3 py-2 text-sm font-medium text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition"
-                >
-                  Support
-                </Link>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              {data.user.avatar ? (
-                <img
-                  src={data.user.avatar}
-                  alt={data.user.username}
-                  className="w-8 h-8 rounded-full ring-2 ring-white/10"
-                />
-              ) : (
-                <div className="w-8 h-8 rounded-full bg-indigo-600 flex items-center justify-center text-sm font-medium">
-                  {data.user.username.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <span className="text-sm font-medium text-white hidden sm:block">{data.user.username}</span>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 text-sm text-white/60 hover:text-white hover:bg-white/5 rounded-lg transition"
-            >
-              Logout
-            </button>
-          </div>
-        </nav>
-      </header>
+      {renderHeader()}
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-6 py-8">
@@ -395,7 +612,7 @@ export default function DashboardPage() {
                     </Link>
 
                     <Link
-                      href="/dashboard/payments"
+                      href="/dashboard/billing"
                       className="group p-4 bg-[#0a0a0f] hover:bg-white/5 rounded-lg transition"
                     >
                       <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center mb-3 group-hover:bg-blue-500/20 transition">
@@ -403,8 +620,8 @@ export default function DashboardPage() {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z" />
                         </svg>
                       </div>
-                      <h3 className="font-medium text-white mb-0.5">Payments</h3>
-                      <p className="text-xs text-white/40">Stripe Connect</p>
+                      <h3 className="font-medium text-white mb-0.5">Billing</h3>
+                      <p className="text-xs text-white/40">Manage subscription</p>
                     </Link>
                   </div>
                 </div>

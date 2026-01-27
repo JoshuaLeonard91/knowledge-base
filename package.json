@@ -26,6 +26,7 @@
     "stripe": "^20.2.0"
   },
   "devDependencies": {
+    "@hygraph/management-sdk": "^1.5.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

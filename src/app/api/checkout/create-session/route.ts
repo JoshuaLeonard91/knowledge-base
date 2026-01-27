@@ -1,12 +1,10 @@
 /**
- * Unified Checkout Session API
+ * Checkout Session API
  *
  * POST /api/checkout/create-session
  *
- * Creates a Stripe Checkout session for any context (main domain or tenant).
- * ALL payments go through Stripe Connect:
- * - Main domain: Uses PLATFORM_STRIPE_ACCOUNT_ID
- * - Tenant: Uses tenant's connected account (TenantStripeConfig)
+ * Creates a Stripe Checkout session for main domain only.
+ * Tenant subdomains use external Payment Links configured in CMS.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -57,9 +55,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if we're on a tenant subdomain
+    const tenant = await getTenantFromRequest();
+    if (tenant) {
+      // Tenant subdomains use external Payment Links, not API checkout
+      return NextResponse.json(
+        { error: 'Checkout not available. Please use the payment link.', code: 'USE_PAYMENT_LINK' },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
     // Parse request body
     const body = await request.json();
-    const { productSlug, context: requestContext } = body;
+    const { productSlug } = body;
 
     if (!productSlug || typeof productSlug !== 'string') {
       return NextResponse.json(
@@ -76,42 +84,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Determine context and connected account
-    let context = requestContext || 'main';
-    let connectedAccountId: string | undefined;
-    let tenantId: string | undefined;
-
-    // Check if we're on a tenant subdomain
-    const tenant = await getTenantFromRequest();
-
-    if (tenant) {
-      // Tenant subdomain - use tenant's connected Stripe account
-      context = tenant.slug;
-      tenantId = tenant.id;
-
-      // Get tenant's Stripe Connect config
-      const stripeConfig = await prisma.tenantStripeConfig.findUnique({
-        where: { tenantId: tenant.id },
-      });
-
-      if (!stripeConfig?.chargesEnabled) {
-        // Tenant hasn't connected Stripe - payments not available
-        return NextResponse.json(
-          { error: 'Payments are not enabled for this portal', code: 'PAYMENTS_DISABLED' },
-          { status: 400, headers: securityHeaders }
-        );
-      }
-
-      connectedAccountId = stripeConfig.stripeAccountId;
-    } else {
-      // Main domain - use platform's Stripe account via Connect
-      // If PLATFORM_STRIPE_ACCOUNT_ID is set, use it for unified Connect flow
-      // If not set, falls back to direct platform account (no Connect)
-      connectedAccountId = process.env.PLATFORM_STRIPE_ACCOUNT_ID;
-    }
-
-    // Get products for this context
-    const products = await getCheckoutProducts(context);
+    // Get products for main domain
+    const products = await getCheckoutProducts('main');
     const product = products.find((p) => p.slug === productSlug);
 
     if (!product) {
@@ -121,20 +95,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get or create TenantUser for this context
-    let tenantUser = await prisma.tenantUser.findUnique({
+    // Get or create TenantUser for main domain (tenantId = null)
+    // Note: Can't use findUnique with null in composite key, use findFirst instead
+    let tenantUser = await prisma.tenantUser.findFirst({
       where: {
-        tenantId_discordId: {
-          tenantId: tenantId || 'main',
-          discordId: session.id,
-        },
+        tenantId: null,
+        discordId: session.id,
       },
     });
 
     if (!tenantUser) {
       tenantUser = await prisma.tenantUser.create({
         data: {
-          tenantId: tenantId || null,
+          tenantId: null,
           discordId: session.id,
           discordUsername: session.username,
           discordAvatar: session.avatar,
@@ -143,13 +116,14 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Check if user already has an active subscription
-    const existingSubscription = await prisma.tenantSubscription.findUnique({
-      where: { tenantUserId: tenantUser.id },
+    // Check if user already has an active subscription (on User model for main domain)
+    const user = await prisma.user.findUnique({
+      where: { discordId: session.id },
+      include: { subscription: true },
     });
 
-    if (existingSubscription) {
-      const { status } = existingSubscription;
+    if (user?.subscription) {
+      const { status } = user.subscription;
       if (status === 'ACTIVE' || status === 'PAST_DUE') {
         return NextResponse.json(
           { error: 'You already have an active subscription', code: 'ALREADY_SUBSCRIBED' },
@@ -172,11 +146,9 @@ export async function POST(request: NextRequest) {
       productName: product.name,
       userId: tenantUser.id,
       userEmail: tenantUser.email,
-      context,
+      context: 'main',
       successUrl: `${baseUrl}/checkout/success?session_id={CHECKOUT_SESSION_ID}`,
       cancelUrl: `${baseUrl}/pricing?canceled=true`,
-      connectedAccountId,
-      isMainDomain: !tenant, // True if main domain, false if tenant
     });
 
     return NextResponse.json(
