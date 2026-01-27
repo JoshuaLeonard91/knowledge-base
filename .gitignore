@@ -144,3 +144,4 @@ scripts/cleanup-categories.ts
 scripts/check-schema.ts
 scripts/check-migrations.ts
 scripts/check-article-fields.ts
+scripts/debug-articles.ts

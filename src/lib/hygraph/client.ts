@@ -359,11 +359,7 @@ interface HygraphArticle {
     html?: string;
     text?: string;
   };
-  category?: {
-    name: string;
-    description?: string;
-    icon?: string;
-  };
+  category?: string; // Simple string field (slug), not a relation
   keywords?: string;
   icon?: string;
   readTime?: number;
@@ -513,7 +509,7 @@ export class HygraphClient {
   async getArticles(): Promise<Article[]> {
     const data = await this.query<{ articles: HygraphArticle[] }>(`
       query GetArticles {
-        articles(first: 100, orderBy: publishedAt_DESC) {
+        articles(first: 100, orderBy: createdAt_DESC) {
           slug
           title
           excerpt
@@ -522,11 +518,7 @@ export class HygraphClient {
             html
             text
           }
-          category {
-            name
-            description
-            icon
-          }
+          category
           keywords
           icon
           readTime
@@ -585,11 +577,7 @@ export class HygraphClient {
             html
             text
           }
-          category {
-            name
-            description
-            icon
-          }
+          category
           keywords
           icon
           readTime
@@ -634,11 +622,7 @@ export class HygraphClient {
             html
             text
           }
-          category {
-            name
-            description
-            icon
-          }
+          category
           keywords
           icon
           readTime
@@ -663,9 +647,9 @@ export class HygraphClient {
       `
       query GetArticlesByCategory($categorySlug: String!) {
         articles(
-          where: { category: { slug: $categorySlug } }
+          where: { category: $categorySlug }
           first: 100
-          orderBy: publishedAt_DESC
+          orderBy: createdAt_DESC
         ) {
           slug
           title
@@ -675,11 +659,7 @@ export class HygraphClient {
             html
             text
           }
-          category {
-            name
-            description
-            icon
-          }
+          category
           keywords
           icon
           readTime
@@ -711,8 +691,9 @@ export class HygraphClient {
    * Transform Hygraph article to our Article type
    */
   private transformArticle(article: HygraphArticle): Article {
-    const categorySlug = article.category?.name
-      ? this.nameToSlug(article.category.name)
+    // category is a simple string field (slug), not a relation
+    const categorySlug = typeof article.category === 'string'
+      ? article.category
       : 'general';
 
     // Get content - prefer markdown, fallback to html or text
