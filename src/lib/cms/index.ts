@@ -602,27 +602,8 @@ export async function getPricingPageContent(): Promise<PricingPageContent> {
 }
 
 // ==========================================
-// GENERIC CHECKOUT DATA (Context-aware)
+// SIGNUP & ONBOARDING (Context-aware)
 // ==========================================
-
-/**
- * Product for checkout (CMS-driven)
- */
-export interface CheckoutProduct {
-  id: string;
-  name: string;
-  slug: string;
-  description?: string;
-  priceAmount: number;       // cents
-  priceCurrency: string;
-  priceInterval: 'MONTHLY' | 'YEARLY' | 'ONE_TIME';
-  stripePriceId?: string;
-  features: string[];
-  badge?: string;
-  sortOrder: number;
-  isActive: boolean;
-  isFeatured: boolean;
-}
 
 /**
  * Signup configuration (CMS-driven)
@@ -670,53 +651,6 @@ export interface OnboardingConfig {
   completionMessage?: string;
   completionCtaText: string;
   completionCtaLink: string;
-}
-
-/**
- * Get products for checkout by context
- * Context is "main" for main domain, or tenant slug for subdomains
- */
-export async function getCheckoutProducts(context: string): Promise<CheckoutProduct[]> {
-  const client = await getHygraphClient() as HygraphClient & {
-    getCheckoutProducts?: (context: string) => Promise<CheckoutProduct[]>;
-  };
-
-  if (client && typeof client.getCheckoutProducts === 'function') {
-    return client.getCheckoutProducts(context);
-  }
-
-  // Return defaults for main domain
-  if (context === 'main') {
-    return [
-      {
-        id: 'default-pro',
-        name: 'Pro',
-        slug: 'pro',
-        description: 'Everything you need to run a professional support portal',
-        priceAmount: 500,
-        priceCurrency: 'usd',
-        priceInterval: 'MONTHLY',
-        stripePriceId: process.env.STRIPE_PRICE_ID,
-        features: [
-          'Custom branded support portal',
-          'Discord authentication for your users',
-          'Knowledge base with articles',
-          'Service catalog',
-          'Jira Service Desk integration',
-          'Custom subdomain',
-          'Custom logo and colors',
-          'Unlimited articles',
-        ],
-        badge: undefined,
-        sortOrder: 1,
-        isActive: true,
-        isFeatured: true,
-      },
-    ];
-  }
-
-  // No default products for tenant subdomains
-  return [];
 }
 
 /**

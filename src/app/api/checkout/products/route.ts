@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getCheckoutProducts } from '@/lib/cms';
+import { getServiceTiers } from '@/lib/cms';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { getSession, isAuthenticated } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
@@ -25,7 +25,7 @@ export async function GET(request: NextRequest) {
     const context = tenant?.slug || 'main';
 
     // Get products for this context
-    const products = await getCheckoutProducts(context);
+    const products = await getServiceTiers();
 
     // Check if user has subscription
     let hasSubscription = false;

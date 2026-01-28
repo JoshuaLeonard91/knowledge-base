@@ -4,53 +4,32 @@
  * Product Card Component
  *
  * Displays a single product/plan with pricing and features.
- * Used in the generic PricingPage component.
+ * Uses ServiceTier from CMS for pricing display.
  */
 
-import type { CheckoutProduct } from '@/lib/cms';
+import type { ServiceTier } from '@/lib/cms';
 
 interface ProductCardProps {
-  product: CheckoutProduct;
-  onSelect: (product: CheckoutProduct) => void;
+  product: ServiceTier;
+  onSelect: (product: ServiceTier) => void;
   isLoading?: boolean;
   isCurrent?: boolean;
 }
 
 export function ProductCard({ product, onSelect, isLoading, isCurrent }: ProductCardProps) {
-  const formatPrice = (amount: number, currency: string) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: currency.toUpperCase(),
-      minimumFractionDigits: 0,
-    }).format(amount / 100);
-  };
-
-  const formatInterval = (interval: string) => {
-    switch (interval) {
-      case 'MONTHLY':
-        return '/month';
-      case 'YEARLY':
-        return '/year';
-      case 'ONE_TIME':
-        return ' one-time';
-      default:
-        return '';
-    }
-  };
-
   return (
     <div
       className={`relative bg-[#16161f] rounded-2xl border overflow-hidden transition-all duration-300 ${
-        product.isFeatured
+        product.highlighted
           ? 'border-indigo-500/50 shadow-lg shadow-indigo-500/10'
           : 'border-white/10 hover:border-white/20'
       }`}
     >
-      {/* Badge */}
-      {product.badge && (
+      {/* Highlighted badge */}
+      {product.highlighted && (
         <div className="absolute top-4 right-4">
           <span className="px-3 py-1 bg-indigo-500/20 text-indigo-400 text-xs font-medium rounded-full">
-            {product.badge}
+            Recommended
           </span>
         </div>
       )}
@@ -62,13 +41,12 @@ export function ProductCard({ product, onSelect, isLoading, isCurrent }: Product
           <p className="text-white/60 text-sm mb-4">{product.description}</p>
         )}
 
-        {/* Price */}
-        <div className="flex items-baseline gap-1">
-          <span className="text-4xl font-bold text-white">
-            {formatPrice(product.priceAmount, product.priceCurrency)}
-          </span>
-          <span className="text-white/60">{formatInterval(product.priceInterval)}</span>
-        </div>
+        {/* Price - already formatted from CMS (e.g., "$5/mo") */}
+        {product.price && (
+          <div className="flex items-baseline gap-1">
+            <span className="text-4xl font-bold text-white">{product.price}</span>
+          </div>
+        )}
       </div>
 
       {/* Features */}
@@ -101,7 +79,7 @@ export function ProductCard({ product, onSelect, isLoading, isCurrent }: Product
           className={`w-full py-3 rounded-xl font-semibold transition-all ${
             isCurrent
               ? 'bg-green-500/20 text-green-400 cursor-default'
-              : product.isFeatured
+              : product.highlighted
               ? 'bg-indigo-600 hover:bg-indigo-500 text-white'
               : 'bg-white/10 hover:bg-white/20 text-white'
           } disabled:opacity-50 disabled:cursor-not-allowed`}
@@ -129,7 +107,7 @@ export function ProductCard({ product, onSelect, isLoading, isCurrent }: Product
           ) : isCurrent ? (
             'Current Plan'
           ) : (
-            'Get Started'
+            product.buttonText || 'Get Started'
           )}
         </button>
       </div>

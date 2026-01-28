@@ -10,12 +10,12 @@
 import { useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import type { SignupConfig, CheckoutProduct } from '@/lib/cms';
+import type { SignupConfig, ServiceTier } from '@/lib/cms';
 
 interface SignupPageProps {
   context: string;              // "main" or tenant slug
   config: SignupConfig;
-  products?: CheckoutProduct[]; // For paid signup
+  products?: ServiceTier[]; // For paid signup
   isAuthenticated?: boolean;
   hasSubscription?: boolean;
   nextStep?: string;            // Where to redirect after signup
@@ -209,10 +209,7 @@ export function SignupPage({
                   <div className="p-4 bg-white/5 rounded-lg mb-6">
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-3xl font-bold text-white">
-                        ${(selectedProduct.priceAmount / 100).toFixed(0)}
-                      </span>
-                      <span className="text-white/60">
-                        /{selectedProduct.priceInterval.toLowerCase().replace('_', ' ')}
+                        {selectedProduct.price || 'Free'}
                       </span>
                     </div>
                   </div>

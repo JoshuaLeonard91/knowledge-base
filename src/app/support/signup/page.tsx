@@ -9,12 +9,12 @@
 
 import { useEffect, useState } from 'react';
 import { SignupPage } from '@/components/signup';
-import type { SignupConfig, CheckoutProduct } from '@/lib/cms';
+import type { SignupConfig, ServiceTier } from '@/lib/cms';
 
 export default function TenantSignupPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [config, setConfig] = useState<SignupConfig | null>(null);
-  const [products, setProducts] = useState<CheckoutProduct[]>([]);
+  const [products, setProducts] = useState<ServiceTier[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [hasSubscription, setHasSubscription] = useState(false);
   const [context, setContext] = useState('main');

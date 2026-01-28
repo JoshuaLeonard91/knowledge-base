@@ -10,7 +10,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { createGenericCheckoutSession } from '@/lib/stripe';
-import { getCheckoutProducts } from '@/lib/cms';
 import { prisma } from '@/lib/db/client';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { validateCsrfRequest } from '@/lib/security/csrf';
@@ -19,6 +18,15 @@ import { validateCsrfRequest } from '@/lib/security/csrf';
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'Cache-Control': 'no-store, private',
+};
+
+// Main domain product (configured via env vars)
+// Single product for the platform subscription
+const MAIN_DOMAIN_PRODUCT = {
+  slug: 'pro',
+  name: 'Pro',
+  priceAmount: 500, // $5.00 in cents
+  stripePriceId: process.env.STRIPE_PRICE_ID,
 };
 
 // Validate product slug format
@@ -84,16 +92,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get products for main domain
-    const products = await getCheckoutProducts('main');
-    const product = products.find((p) => p.slug === productSlug);
-
-    if (!product) {
+    // Main domain only supports the Pro product
+    if (productSlug !== MAIN_DOMAIN_PRODUCT.slug) {
       return NextResponse.json(
         { error: 'Product not found' },
         { status: 404, headers: securityHeaders }
       );
     }
+
+    const product = MAIN_DOMAIN_PRODUCT;
 
     // Get or create TenantUser for main domain (tenantId = null)
     // Note: Can't use findUnique with null in composite key, use findFirst instead

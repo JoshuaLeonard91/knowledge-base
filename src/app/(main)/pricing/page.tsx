@@ -8,7 +8,7 @@
 
 import Link from 'next/link';
 import { PricingPage as GenericPricingPage } from '@/components/checkout';
-import { getHeaderData, getCheckoutProducts } from '@/lib/cms';
+import { getHeaderData, getServiceTiers } from '@/lib/cms';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { getSession, isAuthenticated } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
@@ -25,7 +25,7 @@ export default async function PricingPage() {
 
   // Fetch data in parallel
   const [products, headerData] = await Promise.all([
-    getCheckoutProducts(context),
+    getServiceTiers(),
     getHeaderData(),
   ]);
 

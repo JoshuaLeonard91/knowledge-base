@@ -4,18 +4,19 @@
  * Generic Pricing Page Component
  *
  * CMS-driven pricing page that works on both main domain and tenant subdomains.
- * Always redirects to signup page to ensure login is required before checkout.
+ * Uses ServiceTier from CMS for pricing data.
+ * Redirects to buttonUrl (from CMS) or defaults to /signup.
  */
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ProductCard } from './ProductCard';
-import type { CheckoutProduct } from '@/lib/cms';
+import type { ServiceTier } from '@/lib/cms';
 
 interface PricingPageProps {
   title?: string;
   subtitle?: string;
-  products: CheckoutProduct[];
+  products: ServiceTier[];
   currentProductSlug?: string;  // If user already has a subscription
 }
 
@@ -28,25 +29,24 @@ export function PricingPage({
   const router = useRouter();
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
 
-  const handleSelectProduct = (product: CheckoutProduct) => {
+  const handleSelectProduct = (product: ServiceTier) => {
     setLoadingProduct(product.slug);
 
-    // Always redirect to signup page
-    // This ensures login is required before checkout (unified flow)
-    // The signup page handles the complete flow: login → product selection → payment
-    const params = new URLSearchParams({
-      product: product.slug,
-    });
-    router.push(`/signup?${params.toString()}`);
+    // Use buttonUrl from CMS if set, otherwise default to /signup
+    const targetUrl = product.buttonUrl || `/signup?product=${product.slug}`;
+
+    // Check if it's an external URL (starts with http)
+    if (targetUrl.startsWith('http')) {
+      window.location.href = targetUrl;
+    } else {
+      router.push(targetUrl);
+    }
   };
 
-  // Sort products by sortOrder
-  const sortedProducts = [...products].sort((a, b) => a.sortOrder - b.sortOrder);
+  // Sort products by order
+  const sortedProducts = [...products].sort((a, b) => a.order - b.order);
 
-  // Filter to only active products
-  const activeProducts = sortedProducts.filter((p) => p.isActive);
-
-  if (activeProducts.length === 0) {
+  if (sortedProducts.length === 0) {
     return (
       <div className="min-h-[400px] flex items-center justify-center">
         <div className="text-center">
@@ -69,14 +69,14 @@ export function PricingPage({
         {/* Products Grid */}
         <div
           className={`grid gap-8 ${
-            activeProducts.length === 1
+            sortedProducts.length === 1
               ? 'max-w-lg mx-auto'
-              : activeProducts.length === 2
+              : sortedProducts.length === 2
               ? 'md:grid-cols-2 max-w-4xl mx-auto'
               : 'md:grid-cols-3'
           }`}
         >
-          {activeProducts.map((product) => (
+          {sortedProducts.map((product) => (
             <ProductCard
               key={product.id}
               product={product}

@@ -6,7 +6,7 @@
  */
 
 import { PricingPage } from '@/components/checkout';
-import { getCheckoutProducts, getHeaderData } from '@/lib/cms';
+import { getServiceTiers, getHeaderData } from '@/lib/cms';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { getSession, isAuthenticated } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
@@ -19,7 +19,7 @@ export default async function TenantPricingPage() {
 
   // Fetch data in parallel
   const [products, headerData, authenticated] = await Promise.all([
-    getCheckoutProducts(context),
+    getServiceTiers(),
     getHeaderData(),
     isAuthenticated(),
   ]);

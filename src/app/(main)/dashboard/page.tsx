@@ -16,7 +16,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import type { CheckoutProduct } from '@/lib/cms';
+import type { ServiceTier } from '@/lib/cms';
 
 interface DashboardData {
   context: 'main' | 'tenant';
@@ -54,7 +54,7 @@ export default function DashboardPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<DashboardData | null>(null);
-  const [products, setProducts] = useState<CheckoutProduct[]>([]);
+  const [products, setProducts] = useState<ServiceTier[]>([]);
   const [siteName, setSiteName] = useState('HelpPortal');
   const [isMainDomain, setIsMainDomain] = useState(true);
   const [isProcessingPayment, setIsProcessingPayment] = useState(false);
@@ -332,9 +332,8 @@ export default function DashboardPage() {
 
                   <div className="flex items-baseline gap-1 mb-6">
                     <span className="text-4xl font-bold text-white">
-                      ${(product.priceAmount / 100).toFixed(0)}
+                      {product.price || 'Free'}
                     </span>
-                    <span className="text-white/50">/month</span>
                   </div>
 
                   {product.features && product.features.length > 0 && (
