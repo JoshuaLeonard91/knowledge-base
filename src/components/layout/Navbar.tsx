@@ -27,6 +27,8 @@ import {
   Code,
   Wrench,
   Article,
+  CurrencyDollar,
+  Tag,
   type Icon,
 } from '@phosphor-icons/react';
 import { useState } from 'react';
@@ -51,6 +53,8 @@ const iconMap: Record<string, Icon> = {
   Code,
   Wrench,
   Article,
+  CurrencyDollar,
+  Tag,
 };
 
 interface NavbarProps {

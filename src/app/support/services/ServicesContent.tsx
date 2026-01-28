@@ -315,7 +315,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
 
             {/* Pricing Tiers - Enhanced with accent colors and pricing */}
             {serviceTiers.length > 0 && (
-              <div className={`grid gap-6 md:grid-cols-2 ${serviceTiers.length <= 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-3 xl:grid-cols-4'}`}>
+              <div className={`grid gap-6 ${serviceTiers.length === 1 ? 'max-w-md mx-auto' : serviceTiers.length === 2 ? 'max-w-2xl mx-auto md:grid-cols-2' : serviceTiers.length <= 3 ? 'md:grid-cols-2 lg:grid-cols-3' : 'md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'}`}>
                 {serviceTiers.map((tier, index) => {
                   const accentColor = tier.accentColor || (tier.highlighted ? 'var(--accent-primary)' : 'var(--text-muted)');
 
@@ -500,7 +500,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
               onClick={() => openContactModal()}
               className="flex-shrink-0 px-6 py-3 rounded-xl bg-white text-[var(--accent-primary)] font-semibold hover:bg-white/90 transition-colors shadow-lg"
             >
-              Schedule a Call
+              Get in Touch
             </button>
           </div>
         </div>
