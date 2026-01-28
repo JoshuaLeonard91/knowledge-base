@@ -252,28 +252,6 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
 
                 {!hasMoreFeatures && <div className="mb-4" />}
 
-                {/* Related Guides */}
-                {service.relatedArticles && service.relatedArticles.length > 0 && (
-                  <div className="mb-4 p-3 rounded-lg bg-[var(--bg-tertiary)]/50 border border-[var(--border-primary)]">
-                    <div className="flex items-center gap-2 mb-2">
-                      <BookOpenText size={16} weight="duotone" className="text-[var(--accent-primary)]" />
-                      <span className="text-xs font-medium text-[var(--text-muted)] uppercase tracking-wide">Related Guides</span>
-                    </div>
-                    <div className="space-y-1">
-                      {service.relatedArticles.map((slug) => (
-                        <Link
-                          key={slug}
-                          href={`/support/articles/${slug}`}
-                          className="flex items-center gap-2 text-sm text-[var(--text-secondary)] hover:text-[var(--accent-primary)] transition-colors"
-                        >
-                          <CaretRight size={12} weight="bold" className="text-[var(--text-muted)]" />
-                          {slug.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
-                        </Link>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
                 {/* CTA Button - pushed to bottom */}
                 <div className="mt-auto">
                   <button
