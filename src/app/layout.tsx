@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Script from "next/script";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
@@ -22,6 +24,17 @@ export default async function RootLayout({
 }>) {
   // Get tenant from request (subdomain or query param)
   const tenant = await getTenantFromRequest();
+
+  // Check for invalid subdomain - redirect to main domain
+  // If middleware set x-tenant-slug but tenant wasn't found, redirect
+  const headersList = await headers();
+  const requestedSlug = headersList.get('x-tenant-slug');
+
+  if (requestedSlug && !tenant) {
+    // Invalid subdomain - redirect to main domain
+    const mainDomain = process.env.NEXT_PUBLIC_APP_URL || 'https://helpportal.app';
+    redirect(mainDomain);
+  }
 
   // Fetch theme, header, and footer data from CMS (cached per request)
   const [theme, headerData, footerData] = await Promise.all([
