@@ -18,7 +18,6 @@ export interface Service {
   icon: string;
   color: string;
   features: string[];
-  relatedArticles: string[]; // Article slugs
   order: number;
   // Optional pricing and button customization
   priceLabel?: string; // e.g., "Starting at $99/mo" - empty = no badge
@@ -238,7 +237,6 @@ interface HygraphService {
   icon?: string;
   color?: string;
   features: string[];
-  relatedArticles?: Array<{ slug: string }>;
   order?: number;
   priceLabel?: string;
   buttonText?: string;
@@ -436,7 +434,14 @@ export class HygraphClient {
     variables?: Record<string, unknown>,
     ttl?: number
   ): Promise<T | null> {
+    // Extract query name for logging
+    const queryMatch = queryString.match(/query\s+(\w+)/);
+    const queryName = queryMatch ? queryMatch[1] : 'Unknown';
+
+    console.log(`[Hygraph] ${queryName}: Starting query...`);
+
     if (!this.isConfigured || !this.endpoint) {
+      console.log(`[Hygraph] ${queryName}: Client not configured (endpoint: ${!!this.endpoint}, token: ${!!this.token})`);
       return null;
     }
 
@@ -445,10 +450,12 @@ export class HygraphClient {
     const cacheKey = JSON.stringify({ queryString, variables });
     const cached = this.cache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < cacheDuration) {
+      console.log(`[Hygraph] ${queryName}: Returning cached result (age: ${Date.now() - cached.timestamp}ms)`);
       return cached.data as T;
     }
 
     try {
+      console.log(`[Hygraph] ${queryName}: Fetching from API...`);
       const response = await fetch(this.endpoint, {
         method: 'POST',
         headers: {
@@ -464,26 +471,25 @@ export class HygraphClient {
         cache: 'no-store',
       });
 
+      console.log(`[Hygraph] ${queryName}: Response status: ${response.status}`);
+
       if (!response.ok) {
         const errorText = await response.text();
         // Check if this is a "field not defined" error (model doesn't exist in CMS)
         // This is expected for optional models - silently return null
         if (errorText.includes('is not defined in')) {
+          console.log(`[Hygraph] ${queryName}: Field not defined (optional model)`);
           return null;
         }
-        console.error('[Hygraph] HTTP error:', response.status, errorText);
+        console.error(`[Hygraph] ${queryName}: HTTP error ${response.status}:`, errorText);
         return null;
       }
 
       const result: GraphQLResponse<T> = await response.json();
 
       if (result.errors) {
-        // Extract query name for better debugging
-        const queryMatch = queryString.match(/query\s+(\w+)/);
-        const queryName = queryMatch ? queryMatch[1] : 'Unknown';
-
         // Always log errors for debugging
-        console.error(`[Hygraph] GraphQL errors in ${queryName}:`, JSON.stringify(result.errors, null, 2));
+        console.error(`[Hygraph] ${queryName}: GraphQL errors:`, JSON.stringify(result.errors, null, 2));
 
         // Check if all errors are "field not defined" (optional model doesn't exist)
         const allFieldNotDefined = result.errors.every(
@@ -498,11 +504,14 @@ export class HygraphClient {
       // Cache the result
       if (result.data) {
         this.cache.set(cacheKey, { data: result.data, timestamp: Date.now() });
+        console.log(`[Hygraph] ${queryName}: Success, cached result`);
+      } else {
+        console.log(`[Hygraph] ${queryName}: No data in response`);
       }
 
       return result.data || null;
     } catch (error) {
-      console.error('[Hygraph] Query error:', error);
+      console.error(`[Hygraph] ${queryName}: Exception:`, error);
       return null;
     }
   }
@@ -840,9 +849,6 @@ export class HygraphClient {
           icon
           color
           features
-          relatedArticles {
-            slug
-          }
           order
           priceLabel
           buttonText
@@ -874,10 +880,10 @@ export class HygraphClient {
           icon
           color
           features
-          relatedArticles {
-            slug
-          }
           order
+          priceLabel
+          buttonText
+          buttonUrl
         }
       }
     `,
@@ -981,7 +987,6 @@ export class HygraphClient {
       icon: service.icon || 'Wrench',
       color: service.color || 'var(--accent-primary)',
       features: service.features || [],
-      relatedArticles: service.relatedArticles?.map((a) => a.slug) || [],
       order: service.order ?? 0,
       priceLabel: service.priceLabel,
       buttonText: service.buttonText,
@@ -1245,7 +1250,6 @@ export class HygraphClient {
           icon
           color
           features
-          relatedArticles { slug }
           order
           priceLabel
           buttonText
@@ -1312,6 +1316,18 @@ export class HygraphClient {
         }
       }
     `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
+
+    // Log raw data for debugging
+    console.log('[Hygraph] getServicesPageData result:', {
+      hasData: !!data,
+      servicesCount: data?.services?.length ?? 0,
+      tiersCount: data?.serviceTiers?.length ?? 0,
+      slaCount: data?.sLAHighlights?.length ?? 0,
+      resourcesCount: data?.helpfulResources?.length ?? 0,
+      hasPageContent: !!data?.servicesPageContents?.[0],
+      hasContactSettings: !!data?.contactSettingsEntries?.[0],
+      inquiryTypesCount: data?.inquiryTypes?.length ?? 0,
+    });
 
     // Transform services
     const services = (data?.services || []).map((s) => this.transformService(s));
