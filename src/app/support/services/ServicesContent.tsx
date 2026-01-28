@@ -182,7 +182,7 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
           </p>
         </div>
 
-        <div className="grid gap-6 sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3 stagger-children">
+        <div className={`grid gap-6 stagger-children ${services.length === 1 ? 'max-w-md mx-auto' : services.length === 2 ? 'max-w-2xl mx-auto sm:grid-cols-1 md:grid-cols-2' : 'sm:grid-cols-1 md:grid-cols-2 lg:grid-cols-3'}`}>
           {services.map((service) => {
             const Icon = getIcon(service.icon);
             const isExpanded = expandedServices.has(service.id);
