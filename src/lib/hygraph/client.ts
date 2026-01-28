@@ -931,9 +931,9 @@ export class HygraphClient {
    * Recommended: 4-5 highlights | Max: 6 for single row
    */
   async getSLAHighlights(): Promise<SLAHighlight[]> {
-    const data = await this.query<{ slaHighlights: HygraphSLAHighlight[] }>(`
+    const data = await this.query<{ sLAHighlights: HygraphSLAHighlight[] }>(`
       query GetSLAHighlights {
-        slaHighlights(first: 6, orderBy: order_ASC) {
+        sLAHighlights(first: 6, orderBy: order_ASC) {
           id
           title
           description
@@ -944,11 +944,11 @@ export class HygraphClient {
       }
     `);
 
-    if (!data?.slaHighlights) {
+    if (!data?.sLAHighlights) {
       return [];
     }
 
-    return data.slaHighlights.map((highlight) => this.transformSLAHighlight(highlight));
+    return data.sLAHighlights.map((highlight) => this.transformSLAHighlight(highlight));
   }
 
   /**
@@ -1220,7 +1220,7 @@ export class HygraphClient {
   async getServicesPageData(): Promise<{
     services: Service[];
     serviceTiers: ServiceTier[];
-    slaHighlights: SLAHighlight[];
+    slaHighlights: SLAHighlight[]; // Note: Hygraph field is sLAHighlights
     helpfulResources: HelpfulResource[];
     pageContent: ServicesPageContent;
     contactSettings: ContactSettings;
@@ -1229,7 +1229,7 @@ export class HygraphClient {
     const data = await this.query<{
       services: HygraphService[];
       serviceTiers: HygraphServiceTier[];
-      slaHighlights: HygraphSLAHighlight[];
+      sLAHighlights: HygraphSLAHighlight[];
       helpfulResources: HygraphHelpfulResource[];
       servicesPageContents: HygraphServicesPageContent[];
       contactSettingsEntries: HygraphContactSettings[];
@@ -1267,7 +1267,7 @@ export class HygraphClient {
           buttonText
           buttonUrl
         }
-        slaHighlights(first: 6, orderBy: order_ASC) {
+        sLAHighlights(first: 6, orderBy: order_ASC) {
           id
           title
           description
@@ -1319,8 +1319,8 @@ export class HygraphClient {
     // Transform service tiers
     const serviceTiers = (data?.serviceTiers || []).map((t) => this.transformServiceTier(t));
 
-    // Transform SLA highlights
-    const slaHighlights = (data?.slaHighlights || []).map((h) => this.transformSLAHighlight(h));
+    // Transform SLA highlights (note: Hygraph field is sLAHighlights)
+    const slaHighlights = (data?.sLAHighlights || []).map((h) => this.transformSLAHighlight(h));
 
     // Transform helpful resources
     const helpfulResources = (data?.helpfulResources || []).map((r) => this.transformHelpfulResource(r));
