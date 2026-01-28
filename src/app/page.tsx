@@ -2,13 +2,13 @@
  * Root Page
  *
  * - Main domain: Shows the marketing landing page (CMS-driven)
- * - Tenant subdomain: Redirects to /support (help center)
+ * - Tenant subdomain: Shows landing page if configured, otherwise redirects to /support
  */
 
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
-import { getHeaderData, getLandingPageContent } from '@/lib/cms';
+import { getHeaderData, getLandingPageContent, getLandingPageContentOrNull } from '@/lib/cms';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { MainFooter } from '@/components/layout/MainFooter';
 
@@ -73,9 +73,116 @@ export default async function RootPage() {
   // Check if we're on a tenant subdomain
   const tenant = await getTenantFromRequest();
 
-  // Tenant subdomain - redirect to help center
+  // Tenant subdomain - check for optional landing page
   if (tenant) {
-    redirect('/support');
+    const tenantLandingContent = await getLandingPageContentOrNull();
+
+    // No landing page configured - redirect to support hub
+    if (!tenantLandingContent) {
+      redirect('/support');
+    }
+
+    // Tenant has landing page configured - show it
+    // Note: Header/Footer are added automatically by LayoutContent for tenants
+    return (
+      <div className="min-h-screen">
+        {/* Hero Section */}
+        <section className="relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[var(--accent-primary)]/20 via-transparent to-transparent" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[var(--accent-primary)]/10 blur-[120px]" />
+
+          <div className="relative max-w-5xl mx-auto px-6 py-24 md:py-32 text-center">
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 leading-tight text-[var(--text-primary)]">
+              {tenantLandingContent.heroTitle}{' '}
+              {tenantLandingContent.heroHighlight && (
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
+                  {tenantLandingContent.heroHighlight}
+                </span>
+              )}
+            </h1>
+
+            <p className="text-xl text-[var(--text-secondary)] max-w-2xl mx-auto mb-10">
+              {tenantLandingContent.heroSubtitle}
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+              <Link
+                href={tenantLandingContent.heroCtaLink}
+                className="px-8 py-4 bg-[var(--accent-primary)] hover:opacity-90 rounded-xl font-semibold transition text-white text-lg"
+              >
+                {tenantLandingContent.heroCta}
+              </Link>
+              {tenantLandingContent.heroSecondaryCtaText && tenantLandingContent.heroSecondaryCtaLink && (
+                <Link
+                  href={tenantLandingContent.heroSecondaryCtaLink}
+                  className="px-8 py-4 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-xl font-semibold transition text-[var(--text-secondary)] text-lg border border-[var(--border-primary)]"
+                >
+                  {tenantLandingContent.heroSecondaryCtaText}
+                </Link>
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        {tenantLandingContent.features.length > 0 && (
+          <section className="py-20 px-6 border-t border-[var(--border-primary)]">
+            <div className="max-w-6xl mx-auto">
+              <h2 className="text-3xl md:text-4xl font-bold text-center mb-4 text-[var(--text-primary)]">
+                {tenantLandingContent.featuresTitle}
+              </h2>
+              <p className="text-[var(--text-secondary)] text-center mb-16 max-w-2xl mx-auto">
+                {tenantLandingContent.featuresSubtitle}
+              </p>
+
+              <div className="flex flex-wrap justify-center gap-8">
+                {tenantLandingContent.features.map((feature, index) => {
+                  const colorCycle = ['var(--accent-primary)', 'var(--accent-secondary)', 'var(--accent-success)', 'var(--accent-warning)'];
+                  const color = colorCycle[index % colorCycle.length];
+                  const icon = featureIcons[feature.icon || 'Lightning'];
+                  return (
+                    <div
+                      key={`feature-${index}`}
+                      className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] p-8 hover:border-[var(--accent-primary)]/30 hover:shadow-lg transition-all duration-300 w-full md:w-[calc(33.333%-1.5rem)] md:min-w-[280px] md:max-w-[360px]"
+                    >
+                      <div
+                        className="w-12 h-12 rounded-xl flex items-center justify-center mb-6"
+                        style={{ backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)` }}
+                      >
+                        <div style={{ color }}>{icon}</div>
+                      </div>
+                      <h3 className="text-xl font-semibold mb-3 text-[var(--text-primary)]">{feature.title}</h3>
+                      <p className="text-[var(--text-secondary)]">{feature.description}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </section>
+        )}
+
+        {/* CTA Section */}
+        <section className="py-20 px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className="bg-gradient-to-r from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 rounded-3xl border border-[var(--accent-primary)]/20 p-12">
+              <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text-primary)]">
+                {tenantLandingContent.ctaTitle}
+              </h2>
+              <p className="text-[var(--text-secondary)] mb-8 max-w-xl mx-auto">
+                {tenantLandingContent.ctaSubtitle}
+              </p>
+              <Link
+                href={tenantLandingContent.ctaButtonLink}
+                className="inline-block px-8 py-4 bg-[var(--accent-primary)] hover:opacity-90 rounded-xl font-semibold transition text-white text-lg hover:scale-105"
+              >
+                {tenantLandingContent.ctaButtonText}
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
+    );
   }
 
   // Main domain - show landing page

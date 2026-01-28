@@ -559,6 +559,22 @@ export async function getLandingPageContent(): Promise<LandingPageContent> {
   };
 }
 
+/**
+ * Get landing page content if it exists in CMS
+ * Returns null if no landing page is configured
+ * Used for optional tenant landing pages
+ */
+export async function getLandingPageContentOrNull(): Promise<LandingPageContent | null> {
+  const client = await getHygraphClient();
+
+  if (client) {
+    return client.getLandingPageContentOrNull();
+  }
+
+  // Local provider has no landing page by default
+  return null;
+}
+
 // ==========================================
 // PRICING PAGE DATA
 // ==========================================

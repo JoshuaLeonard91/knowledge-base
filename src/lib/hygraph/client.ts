@@ -1728,6 +1728,90 @@ export class HygraphClient {
     };
   }
 
+  /**
+   * Check if landing page content exists in CMS
+   * Returns the content if exists, null if not configured
+   * Used for optional tenant landing pages
+   */
+  async getLandingPageContentOrNull(): Promise<LandingPageContent | null> {
+    const data = await this.query<{
+      landingPageContents: Array<{
+        heroTitle?: string;
+        heroHighlight?: string;
+        heroSubtitle?: string;
+        heroCta?: string;
+        heroCtaLink?: string;
+        heroSecondaryCtaText?: string;
+        heroSecondaryCtaLink?: string;
+        featuresTitle?: string;
+        featuresSubtitle?: string;
+        features?: Array<{
+          title: string;
+          description: string;
+          icon?: string;
+        }>;
+        ctaTitle?: string;
+        ctaSubtitle?: string;
+        ctaButtonText?: string;
+        ctaButtonLink?: string;
+      }>;
+    }>(`
+      query GetLandingPageContent {
+        landingPageContents(first: 1) {
+          heroTitle
+          heroHighlight
+          heroSubtitle
+          heroCta
+          heroCtaLink
+          heroSecondaryCtaText
+          heroSecondaryCtaLink
+          featuresTitle
+          featuresSubtitle
+          features {
+            title
+            description
+            icon
+          }
+          ctaTitle
+          ctaSubtitle
+          ctaButtonText
+          ctaButtonLink
+        }
+      }
+    `);
+
+    const content = data?.landingPageContents?.[0];
+
+    // Return null if no content exists in CMS
+    if (!content || !content.heroTitle) {
+      return null;
+    }
+
+    // Transform features
+    const features: LandingFeature[] = content.features?.map((f) => ({
+      title: f.title,
+      description: f.description,
+      icon: f.icon || 'Lightning',
+    })) || [];
+
+    return {
+      heroTitle: content.heroTitle,
+      heroHighlight: content.heroHighlight || '',
+      heroSubtitle: content.heroSubtitle || '',
+      heroCta: content.heroCta || 'Get Started',
+      heroCtaLink: content.heroCtaLink || '/support',
+      heroSecondaryCtaText: content.heroSecondaryCtaText,
+      heroSecondaryCtaLink: content.heroSecondaryCtaLink,
+      featuresTitle: content.featuresTitle || 'Features',
+      featuresSubtitle: content.featuresSubtitle || '',
+      features,
+      ctaTitle: content.ctaTitle || 'Get Started',
+      ctaSubtitle: content.ctaSubtitle || '',
+      ctaButtonText: content.ctaButtonText || 'Learn More',
+      ctaButtonLink: content.ctaButtonLink || '/support',
+    };
+  }
+
   // ==========================================
   // PRICING PAGE DATA
   // ==========================================

@@ -1,7 +1,7 @@
 /**
- * Tenant Pricing Page
+ * Support Pricing Page
  *
- * CMS-driven pricing page for tenant subdomains.
+ * CMS-driven pricing page that works on both main domain and tenant subdomains.
  * Uses the generic PricingPage component.
  */
 
@@ -13,9 +13,9 @@ import { prisma } from '@/lib/db/client';
 
 export const dynamic = 'force-dynamic';
 
-export default async function TenantPricingPage() {
+export default async function SupportPricingPage() {
   const tenant = await getTenantFromRequest();
-  const context = tenant?.slug || 'main';
+  const isMainDomain = !tenant;
 
   // Fetch data in parallel
   const [products, headerData, authenticated] = await Promise.all([
@@ -30,18 +30,30 @@ export default async function TenantPricingPage() {
   if (authenticated) {
     const session = await getSession();
     if (session) {
-      const tenantUser = await prisma.tenantUser.findUnique({
-        where: {
-          tenantId_discordId: {
-            tenantId: tenant?.id || 'main',
-            discordId: session.id,
+      if (isMainDomain) {
+        // Main domain: Check User subscription (platform level)
+        const user = await prisma.user.findUnique({
+          where: { discordId: session.id },
+          include: { subscription: true },
+        });
+        if (user?.subscription?.status === 'ACTIVE') {
+          currentProductSlug = 'pro'; // Main domain uses 'pro' product
+        }
+      } else {
+        // Tenant subdomain: Check TenantUser subscription
+        const tenantUser = await prisma.tenantUser.findUnique({
+          where: {
+            tenantId_discordId: {
+              tenantId: tenant.id,
+              discordId: session.id,
+            },
           },
-        },
-        include: { subscription: true },
-      });
+          include: { subscription: true },
+        });
 
-      if (tenantUser?.subscription) {
-        currentProductSlug = tenantUser.subscription.productSlug;
+        if (tenantUser?.subscription) {
+          currentProductSlug = tenantUser.subscription.productSlug;
+        }
       }
     }
   }

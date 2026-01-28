@@ -44,9 +44,10 @@ interface ServicesContentProps {
   pageContent: ServicesPageContent;
   contactSettings: ContactSettings;
   inquiryTypes: InquiryType[];
+  currentProductSlug?: string;
 }
 
-export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources, pageContent, contactSettings, inquiryTypes }: ServicesContentProps) {
+export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources, pageContent, contactSettings, inquiryTypes, currentProductSlug }: ServicesContentProps) {
   const router = useRouter();
   const isMainSite = useIsMainSite();
   const [isContactModalOpen, setIsContactModalOpen] = useState(false);
@@ -254,13 +255,20 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
 
                 {/* CTA Button - pushed to bottom */}
                 <div className="mt-auto">
-                  <button
-                    onClick={() => handleServiceClick(service)}
-                    className="btn btn-secondary w-full"
-                  >
-                    {service.buttonText || 'Get Started'}
-                    <ArrowRight size={16} weight="bold" />
-                  </button>
+                  {currentProductSlug === service.slug ? (
+                    <div className="btn btn-secondary w-full !bg-[var(--accent-success)]/10 !border-[var(--accent-success)]/30 !text-[var(--accent-success)] cursor-default">
+                      <Check size={16} weight="bold" />
+                      Current Plan
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => handleServiceClick(service)}
+                      className="btn btn-secondary w-full"
+                    >
+                      {service.buttonText || 'Get Started'}
+                      <ArrowRight size={16} weight="bold" />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -396,16 +404,23 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
 
                       {/* Button pushed to bottom */}
                       <div className="mt-auto">
-                        <button
-                          onClick={() => handleTierClick(tier)}
-                          className={`btn w-full ${tier.highlighted ? 'btn-primary' : 'btn-secondary'}`}
-                          style={!tier.highlighted && tier.accentColor ? {
-                            borderColor: `${tier.accentColor}40`,
-                            color: tier.accentColor,
-                          } : undefined}
-                        >
-                          {tier.buttonText || 'Contact Sales'}
-                        </button>
+                        {currentProductSlug === tier.slug ? (
+                          <div className="btn w-full !bg-[var(--accent-success)]/10 !border-[var(--accent-success)]/30 !text-[var(--accent-success)] cursor-default">
+                            <Check size={16} weight="bold" />
+                            Current Plan
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => handleTierClick(tier)}
+                            className={`btn w-full ${tier.highlighted ? 'btn-primary' : 'btn-secondary'}`}
+                            style={!tier.highlighted && tier.accentColor ? {
+                              borderColor: `${tier.accentColor}40`,
+                              color: tier.accentColor,
+                            } : undefined}
+                          >
+                            {tier.buttonText || 'Contact Sales'}
+                          </button>
+                        )}
                       </div>
                     </div>
                   );
