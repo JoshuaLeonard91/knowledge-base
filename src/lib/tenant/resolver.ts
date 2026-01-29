@@ -152,11 +152,11 @@ export function transformTenantToContext(tenant: TenantWithConfig): TenantContex
   if (tenant.hygraphConfig) {
     try {
       hygraph = {
-        endpoint: tenant.hygraphConfig.endpoint,
+        endpoint: decryptFromString(tenant.hygraphConfig.endpoint),
         token: decryptFromString(tenant.hygraphConfig.token),
       };
     } catch {
-      console.error('[Tenant] Failed to decrypt Hygraph token for:', tenant.slug);
+      console.error('[Tenant] Failed to decrypt Hygraph config for:', tenant.slug);
     }
   }
 
