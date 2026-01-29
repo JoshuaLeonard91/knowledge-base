@@ -232,6 +232,14 @@ export async function getServiceTiers(): Promise<ServiceTier[]> {
 }
 
 /**
+ * Check if pricing page should be shown (has service tiers configured)
+ */
+export async function hasPricingPage(): Promise<boolean> {
+  const tiers = await getServiceTiers();
+  return tiers.length > 0;
+}
+
+/**
  * Get SLA highlights from the CMS
  */
 export async function getSLAHighlights(): Promise<SLAHighlight[]> {
@@ -419,7 +427,7 @@ export async function getFooterData(): Promise<{
 import type { HeaderSettings, NavLink } from '@/lib/hygraph';
 
 /**
- * Get header/navbar data (settings + nav links + contact page availability)
+ * Get header/navbar data (settings + nav links + page availability flags)
  * Returns defaults if not configured in CMS
  */
 export async function getHeaderData(): Promise<{
@@ -427,19 +435,22 @@ export async function getHeaderData(): Promise<{
   navLinks: NavLink[];
   hasContactPage: boolean;
   hasLandingPage: boolean;
+  hasPricingPage: boolean;
 }> {
   const client = await getHygraphClient();
 
   if (client) {
-    const [headerData, hasContact, landingContent] = await Promise.all([
+    const [headerData, hasContact, landingContent, pricingTiers] = await Promise.all([
       client.getHeaderData(),
       client.hasContactPageSettings(),
       client.getLandingPageContentOrNull(),
+      client.getServiceTiers(),
     ]);
     return {
       ...headerData,
       hasContactPage: hasContact,
       hasLandingPage: landingContent !== null,
+      hasPricingPage: pricingTiers.length > 0,
     };
   }
 
@@ -459,6 +470,7 @@ export async function getHeaderData(): Promise<{
     ],
     hasContactPage: true, // Default to true for local provider
     hasLandingPage: false, // Default to false for local provider
+    hasPricingPage: false, // Default to false for local provider
   };
 }
 

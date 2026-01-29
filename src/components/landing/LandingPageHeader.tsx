@@ -15,7 +15,8 @@ interface LandingPageHeaderProps {
   siteName: string;
   isMainDomain?: boolean;
   hasContactPage?: boolean;
-  hasTicketing?: boolean; // Show ticket button if tenant has Jira configured
+  hasPricingPage?: boolean; // Show pricing link if products configured in CMS
+  hasTicketing?: boolean; // Show ticket button if Jira configured (tenant or main domain)
 }
 
 interface UserStatus {
@@ -29,6 +30,7 @@ export function LandingPageHeader({
   siteName,
   isMainDomain = false,
   hasContactPage = true,
+  hasPricingPage = false,
   hasTicketing = false,
 }: LandingPageHeaderProps) {
   const pathname = usePathname();
@@ -216,16 +218,18 @@ export function LandingPageHeader({
           {siteName}
         </Link>
         <div className="flex items-center gap-6">
-          <Link
-            href={urls.pricing}
-            className={`transition ${
-              pathname === urls.pricing
-                ? 'text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Pricing
-          </Link>
+          {hasPricingPage && (
+            <Link
+              href={urls.pricing}
+              className={`transition ${
+                pathname === urls.pricing
+                  ? 'text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Pricing
+            </Link>
+          )}
           <Link
             href={urls.support}
             className={`transition ${
@@ -248,8 +252,8 @@ export function LandingPageHeader({
               Contact
             </Link>
           )}
-          {/* Ticket button for tenants with ticketing enabled */}
-          {!isMainDomain && hasTicketing && (
+          {/* Ticket button when ticketing is enabled (main domain or tenant) */}
+          {hasTicketing && (
             <Link
               href="/support/ticket"
               className="btn-primary px-4 py-2 rounded-lg font-medium transition text-sm"

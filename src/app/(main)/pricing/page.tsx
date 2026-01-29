@@ -63,7 +63,8 @@ export default async function PricingPage() {
   }
 
   const siteName = headerData.settings.siteName || 'HelpPortal';
-  const hasTicketing = tenant?.jira?.connected ?? false;
+  // Tenant uses jira.connected, main domain uses JIRA_PROJECT_KEY env var
+  const hasTicketing = tenant ? (tenant.jira?.connected ?? false) : !!process.env.JIRA_PROJECT_KEY;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -71,6 +72,7 @@ export default async function PricingPage() {
         siteName={siteName}
         isMainDomain={isMainDomain}
         hasContactPage={headerData.hasContactPage}
+        hasPricingPage={headerData.hasPricingPage}
         hasTicketing={hasTicketing}
       />
 

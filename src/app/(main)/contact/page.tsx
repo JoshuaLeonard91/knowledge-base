@@ -42,7 +42,8 @@ export default async function ContactPage() {
   const headerData = await getHeaderData();
   const settings = await getContactPageSettings();
   const siteName = headerData.settings.siteName || 'Help Portal';
-  const hasTicketing = tenant?.jira?.connected ?? false;
+  // Tenant uses jira.connected, main domain uses JIRA_PROJECT_KEY env var
+  const hasTicketing = tenant ? (tenant.jira?.connected ?? false) : !!process.env.JIRA_PROJECT_KEY;
 
   // CMS values with defaults
   const pageTitle = settings.pageTitle || defaults.pageTitle;
@@ -162,6 +163,7 @@ export default async function ContactPage() {
         siteName={siteName}
         isMainDomain={isMainDomain}
         hasContactPage={headerData.hasContactPage}
+        hasPricingPage={headerData.hasPricingPage}
         hasTicketing={hasTicketing}
       />
 

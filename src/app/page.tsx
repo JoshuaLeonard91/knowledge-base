@@ -38,6 +38,7 @@ export default async function RootPage() {
           siteName={siteName}
           isMainDomain={false}
           hasContactPage={tenantHeaderData.hasContactPage}
+          hasPricingPage={tenantHeaderData.hasPricingPage}
           hasTicketing={hasTicketing}
         />
         <LandingPageContent content={tenantLandingContent} />
@@ -52,13 +53,17 @@ export default async function RootPage() {
     getLandingPageContent(),
   ]);
   const siteName = headerData.settings.siteName || 'Help Portal';
+  // Main domain ticketing is enabled if JIRA_PROJECT_KEY env var is set
+  const hasTicketing = !!process.env.JIRA_PROJECT_KEY;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <LandingPageHeader
         siteName={siteName}
         isMainDomain={true}
-        hasContactPage={true}
+        hasContactPage={headerData.hasContactPage}
+        hasPricingPage={headerData.hasPricingPage}
+        hasTicketing={hasTicketing}
       />
       <LandingPageContent content={content} showAnimations={true} />
       <LandingPageFooter siteName={siteName} isMainDomain={true} />
