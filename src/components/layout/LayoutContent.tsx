@@ -41,10 +41,13 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
   // Check if we're on a support page (uses shared layout even on main domain)
   const isSupportPage = pathname.startsWith('/support');
 
+  // Check if we're on the landing page
+  const isLandingPage = pathname === '/';
+
   // Use shared Navbar/Footer for:
-  // 1. Tenant subdomains (always)
+  // 1. Tenant subdomains on support pages (NOT landing page - it handles its own header)
   // 2. Main domain /support/* pages (documentation/help center)
-  if (tenant || isSupportPage) {
+  if ((tenant && !isLandingPage) || isSupportPage) {
     return (
       <>
         {/* Progress bar for route transitions */}

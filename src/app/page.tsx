@@ -11,6 +11,8 @@ import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { getHeaderData, getLandingPageContent, getLandingPageContentOrNull } from '@/lib/cms';
 import { MainHeader } from '@/components/layout/MainHeader';
 import { MainFooter } from '@/components/layout/MainFooter';
+import { TenantLandingHeader } from '@/components/layout/TenantLandingHeader';
+import { TenantLandingFooter } from '@/components/layout/TenantLandingFooter';
 
 // Feature icon mapping
 const featureIcons: Record<string, React.ReactNode> = {
@@ -75,17 +77,22 @@ export default async function RootPage() {
 
   // Tenant subdomain - check for optional landing page
   if (tenant) {
-    const tenantLandingContent = await getLandingPageContentOrNull();
+    const [tenantLandingContent, tenantHeaderData] = await Promise.all([
+      getLandingPageContentOrNull(),
+      getHeaderData(),
+    ]);
 
     // No landing page configured - redirect to support hub
     if (!tenantLandingContent) {
       redirect('/support');
     }
 
-    // Tenant has landing page configured - show it
-    // Note: Header/Footer are added automatically by LayoutContent for tenants
+    const tenantSiteName = tenantHeaderData.settings.siteName || tenant.name || 'Help Center';
+
+    // Tenant has landing page configured - show it with its own header/footer
     return (
-      <div className="min-h-screen">
+      <div className="min-h-screen bg-[var(--bg-primary)]">
+        <TenantLandingHeader siteName={tenantSiteName} />
         {/* Hero Section */}
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
@@ -181,6 +188,8 @@ export default async function RootPage() {
             </div>
           </div>
         </section>
+
+        <TenantLandingFooter siteName={tenantSiteName} />
       </div>
     );
   }
