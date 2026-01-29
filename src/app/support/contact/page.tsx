@@ -51,8 +51,8 @@ export default async function ContactPage() {
       enabled: showTicket,
       name: settings.ticketChannel?.name || 'Submit a Ticket',
       icon: PaperPlaneTilt,
-      color: 'var(--accent-warning)',
-      bgColor: 'var(--accent-warning)',
+      color: '#f97316',
+      bgColor: '#f97316',
       href: '/support/ticket',
       external: false,
       bestFor: settings.ticketChannel?.bestFor || [
@@ -257,8 +257,8 @@ export default async function ContactPage() {
                   {/* CTA Button */}
                   <Component
                     {...props}
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold !text-white transition-all hover:opacity-90"
-                    style={{ backgroundColor: channel.bgColor }}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold transition-all hover:opacity-90"
+                    style={{ backgroundColor: channel.bgColor, color: '#ffffff' }}
                   >
                     {channel.name}
                     <CaretRight size={18} weight="bold" />

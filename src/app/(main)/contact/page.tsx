@@ -65,8 +65,8 @@ export default async function ContactPage() {
       enabled: showTicket,
       name: settings.ticketChannel?.name || 'Submit a Ticket',
       icon: PaperPlaneTilt,
-      color: 'var(--accent-warning, #eab308)',
-      bgColor: 'var(--accent-warning, #eab308)',
+      color: '#f97316',
+      bgColor: '#f97316',
       href: `mailto:${emailAddress}?subject=Support%20Ticket`,
       external: true,
       bestFor: settings.ticketChannel?.bestFor || [
@@ -276,8 +276,8 @@ export default async function ContactPage() {
                     href={channel.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
-                    style={{ backgroundColor: channel.bgColor }}
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold transition-all hover:opacity-90"
+                    style={{ backgroundColor: channel.bgColor, color: '#ffffff' }}
                   >
                     {channel.name}
                     <CaretRight size={18} weight="bold" />
@@ -344,7 +344,7 @@ export default async function ContactPage() {
                 <div className="text-sm text-[var(--text-secondary)]">Usually within hours</div>
               </div>
               <div className="text-center p-4">
-                <div className="text-3xl font-bold text-[var(--accent-warning)] mb-1">Tickets</div>
+                <div className="text-3xl font-bold text-[#f97316] mb-1">Tickets</div>
                 <div className="text-sm text-[var(--text-secondary)]">24-48 hours</div>
               </div>
               <div className="text-center p-4">
