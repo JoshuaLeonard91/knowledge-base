@@ -74,6 +74,9 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
   // Check if we're on a support page (use /support/contact instead of /contact)
   const isOnSupportPage = pathname?.startsWith('/support');
 
+  // Check if a Contact link is configured in CMS
+  const hasContactLink = navLinks.some((link) => link.url === '/support/contact' || link.url === '/contact');
+
   // Get icon component from name, fallback to House
   const getIcon = (iconName: string): Icon => {
     return iconMap[iconName] || House;
@@ -111,8 +114,8 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
             {navLinks
-              // On main domain, filter out /support/contact - we add our own Contact link with context-aware URL
-              .filter((link) => !(isMainDomain && link.url === '/support/contact'))
+              // Filter out contact links - we add our own Contact link with context-aware URL
+              .filter((link) => link.url !== '/support/contact' && link.url !== '/contact')
               .map((link) => {
                 const isActive = pathname === link.url;
                 const IconComponent = getIcon(link.icon);
@@ -131,10 +134,10 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                   </Link>
                 );
               })}
-            {/* Main domain: Add Contact link - /support/contact on support pages, /contact elsewhere */}
-            {isMainDomain && (
+            {/* Contact link - only show if configured in CMS */}
+            {hasContactLink && (
               <Link
-                href={isOnSupportPage ? '/support/contact' : '/contact'}
+                href={isMainDomain ? (isOnSupportPage ? '/support/contact' : '/contact') : '/support/contact'}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   pathname === '/contact' || pathname === '/support/contact'
                     ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
@@ -181,8 +184,8 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
         <div className="md:hidden border-t border-[var(--border-primary)] animate-slide-down">
           <div className="px-4 py-4 space-y-2">
             {navLinks
-              // On main domain, filter out /support/contact - we add our own Contact link with context-aware URL
-              .filter((link) => !(isMainDomain && link.url === '/support/contact'))
+              // Filter out contact links - we add our own Contact link with context-aware URL
+              .filter((link) => link.url !== '/support/contact' && link.url !== '/contact')
               .map((link) => {
                 const isActive = pathname === link.url;
                 const IconComponent = getIcon(link.icon);
@@ -202,10 +205,10 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                   </Link>
                 );
               })}
-            {/* Main domain: Add Contact link - /support/contact on support pages, /contact elsewhere */}
-            {isMainDomain && (
+            {/* Contact link - only show if configured in CMS */}
+            {hasContactLink && (
               <Link
-                href={isOnSupportPage ? '/support/contact' : '/contact'}
+                href={isMainDomain ? (isOnSupportPage ? '/support/contact' : '/contact') : '/support/contact'}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                   pathname === '/contact' || pathname === '/support/contact'
