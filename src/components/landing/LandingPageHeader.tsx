@@ -252,11 +252,14 @@ export function LandingPageHeader({
               Contact
             </Link>
           )}
-          {/* Ticket button when ticketing is enabled (main domain or tenant) */}
           {hasTicketing && (
             <Link
               href="/support/ticket"
-              className="btn-primary px-4 py-2 rounded-lg font-medium transition text-sm"
+              className={`transition ${
+                pathname === '/support/ticket'
+                  ? 'text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
             >
               Submit Ticket
             </Link>
