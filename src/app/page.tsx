@@ -92,7 +92,7 @@ export default async function RootPage() {
     // Tenant has landing page configured - show it with its own header/footer
     return (
       <div className="min-h-screen bg-[var(--bg-primary)]">
-        <TenantLandingHeader siteName={tenantSiteName} />
+        <TenantLandingHeader siteName={tenantSiteName} hasContactPage={tenantHeaderData.hasContactPage} />
         {/* Hero Section */}
         <section className="relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
@@ -116,7 +116,7 @@ export default async function RootPage() {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href={tenantLandingContent.heroCtaLink}
-                className="px-8 py-4 bg-[var(--accent-primary)] hover:opacity-90 rounded-xl font-semibold transition text-white text-lg"
+                className="btn-primary px-8 py-4 rounded-xl font-semibold transition text-lg hover:opacity-90"
               >
                 {tenantLandingContent.heroCta}
               </Link>
@@ -181,7 +181,7 @@ export default async function RootPage() {
               </p>
               <Link
                 href={tenantLandingContent.ctaButtonLink}
-                className="inline-block px-8 py-4 bg-[var(--accent-primary)] hover:opacity-90 rounded-xl font-semibold transition text-white text-lg hover:scale-105"
+                className="btn-primary inline-block px-8 py-4 rounded-xl font-semibold transition text-lg hover:opacity-90 hover:scale-105"
               >
                 {tenantLandingContent.ctaButtonText}
               </Link>
