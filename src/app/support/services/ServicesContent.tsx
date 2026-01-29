@@ -169,14 +169,6 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
               </div>
             )}
 
-            <button
-              onClick={() => openContactModal()}
-              className="btn btn-primary animate-slide-up"
-              style={{ animationDelay: '0.2s' }}
-            >
-              Get Started
-              <ArrowRight size={18} weight="bold" />
-            </button>
           </div>
         </div>
       </section>
