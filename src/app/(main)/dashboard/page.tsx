@@ -102,8 +102,8 @@ export default function DashboardPage() {
             context: 'main',
             user: {
               id: sessionData.user?.id,
-              username: sessionData.user?.username || 'User',
-              avatar: sessionData.user?.avatar || null,
+              username: sessionData.user?.displayName || 'User',
+              avatar: sessionData.user?.avatarUrl || null,
             },
             subscription: subData.subscription ? {
               status: subData.subscription.status,
@@ -131,8 +131,8 @@ export default function DashboardPage() {
             context: 'tenant',
             user: {
               id: sessionData.user?.id,
-              username: sessionData.user?.username || 'User',
-              avatar: sessionData.user?.avatar || null,
+              username: sessionData.user?.displayName || 'User',
+              avatar: sessionData.user?.avatarUrl || null,
               email: userData.user?.email,
             },
             subscription: userData.subscription ? {
@@ -571,20 +571,6 @@ export default function DashboardPage() {
                   {/* Quick Actions */}
                   <div className="grid grid-cols-2 gap-3">
                     <Link
-                      href="/dashboard/settings"
-                      className="group p-4 bg-[#0a0a0f] hover:bg-white/5 rounded-lg transition"
-                    >
-                      <div className="w-10 h-10 bg-indigo-500/10 rounded-lg flex items-center justify-center mb-3 group-hover:bg-indigo-500/20 transition">
-                        <svg className="w-5 h-5 text-indigo-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                        </svg>
-                      </div>
-                      <h3 className="font-medium text-white mb-0.5">Portal Settings</h3>
-                      <p className="text-xs text-white/40">Branding & features</p>
-                    </Link>
-
-                    <Link
                       href="/dashboard/integrations"
                       className="group p-4 bg-[#0a0a0f] hover:bg-white/5 rounded-lg transition"
                     >
@@ -595,19 +581,6 @@ export default function DashboardPage() {
                       </div>
                       <h3 className="font-medium text-white mb-0.5">Integrations</h3>
                       <p className="text-xs text-white/40">Jira, Hygraph & more</p>
-                    </Link>
-
-                    <Link
-                      href="/dashboard/content"
-                      className="group p-4 bg-[#0a0a0f] hover:bg-white/5 rounded-lg transition"
-                    >
-                      <div className="w-10 h-10 bg-emerald-500/10 rounded-lg flex items-center justify-center mb-3 group-hover:bg-emerald-500/20 transition">
-                        <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                      </div>
-                      <h3 className="font-medium text-white mb-0.5">Content</h3>
-                      <p className="text-xs text-white/40">Articles & categories</p>
                     </Link>
 
                     <Link
