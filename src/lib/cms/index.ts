@@ -29,6 +29,20 @@ export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageC
 type CMSProvider = 'hygraph' | 'local';
 
 /**
+ * Check if the current request is from a tenant subdomain.
+ * Used to decide whether to return empty data or hardcoded defaults
+ * when no Hygraph client is available.
+ */
+async function isTenantContext(): Promise<boolean> {
+  try {
+    const tenant = await getTenantFromRequest();
+    return !!tenant;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Get the Hygraph client for the current request
  * Returns tenant's client if configured, otherwise default client (main domain only)
  * Tenants without their own Hygraph config get null (empty/fallback content)
@@ -95,6 +109,9 @@ export async function getArticles(): Promise<Article[]> {
     return articles;
   }
 
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) return [];
+
   console.log('[CMS] getArticles - using local fallback');
   return localData.articles;
 }
@@ -109,6 +126,8 @@ export async function getCategories(): Promise<ArticleCategory[]> {
     return client.getCategories();
   }
 
+  if (await isTenantContext()) return [];
+
   return localData.categories;
 }
 
@@ -121,6 +140,8 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   if (client) {
     return client.getArticleBySlug(slug);
   }
+
+  if (await isTenantContext()) return null;
 
   return localData.getArticleBySlug(slug) || null;
 }
@@ -135,6 +156,8 @@ export async function searchArticles(query: string): Promise<Article[]> {
     return client.searchArticles(query);
   }
 
+  if (await isTenantContext()) return [];
+
   return localData.searchArticles(query);
 }
 
@@ -147,6 +170,8 @@ export async function getArticlesByCategory(categorySlug: string): Promise<Artic
   if (client) {
     return client.getArticlesByCategory(categorySlug);
   }
+
+  if (await isTenantContext()) return [];
 
   return localData.articles.filter(a => a.category === categorySlug);
 }
@@ -284,6 +309,15 @@ export async function getServicesPageContent(): Promise<ServicesPageContent> {
     return client.getServicesPageContent();
   }
 
+  // Tenants without Hygraph get empty defaults
+  if (await isTenantContext()) {
+    return {
+      heroTitle: '', heroSubtitle: '', servicesTitle: '', servicesSubtitle: '',
+      slaTitle: '', slaSubtitle: '', resourcesTitle: '', resourcesSubtitle: '',
+      ctaTitle: '', ctaSubtitle: '',
+    };
+  }
+
   // Return defaults for local provider
   return {
     heroTitle: 'Discord Solutions That Scale',
@@ -308,6 +342,14 @@ export async function getContactPageSettings(): Promise<ContactPageSettings> {
 
   if (client) {
     return client.getContactPageSettings();
+  }
+
+  // Tenants without Hygraph get empty defaults
+  if (await isTenantContext()) {
+    return {
+      pageTitle: '', pageSubtitle: '', discordUrl: undefined, emailAddress: undefined,
+      responseSectionTitle: '', responseSectionNote: '', showResponseTimes: false,
+    };
   }
 
   // Return defaults for local provider
@@ -346,6 +388,9 @@ export async function getContactChannels(): Promise<ContactChannel[]> {
   if (client) {
     return client.getContactChannels();
   }
+
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) return [];
 
   // Return defaults for local provider
   return [
@@ -408,6 +453,9 @@ export async function getResponseTimeItems(): Promise<ResponseTimeItem[]> {
     return client.getResponseTimeItems();
   }
 
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) return [];
+
   // Return defaults for local provider
   return [
     { id: 'default-discord', label: 'Discord', time: 'Usually within hours', color: '#5865F2', order: 1 },
@@ -425,6 +473,15 @@ export async function getContactPageData(): Promise<ContactPageData> {
 
   if (client) {
     return client.getContactPageData();
+  }
+
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) {
+    return {
+      settings: { pageTitle: '', pageSubtitle: '', discordUrl: undefined, emailAddress: undefined, responseSectionTitle: '', responseSectionNote: '', showResponseTimes: false },
+      channels: [],
+      responseTimes: [],
+    };
   }
 
   // Return defaults for local provider
@@ -453,6 +510,14 @@ export async function getServicesPageData(): Promise<{
 
   if (client) {
     return client.getServicesPageData();
+  }
+
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) {
+    return {
+      services: [], serviceTiers: [], slaHighlights: [], helpfulResources: [],
+      pageContent: { heroTitle: '', heroSubtitle: '', servicesTitle: '', servicesSubtitle: '', slaTitle: '', slaSubtitle: '', resourcesTitle: '', resourcesSubtitle: '', ctaTitle: '', ctaSubtitle: '' },
+    };
   }
 
   // Return defaults for local provider
@@ -494,6 +559,18 @@ export async function getFooterData(): Promise<{
 
   if (client) {
     return client.getFooterData();
+  }
+
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) {
+    return {
+      settings: {
+        siteName: '', subtitle: '', tagline: '', logoIcon: undefined,
+        quickLinksTitle: '', resourcesTitle: '', communityTitle: '',
+        copyrightText: '', privacyPolicyUrl: '', termsOfServiceUrl: '',
+      },
+      links: [],
+    };
   }
 
   // Return defaults for local provider
@@ -556,6 +633,17 @@ export async function getHeaderData(): Promise<{
     };
   }
 
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) {
+    return {
+      settings: { siteName: '', subtitle: '', logoIcon: undefined },
+      navLinks: [],
+      hasContactPage: false,
+      hasLandingPage: false,
+      hasPricingPage: false,
+    };
+  }
+
   // Return defaults for local provider
   return {
     settings: {
@@ -570,9 +658,9 @@ export async function getHeaderData(): Promise<{
       { id: 'default-4', title: 'Submit Ticket', url: '/support/ticket', icon: 'PaperPlaneTilt', order: 4 },
       { id: 'default-5', title: 'Contact', url: '/support/contact', icon: 'Envelope', order: 5 },
     ],
-    hasContactPage: true, // Default to true for local provider
-    hasLandingPage: false, // Default to false for local provider
-    hasPricingPage: false, // Default to false for local provider
+    hasContactPage: true,
+    hasLandingPage: false,
+    hasPricingPage: false,
   };
 }
 
@@ -592,6 +680,9 @@ export async function getTicketCategories(): Promise<TicketCategory[]> {
   if (client) {
     return client.getTicketCategories();
   }
+
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) return [];
 
   // Return defaults for local provider
   return [
@@ -620,6 +711,16 @@ export async function getLandingPageContent(): Promise<LandingPageContent> {
 
   if (client) {
     return client.getLandingPageContent();
+  }
+
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) {
+    return {
+      heroTitle: '', heroHighlight: '', heroSubtitle: '', heroButtonText: '', heroButtonUrl: '',
+      heroSecondaryButtonText: '', heroSecondaryButtonUrl: '',
+      featuresTitle: '', featuresSubtitle: '', features: [],
+      ctaTitle: '', ctaSubtitle: '', ctaButtonText: '', ctaButtonLink: '',
+    };
   }
 
   // Return defaults for local provider
@@ -682,6 +783,15 @@ export async function getPricingPageContent(): Promise<PricingPageContent> {
 
   if (client) {
     return client.getPricingPageContent();
+  }
+
+  // Tenants without Hygraph get empty data
+  if (await isTenantContext()) {
+    return {
+      pageTitle: '', pageSubtitle: '', planName: '', planDescription: '',
+      monthlyPrice: '0', setupFee: '0', features: [],
+      ctaText: '', ctaLink: '', footerNote: '',
+    };
   }
 
   // Return defaults for local provider
@@ -773,6 +883,19 @@ export async function getSignupConfig(context: string): Promise<SignupConfig> {
     return client.getSignupConfig(context);
   }
 
+  // Tenants without Hygraph get empty defaults
+  if (await isTenantContext()) {
+    return {
+      signupEnabled: true,
+      requirePayment: false,
+      allowFreeSignup: true,
+      welcomeTitle: 'Welcome',
+      welcomeSubtitle: '',
+      loginButtonText: 'Sign in with Discord',
+      successRedirect: '/dashboard',
+    };
+  }
+
   // Return defaults
   return {
     signupEnabled: true,
@@ -797,6 +920,19 @@ export async function getOnboardingConfig(context: string): Promise<OnboardingCo
 
   if (client && typeof client.getOnboardingConfig === 'function') {
     return client.getOnboardingConfig(context);
+  }
+
+  // Tenants without Hygraph get minimal onboarding
+  if (await isTenantContext()) {
+    return {
+      steps: [
+        { id: 'welcome', title: 'Welcome!', description: 'Your account has been created.', type: 'WELCOME' as const, required: true },
+      ],
+      completionTitle: 'Welcome!',
+      completionMessage: 'Your account is ready.',
+      completionCtaText: 'Continue',
+      completionCtaLink: '/dashboard',
+    };
   }
 
   // Return defaults for main domain (full portal setup)
