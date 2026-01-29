@@ -17,6 +17,7 @@ interface LayoutContentProps {
   headerData: {
     settings: HeaderSettings;
     navLinks: NavLink[];
+    hasContactPage: boolean;
   };
   footerData: {
     settings: FooterSettings;
@@ -50,7 +51,7 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
         <Suspense fallback={null}>
           <ProgressBar />
         </Suspense>
-        <Navbar settings={headerData.settings} navLinks={headerData.navLinks} />
+        <Navbar settings={headerData.settings} navLinks={headerData.navLinks} hasContactPage={headerData.hasContactPage} />
         <main className="flex-1 pt-16">
           <PageTransition>
             {children}

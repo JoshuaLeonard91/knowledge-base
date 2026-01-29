@@ -10,7 +10,7 @@ export default async function ServicesPage() {
   console.log('[ServicesPage] Fetching data...');
 
   // Fetch all service data from CMS in a single query (reduces API calls from 7 to 1)
-  const { services, serviceTiers, slaHighlights, helpfulResources, pageContent, contactSettings, inquiryTypes } = await getServicesPageData();
+  const { services, serviceTiers, slaHighlights, helpfulResources, pageContent } = await getServicesPageData();
 
   console.log('[ServicesPage] Data received:', {
     servicesCount: services.length,
@@ -18,8 +18,6 @@ export default async function ServicesPage() {
     slaCount: slaHighlights.length,
     resourcesCount: helpfulResources.length,
     hasPageContent: !!pageContent,
-    hasContactSettings: !!contactSettings,
-    inquiryTypesCount: inquiryTypes.length,
   });
 
   // If no services exist in CMS, return 404
@@ -36,8 +34,6 @@ export default async function ServicesPage() {
       slaHighlights={slaHighlights}
       helpfulResources={helpfulResources}
       pageContent={pageContent}
-      contactSettings={contactSettings}
-      inquiryTypes={inquiryTypes}
     />
   );
 }

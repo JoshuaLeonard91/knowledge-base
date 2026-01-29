@@ -21,7 +21,7 @@ import { HygraphClient, createHygraphClient } from '@/lib/hygraph';
 import { getTenantFromRequest } from '@/lib/tenant';
 
 // Re-export service types from Hygraph
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from '@/lib/hygraph';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactPageSettings, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
 
@@ -278,30 +278,7 @@ export async function getServicesPageContent(): Promise<ServicesPageContent> {
   };
 }
 
-import type { ContactSettings, ContactPageSettings, InquiryType } from '@/lib/hygraph';
-
-/**
- * Get contact form settings (for services page modal)
- * Returns defaults if not configured in CMS
- */
-export async function getContactSettings(): Promise<ContactSettings> {
-  const client = await getHygraphClient();
-
-  if (client) {
-    return client.getContactSettings();
-  }
-
-  // Return defaults for local provider
-  return {
-    formTitle: 'Contact Us',
-    formSubtitle: "Tell us about your needs and we'll get back to you shortly.",
-    companyFieldLabel: 'Company / Server Name',
-    companyFieldPlaceholder: 'Enter your company / server name',
-    successTitle: 'Message Sent!',
-    successMessage: 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
-    submitButtonText: 'Send Message',
-  };
-}
+import type { ContactPageSettings } from '@/lib/hygraph';
 
 /**
  * Get contact page settings (for /support/contact page)
@@ -329,23 +306,17 @@ export async function getContactPageSettings(): Promise<ContactPageSettings> {
 }
 
 /**
- * Get inquiry type options for contact form
- * Returns defaults if not configured in CMS
+ * Check if contact page settings exist in CMS
+ * Returns true if ContactPageSettings entry exists (contact page is configured)
  */
-export async function getInquiryTypes(): Promise<InquiryType[]> {
+export async function hasContactPageSettings(): Promise<boolean> {
   const client = await getHygraphClient();
 
   if (client) {
-    return client.getInquiryTypes();
+    return client.hasContactPageSettings();
   }
 
-  // Return defaults for local provider
-  return [
-    { id: 'general', label: 'General Inquiry', order: 1 },
-    { id: 'pricing', label: 'Pricing Information', order: 2 },
-    { id: 'demo', label: 'Request a Demo', order: 3 },
-    { id: 'support', label: 'Support Question', order: 4 },
-  ];
+  return false;
 }
 
 /**
@@ -359,8 +330,6 @@ export async function getServicesPageData(): Promise<{
   slaHighlights: SLAHighlight[];
   helpfulResources: HelpfulResource[];
   pageContent: ServicesPageContent;
-  contactSettings: ContactSettings;
-  inquiryTypes: InquiryType[];
 }> {
   const client = await getHygraphClient();
 
@@ -386,21 +355,6 @@ export async function getServicesPageData(): Promise<{
       ctaTitle: 'Ready to get started?',
       ctaSubtitle: "Let's discuss how we can help your Discord community succeed.",
     },
-    contactSettings: {
-      formTitle: 'Contact Us',
-      formSubtitle: "Tell us about your needs and we'll get back to you shortly.",
-      companyFieldLabel: 'Company / Server Name',
-      companyFieldPlaceholder: 'Enter your company / server name',
-      successTitle: 'Message Sent!',
-      successMessage: 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
-      submitButtonText: 'Send Message',
-    },
-    inquiryTypes: [
-      { id: 'general', label: 'General Inquiry', order: 1 },
-      { id: 'pricing', label: 'Pricing Information', order: 2 },
-      { id: 'demo', label: 'Request a Demo', order: 3 },
-      { id: 'support', label: 'Support Question', order: 4 },
-    ],
   };
 }
 
@@ -457,17 +411,25 @@ export async function getFooterData(): Promise<{
 import type { HeaderSettings, NavLink } from '@/lib/hygraph';
 
 /**
- * Get header/navbar data (settings + nav links)
+ * Get header/navbar data (settings + nav links + contact page availability)
  * Returns defaults if not configured in CMS
  */
 export async function getHeaderData(): Promise<{
   settings: HeaderSettings;
   navLinks: NavLink[];
+  hasContactPage: boolean;
 }> {
   const client = await getHygraphClient();
 
   if (client) {
-    return client.getHeaderData();
+    const [headerData, hasContact] = await Promise.all([
+      client.getHeaderData(),
+      client.hasContactPageSettings(),
+    ]);
+    return {
+      ...headerData,
+      hasContactPage: hasContact,
+    };
   }
 
   // Return defaults for local provider
@@ -484,6 +446,7 @@ export async function getHeaderData(): Promise<{
       { id: 'default-4', title: 'Submit Ticket', url: '/support/ticket', icon: 'PaperPlaneTilt', order: 4 },
       { id: 'default-5', title: 'Contact', url: '/support/contact', icon: 'Envelope', order: 5 },
     ],
+    hasContactPage: true, // Default to true for local provider
   };
 }
 

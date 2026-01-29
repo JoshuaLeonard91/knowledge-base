@@ -60,9 +60,10 @@ const iconMap: Record<string, Icon> = {
 interface NavbarProps {
   settings: HeaderSettings;
   navLinks: NavLink[];
+  hasContactPage: boolean;
 }
 
-export function Navbar({ settings, navLinks }: NavbarProps) {
+export function Navbar({ settings, navLinks, hasContactPage }: NavbarProps) {
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
   const tenant = useTenant();
@@ -73,9 +74,6 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
 
   // Check if we're on a support page (use /support/contact instead of /contact)
   const isOnSupportPage = pathname?.startsWith('/support');
-
-  // Check if a Contact link is configured in CMS
-  const hasContactLink = navLinks.some((link) => link.url === '/support/contact' || link.url === '/contact');
 
   // Get icon component from name, fallback to House
   const getIcon = (iconName: string): Icon => {
@@ -134,8 +132,8 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                   </Link>
                 );
               })}
-            {/* Contact link - only show if configured in CMS */}
-            {hasContactLink && (
+            {/* Contact link - only show if contact page is configured in CMS */}
+            {hasContactPage && (
               <Link
                 href={isMainDomain ? (isOnSupportPage ? '/support/contact' : '/contact') : '/support/contact'}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
@@ -205,8 +203,8 @@ export function Navbar({ settings, navLinks }: NavbarProps) {
                   </Link>
                 );
               })}
-            {/* Contact link - only show if configured in CMS */}
-            {hasContactLink && (
+            {/* Contact link - only show if contact page is configured in CMS */}
+            {hasContactPage && (
               <Link
                 href={isMainDomain ? (isOnSupportPage ? '/support/contact' : '/contact') : '/support/contact'}
                 onClick={() => setMobileMenuOpen(false)}

@@ -24,7 +24,7 @@ export {
 export type { SiteSettings, NavigationLink, NavigationLocation, LandingFeature, LandingFeatureWithStyle, PricingFeature } from './client';
 
 // Types - legacy aliases (for backwards compatibility)
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, ContactPageSettings, InquiryType, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingPageContent, PricingPageContent } from './client';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactPageSettings, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingPageContent, PricingPageContent } from './client';
 
 import { hygraph } from './client';
 
@@ -45,12 +45,9 @@ export const hasServices = () => hygraph.hasServices();
 export const getHelpfulResources = () => hygraph.getHelpfulResources();
 export const getServicesPageContent = () => hygraph.getServicesPageContent();
 
-// Contact (services page modal)
-export const getContactSettings = () => hygraph.getContactSettings();
-export const getInquiryTypes = () => hygraph.getInquiryTypes();
-
 // Contact Page (/support/contact)
 export const getContactPageSettings = () => hygraph.getContactPageSettings();
+export const hasContactPageSettings = () => hygraph.hasContactPageSettings();
 
 // Combined (single query - reduces API calls)
 export const getServicesPageData = () => hygraph.getServicesPageData();

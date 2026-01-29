@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { ServiceContactModal } from '@/components/support/ServiceContactModal';
 import { useIsMainSite } from '@/lib/tenant/context';
-import type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactSettings, InquiryType } from '@/lib/cms';
+import type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent } from '@/lib/cms';
 import {
   ArrowRight, Check, CaretLeft, Sparkle, Star, BookOpenText, CaretRight, CaretDown, CaretUp,
   // Icon mapping for dynamic icons
@@ -42,21 +41,12 @@ interface ServicesContentProps {
   slaHighlights: SLAHighlight[];
   helpfulResources: HelpfulResource[];
   pageContent: ServicesPageContent;
-  contactSettings: ContactSettings;
-  inquiryTypes: InquiryType[];
 }
 
-export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources, pageContent, contactSettings, inquiryTypes }: ServicesContentProps) {
+export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources, pageContent }: ServicesContentProps) {
   const router = useRouter();
   const isMainSite = useIsMainSite();
-  const [isContactModalOpen, setIsContactModalOpen] = useState(false);
-  const [selectedService, setSelectedService] = useState<string>('');
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
-
-  const openContactModal = (serviceId?: string) => {
-    setSelectedService(serviceId || '');
-    setIsContactModalOpen(true);
-  };
 
   // Handle button click
   // - If buttonUrl is set, redirect to that URL (works for both main site and tenants)
@@ -496,25 +486,15 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
                 {pageContent.ctaSubtitle}
               </p>
             </div>
-            <button
-              onClick={() => openContactModal()}
+            <Link
+              href="/support/contact"
               className="flex-shrink-0 px-6 py-3 rounded-xl bg-white text-[var(--accent-primary)] font-semibold hover:bg-white/90 transition-colors shadow-lg"
             >
               Get in Touch
-            </button>
+            </Link>
           </div>
         </div>
       </section>
-
-      {/* Contact Modal */}
-      <ServiceContactModal
-        isOpen={isContactModalOpen}
-        onClose={() => setIsContactModalOpen(false)}
-        preselectedService={selectedService}
-        services={services}
-        contactSettings={contactSettings}
-        inquiryTypes={inquiryTypes}
-      />
     </div>
   );
 }

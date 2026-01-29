@@ -78,21 +78,6 @@ export interface ServicesPageContent {
   ctaSubtitle?: string;
 }
 
-// Contact form settings (CMS-configurable) - for services page modal
-export interface ContactSettings {
-  // Form header
-  formTitle: string;
-  formSubtitle: string;
-  // Field configuration
-  companyFieldLabel: string; // "Company", "Discord Server", "Organization"
-  companyFieldPlaceholder: string; // Auto-generated or custom
-  // Messages
-  successTitle: string;
-  successMessage: string;
-  // Button text
-  submitButtonText: string;
-}
-
 // Contact channel configuration
 export interface ContactChannel {
   enabled: boolean;
@@ -176,13 +161,6 @@ export interface PricingPageContent {
   ctaLink: string;
   // FAQ or additional info
   footerNote?: string;
-}
-
-// Inquiry type options for contact form dropdown
-export interface InquiryType {
-  id: string;
-  label: string;
-  order: number;
 }
 
 // Site settings (CMS-configurable) - merged Header + Footer settings
@@ -292,28 +270,11 @@ interface HygraphServicesPageContent {
   ctaSubtitle?: string;
 }
 
-interface HygraphContactSettings {
-  formTitle?: string;
-  formSubtitle?: string;
-  companyFieldLabel?: string;
-  companyFieldPlaceholder?: string;
-  successTitle?: string;
-  successMessage?: string;
-  submitButtonText?: string;
-}
-
 interface HygraphContactPageSettings {
   pageTitle?: string;
   pageSubtitle?: string;
   discordUrl?: string;
   emailAddress?: string;
-}
-
-interface HygraphInquiryType {
-  id: string;
-  typeId?: string; // Custom field since 'id' is reserved in Hygraph
-  label: string;
-  order?: number;
 }
 
 // Hygraph response type for SiteSettings (merged header + footer)
@@ -1124,39 +1085,6 @@ export class HygraphClient {
   // ==========================================
 
   /**
-   * Get contact form settings (for services page modal)
-   * Returns defaults if not configured in CMS
-   */
-  async getContactSettings(): Promise<ContactSettings> {
-    const data = await this.query<{ contactSettingsEntries: HygraphContactSettings[] }>(`
-      query GetContactSettings {
-        contactSettingsEntries(first: 1) {
-          formTitle
-          formSubtitle
-          companyFieldLabel
-          companyFieldPlaceholder
-          successTitle
-          successMessage
-          submitButtonText
-        }
-      }
-    `);
-
-    const settings = data?.contactSettingsEntries?.[0];
-    const companyLabel = settings?.companyFieldLabel || 'Company / Server Name';
-
-    return {
-      formTitle: settings?.formTitle || 'Contact Us',
-      formSubtitle: settings?.formSubtitle || "Tell us about your needs and we'll get back to you shortly.",
-      companyFieldLabel: companyLabel,
-      companyFieldPlaceholder: settings?.companyFieldPlaceholder || `Enter your ${companyLabel.toLowerCase()}`,
-      successTitle: settings?.successTitle || 'Message Sent!',
-      successMessage: settings?.successMessage || 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
-      submitButtonText: settings?.submitButtonText || 'Send Message',
-    };
-  }
-
-  /**
    * Get contact page settings (for /support/contact page)
    * Returns defaults if not configured in CMS
    */
@@ -1183,35 +1111,19 @@ export class HygraphClient {
   }
 
   /**
-   * Get inquiry type options for contact form
-   * Returns defaults if not configured in CMS
+   * Check if contact page settings exist in CMS
+   * Returns true if ContactPageSettings entry exists (contact page is configured)
    */
-  async getInquiryTypes(): Promise<InquiryType[]> {
-    const data = await this.query<{ inquiryTypes: HygraphInquiryType[] }>(`
-      query GetInquiryTypes {
-        inquiryTypes(first: 10, orderBy: order_ASC) {
-          typeId
-          label
-          order
+  async hasContactPageSettings(): Promise<boolean> {
+    const data = await this.query<{ contactPageSettingsEntries: { id: string }[] }>(`
+      query HasContactPageSettings {
+        contactPageSettingsEntries(first: 1) {
+          id
         }
       }
     `);
 
-    if (data?.inquiryTypes && data.inquiryTypes.length > 0) {
-      return data.inquiryTypes.map((type) => ({
-        id: type.typeId || type.id,
-        label: type.label,
-        order: type.order ?? 0,
-      }));
-    }
-
-    // Return defaults if no CMS content
-    return [
-      { id: 'general', label: 'General Inquiry', order: 1 },
-      { id: 'pricing', label: 'Pricing Information', order: 2 },
-      { id: 'demo', label: 'Request a Demo', order: 3 },
-      { id: 'support', label: 'Support Question', order: 4 },
-    ];
+    return (data?.contactPageSettingsEntries?.length ?? 0) > 0;
   }
 
   // ==========================================
@@ -1220,7 +1132,7 @@ export class HygraphClient {
 
   /**
    * Get all services page data in a single query
-   * This reduces API calls from 7 to 1, avoiding rate limits
+   * This reduces API calls from 5 to 1, avoiding rate limits
    */
   async getServicesPageData(): Promise<{
     services: Service[];
@@ -1228,8 +1140,6 @@ export class HygraphClient {
     slaHighlights: SLAHighlight[]; // Note: Hygraph field is sLAHighlights
     helpfulResources: HelpfulResource[];
     pageContent: ServicesPageContent;
-    contactSettings: ContactSettings;
-    inquiryTypes: InquiryType[];
   }> {
     const data = await this.query<{
       services: HygraphService[];
@@ -1237,8 +1147,6 @@ export class HygraphClient {
       sLAHighlights: HygraphSLAHighlight[];
       helpfulResources: HygraphHelpfulResource[];
       servicesPageContents: HygraphServicesPageContent[];
-      contactSettingsEntries: HygraphContactSettings[];
-      inquiryTypes: HygraphInquiryType[];
     }>(`
       query GetServicesPageData {
         services(first: 12, orderBy: order_ASC) {
@@ -1300,20 +1208,6 @@ export class HygraphClient {
           ctaTitle
           ctaSubtitle
         }
-        contactSettingsEntries(first: 1) {
-          formTitle
-          formSubtitle
-          companyFieldLabel
-          companyFieldPlaceholder
-          successTitle
-          successMessage
-          submitButtonText
-        }
-        inquiryTypes(first: 10, orderBy: order_ASC) {
-          typeId
-          label
-          order
-        }
       }
     `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
 
@@ -1325,8 +1219,6 @@ export class HygraphClient {
       slaCount: data?.sLAHighlights?.length ?? 0,
       resourcesCount: data?.helpfulResources?.length ?? 0,
       hasPageContent: !!data?.servicesPageContents?.[0],
-      hasContactSettings: !!data?.contactSettingsEntries?.[0],
-      inquiryTypesCount: data?.inquiryTypes?.length ?? 0,
     });
 
     // Transform services
@@ -1356,44 +1248,12 @@ export class HygraphClient {
       ctaSubtitle: content?.ctaSubtitle || "Let's discuss how we can help your Discord community succeed.",
     };
 
-    // Contact settings with defaults (form fields only - page fields fetched separately)
-    const settings = data?.contactSettingsEntries?.[0];
-    const companyLabel = settings?.companyFieldLabel || 'Company / Server Name';
-    const contactSettings: ContactSettings = {
-      formTitle: settings?.formTitle || 'Contact Us',
-      formSubtitle: settings?.formSubtitle || "Tell us about your needs and we'll get back to you shortly.",
-      companyFieldLabel: companyLabel,
-      companyFieldPlaceholder: settings?.companyFieldPlaceholder || `Enter your ${companyLabel.toLowerCase()}`,
-      successTitle: settings?.successTitle || 'Message Sent!',
-      successMessage: settings?.successMessage || 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
-      submitButtonText: settings?.submitButtonText || 'Send Message',
-    };
-
-    // Inquiry types with defaults
-    let inquiryTypes: InquiryType[];
-    if (data?.inquiryTypes && data.inquiryTypes.length > 0) {
-      inquiryTypes = data.inquiryTypes.map((type) => ({
-        id: type.typeId || type.id,
-        label: type.label,
-        order: type.order ?? 0,
-      }));
-    } else {
-      inquiryTypes = [
-        { id: 'general', label: 'General Inquiry', order: 1 },
-        { id: 'pricing', label: 'Pricing Information', order: 2 },
-        { id: 'demo', label: 'Request a Demo', order: 3 },
-        { id: 'support', label: 'Support Question', order: 4 },
-      ];
-    }
-
     return {
       services,
       serviceTiers,
       slaHighlights,
       helpfulResources,
       pageContent,
-      contactSettings,
-      inquiryTypes,
     };
   }
 
