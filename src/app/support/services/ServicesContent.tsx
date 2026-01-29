@@ -72,13 +72,21 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
     }
   };
 
+  // Handle tier button click
+  // - Main domain: Always use internal signup flow (Discord OAuth → Onboarding → Stripe API)
+  // - Tenant subdomains: Use buttonUrl from CMS (Stripe Payment Links) or redirect to contact page
   const handleTierClick = (tier: ServiceTier) => {
+    // Main domain: Always use internal checkout flow
+    if (isMainSite) {
+      router.push(`/signup?product=${tier.slug}`);
+      return;
+    }
+
+    // Tenant subdomains: Use buttonUrl from CMS or redirect to contact page
     if (tier.buttonUrl) {
       window.location.href = tier.buttonUrl;
-    } else if (isMainSite) {
-      router.push('/pricing');
     } else {
-      openContactModal();
+      router.push('/support/contact');
     }
   };
 
