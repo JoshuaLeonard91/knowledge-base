@@ -22,8 +22,9 @@ export const metadata = {
 };
 
 // Helper to get Phosphor icon by name
-function getPhosphorIcon(name: string): React.ComponentType<{ size?: number; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone'; className?: string; style?: React.CSSProperties }> {
-  const icons = PhosphorIcons as Record<string, React.ComponentType<{ size?: number; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone'; className?: string; style?: React.CSSProperties }>>;
+type IconProps = { size?: number; weight?: 'thin' | 'light' | 'regular' | 'bold' | 'fill' | 'duotone'; className?: string; style?: React.CSSProperties };
+function getPhosphorIcon(name: string): React.ComponentType<IconProps> {
+  const icons = PhosphorIcons as unknown as Record<string, React.ComponentType<IconProps>>;
   return icons[name] || icons.ChatCircle;
 }
 
