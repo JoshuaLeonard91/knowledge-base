@@ -12,7 +12,7 @@
  * See: docs/CLIENT_HYGRAPH_SETUP.md
  */
 
-import { Article, ArticleCategory } from '@/types';
+import { Article, ArticleCategory, ContactChannel, ResponseTimeItem, ContactPageSettings, ContactPageData } from '@/types';
 
 // Import providers
 import * as localData from '@/lib/data/articles';
@@ -20,8 +20,11 @@ import * as hygraph from '@/lib/hygraph';
 import { HygraphClient, createHygraphClient } from '@/lib/hygraph';
 import { getTenantFromRequest } from '@/lib/tenant';
 
+// Re-export types from central types file
+export type { ContactChannel, ResponseTimeItem, ContactPageSettings, ContactPageData } from '@/types';
+
 // Re-export service types from Hygraph
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactPageSettings, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from '@/lib/hygraph';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
 
@@ -294,8 +297,6 @@ export async function getServicesPageContent(): Promise<ServicesPageContent> {
   };
 }
 
-import type { ContactPageSettings } from '@/lib/hygraph';
-
 /**
  * Get contact page settings (for /support/contact page)
  * Returns defaults if not configured in CMS
@@ -309,14 +310,12 @@ export async function getContactPageSettings(): Promise<ContactPageSettings> {
 
   // Return defaults for local provider
   return {
-    pageTitle: undefined,
-    pageSubtitle: undefined,
+    pageTitle: 'Contact Us',
+    pageSubtitle: 'Have questions or need assistance? We\'re here to help.',
     discordUrl: undefined,
     emailAddress: undefined,
-    ticketChannel: { enabled: true },
-    discordChannel: { enabled: true },
-    emailChannel: { enabled: true },
-    showDecisionGuide: true,
+    responseSectionTitle: 'Response Time Expectations',
+    responseSectionNote: 'Response times may vary based on complexity and current volume.',
     showResponseTimes: true,
   };
 }
@@ -333,6 +332,107 @@ export async function hasContactPageSettings(): Promise<boolean> {
   }
 
   return false;
+}
+
+/**
+ * Get contact channels for contact page
+ * Returns enabled channels sorted by order
+ */
+export async function getContactChannels(): Promise<ContactChannel[]> {
+  const client = await getHygraphClient();
+
+  if (client) {
+    return client.getContactChannels();
+  }
+
+  // Return defaults for local provider
+  return [
+    {
+      id: 'default-ticket',
+      name: 'Submit a Ticket',
+      slug: 'ticket',
+      description: 'Create a support ticket for detailed technical issues, billing questions, or requests that need formal tracking.',
+      icon: 'Ticket',
+      color: '#f97316',
+      url: '/support/ticket',
+      external: false,
+      responseTime: '24-48 hours',
+      bestFor: ['Detailed technical problems', 'Billing or account issues', 'Feature requests'],
+      features: ['Tracked responses', 'File attachments', 'Priority queue'],
+      order: 1,
+      enabled: true,
+    },
+    {
+      id: 'default-discord',
+      name: 'Join Discord',
+      slug: 'discord',
+      description: 'Connect with our community and support team in real-time. Great for quick questions and community discussions.',
+      icon: 'DiscordLogo',
+      color: '#5865F2',
+      url: '#',
+      external: true,
+      responseTime: 'Usually within hours',
+      bestFor: ['Quick questions', 'Community discussions', 'Real-time support'],
+      features: ['Real-time chat', 'Community help', 'Announcements'],
+      order: 2,
+      enabled: true,
+    },
+    {
+      id: 'default-email',
+      name: 'Email Us',
+      slug: 'email',
+      description: 'Send us an email directly for business inquiries, partnerships, or if you prefer traditional communication.',
+      icon: 'Envelope',
+      color: '#10B981',
+      url: 'mailto:support@example.com',
+      external: true,
+      responseTime: '1-2 business days',
+      bestFor: ['Business inquiries', 'Partnership requests', 'Formal documentation'],
+      features: ['Formal communication', 'Document sharing', 'Record keeping'],
+      order: 3,
+      enabled: true,
+    },
+  ];
+}
+
+/**
+ * Get response time items for contact page
+ * Returns items sorted by order
+ */
+export async function getResponseTimeItems(): Promise<ResponseTimeItem[]> {
+  const client = await getHygraphClient();
+
+  if (client) {
+    return client.getResponseTimeItems();
+  }
+
+  // Return defaults for local provider
+  return [
+    { id: 'default-discord', label: 'Discord', time: 'Usually within hours', color: '#5865F2', order: 1 },
+    { id: 'default-tickets', label: 'Tickets', time: '24-48 hours', color: '#f97316', order: 2 },
+    { id: 'default-email', label: 'Email', time: '1-2 business days', color: '#10B981', order: 3 },
+  ];
+}
+
+/**
+ * Get all contact page data in a single combined query
+ * Reduces API calls from 3 to 1
+ */
+export async function getContactPageData(): Promise<ContactPageData> {
+  const client = await getHygraphClient();
+
+  if (client) {
+    return client.getContactPageData();
+  }
+
+  // Return defaults for local provider
+  const [settings, channels, responseTimes] = await Promise.all([
+    getContactPageSettings(),
+    getContactChannels(),
+    getResponseTimeItems(),
+  ]);
+
+  return { settings, channels, responseTimes };
 }
 
 /**

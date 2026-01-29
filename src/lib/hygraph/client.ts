@@ -5,7 +5,7 @@
  * Uses native fetch for GraphQL queries - no Apollo dependency needed.
  */
 
-import { Article, ArticleCategory, ArticleContent } from '@/types';
+import { Article, ArticleCategory, ArticleContent, ContactChannel, ResponseTimeItem, ContactPageSettings, ContactPageData } from '@/types';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 
 // Service types for CMS
@@ -78,30 +78,13 @@ export interface ServicesPageContent {
   ctaSubtitle?: string;
 }
 
-// Contact channel configuration
-export interface ContactChannel {
-  enabled: boolean;
-  name?: string;
-  description?: string;
-  responseTime?: string;
-  bestFor?: string[];
-}
-
-// Contact page settings (CMS-configurable) - for /support/contact page
-export interface ContactPageSettings {
-  pageTitle?: string;
-  pageSubtitle?: string;
-  discordUrl?: string;
-  emailAddress?: string;
-  // Channel-specific settings
-  ticketChannel?: ContactChannel;
-  discordChannel?: ContactChannel;
-  emailChannel?: ContactChannel;
-  // Decision guide toggle
-  showDecisionGuide?: boolean;
-  // Response times section toggle
-  showResponseTimes?: boolean;
-}
+// Re-export contact types from central types file
+export type {
+  ContactChannel,
+  ResponseTimeItem,
+  ContactPageSettings,
+  ContactPageData,
+} from '@/types';
 
 // Landing page feature for main domain (component)
 export interface LandingFeature {
@@ -276,6 +259,35 @@ interface HygraphContactPageSettings {
   pageSubtitle?: string;
   discordUrl?: string;
   emailAddress?: string;
+  responseSectionTitle?: string;
+  responseSectionNote?: string;
+  showResponseTimes?: boolean;
+}
+
+// Hygraph response type for ContactChannel
+interface HygraphContactChannel {
+  id: string;
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string;
+  color?: string;
+  url: string;
+  external?: boolean;
+  responseTime?: string;
+  bestFor?: string[];
+  features?: string[];
+  order?: number;
+  enabled?: boolean;
+}
+
+// Hygraph response type for ResponseTimeItem
+interface HygraphResponseTimeItem {
+  id: string;
+  label: string;
+  time: string;
+  color?: string;
+  order?: number;
 }
 
 // Hygraph response type for SiteSettings (merged header + footer)
@@ -1083,7 +1095,7 @@ export class HygraphClient {
   }
 
   // ==========================================
-  // CONTACT SETTINGS
+  // CONTACT PAGE DATA
   // ==========================================
 
   /**
@@ -1098,6 +1110,9 @@ export class HygraphClient {
           pageSubtitle
           discordUrl
           emailAddress
+          responseSectionTitle
+          responseSectionNote
+          showResponseTimes
         }
       }
     `);
@@ -1109,6 +1124,9 @@ export class HygraphClient {
       pageSubtitle: settings?.pageSubtitle,
       discordUrl: settings?.discordUrl,
       emailAddress: settings?.emailAddress,
+      responseSectionTitle: settings?.responseSectionTitle,
+      responseSectionNote: settings?.responseSectionNote,
+      showResponseTimes: settings?.showResponseTimes,
     };
   }
 
@@ -1126,6 +1144,171 @@ export class HygraphClient {
     `);
 
     return (data?.contactPageSettingsEntries?.length ?? 0) > 0;
+  }
+
+  /**
+   * Get contact channels for contact page
+   * Returns enabled channels sorted by order
+   */
+  async getContactChannels(): Promise<ContactChannel[]> {
+    const data = await this.query<{ contactChannels: HygraphContactChannel[] }>(`
+      query GetContactChannels {
+        contactChannels(first: 10, orderBy: order_ASC) {
+          id
+          name
+          slug
+          description
+          icon
+          color
+          url
+          external
+          responseTime
+          bestFor
+          features
+          order
+          enabled
+        }
+      }
+    `);
+
+    if (!data?.contactChannels) {
+      return [];
+    }
+
+    return data.contactChannels
+      .filter((channel) => channel.enabled !== false) // Only return enabled channels
+      .map((channel) => this.transformContactChannel(channel));
+  }
+
+  /**
+   * Get response time items for contact page
+   * Returns items sorted by order
+   */
+  async getResponseTimeItems(): Promise<ResponseTimeItem[]> {
+    const data = await this.query<{ responseTimeItems: HygraphResponseTimeItem[] }>(`
+      query GetResponseTimeItems {
+        responseTimeItems(first: 10, orderBy: order_ASC) {
+          id
+          label
+          time
+          color
+          order
+        }
+      }
+    `);
+
+    if (!data?.responseTimeItems) {
+      return [];
+    }
+
+    return data.responseTimeItems.map((item) => this.transformResponseTimeItem(item));
+  }
+
+  /**
+   * Get all contact page data in a single combined query
+   * Reduces API calls from 3 to 1
+   */
+  async getContactPageData(): Promise<ContactPageData> {
+    const data = await this.query<{
+      contactPageSettingsEntries: HygraphContactPageSettings[];
+      contactChannels: HygraphContactChannel[];
+      responseTimeItems: HygraphResponseTimeItem[];
+    }>(`
+      query GetContactPageData {
+        contactPageSettingsEntries(first: 1) {
+          pageTitle
+          pageSubtitle
+          discordUrl
+          emailAddress
+          responseSectionTitle
+          responseSectionNote
+          showResponseTimes
+        }
+        contactChannels(first: 10, orderBy: order_ASC) {
+          id
+          name
+          slug
+          description
+          icon
+          color
+          url
+          external
+          responseTime
+          bestFor
+          features
+          order
+          enabled
+        }
+        responseTimeItems(first: 10, orderBy: order_ASC) {
+          id
+          label
+          time
+          color
+          order
+        }
+      }
+    `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
+
+    // Transform settings
+    const settingsData = data?.contactPageSettingsEntries?.[0];
+    const settings: ContactPageSettings = {
+      pageTitle: settingsData?.pageTitle,
+      pageSubtitle: settingsData?.pageSubtitle,
+      discordUrl: settingsData?.discordUrl,
+      emailAddress: settingsData?.emailAddress,
+      responseSectionTitle: settingsData?.responseSectionTitle,
+      responseSectionNote: settingsData?.responseSectionNote,
+      showResponseTimes: settingsData?.showResponseTimes,
+    };
+
+    // Transform channels (filter to enabled only)
+    const channels = (data?.contactChannels || [])
+      .filter((channel) => channel.enabled !== false)
+      .map((channel) => this.transformContactChannel(channel));
+
+    // Transform response times
+    const responseTimes = (data?.responseTimeItems || [])
+      .map((item) => this.transformResponseTimeItem(item));
+
+    return {
+      settings,
+      channels,
+      responseTimes,
+    };
+  }
+
+  /**
+   * Transform Hygraph contact channel to our ContactChannel type
+   */
+  private transformContactChannel(channel: HygraphContactChannel): ContactChannel {
+    return {
+      id: channel.id,
+      name: channel.name,
+      slug: channel.slug,
+      description: channel.description || '',
+      icon: channel.icon || 'ChatCircle',
+      color: channel.color || 'var(--accent-primary)',
+      url: channel.url,
+      external: channel.external ?? false,
+      responseTime: channel.responseTime || '',
+      bestFor: channel.bestFor || [],
+      features: channel.features || [],
+      order: channel.order ?? 0,
+      enabled: channel.enabled ?? true,
+    };
+  }
+
+  /**
+   * Transform Hygraph response time item
+   */
+  private transformResponseTimeItem(item: HygraphResponseTimeItem): ResponseTimeItem {
+    return {
+      id: item.id,
+      label: item.label,
+      time: item.time,
+      color: item.color || 'var(--accent-primary)',
+      order: item.order ?? 0,
+    };
   }
 
   // ==========================================

@@ -100,3 +100,47 @@ export interface UserHistory {
   recentSearches: SearchHistoryItem[];
   viewedArticles: ViewHistoryItem[];
 }
+
+// Contact channel (CMS-driven contact methods)
+export interface ContactChannel {
+  id: string;
+  name: string;
+  slug: string;
+  description: string;
+  icon: string;
+  color: string;
+  url: string;
+  external: boolean;
+  responseTime: string;
+  bestFor: string[];
+  features: string[];
+  order: number;
+  enabled: boolean;
+}
+
+// Response time item (CMS-driven response times section)
+export interface ResponseTimeItem {
+  id: string;
+  label: string;
+  time: string;
+  color: string;
+  order: number;
+}
+
+// Contact page settings (CMS singleton)
+export interface ContactPageSettings {
+  pageTitle?: string;
+  pageSubtitle?: string;
+  discordUrl?: string;
+  emailAddress?: string;
+  responseSectionTitle?: string;
+  responseSectionNote?: string;
+  showResponseTimes?: boolean;
+}
+
+// Combined contact page data
+export interface ContactPageData {
+  settings: ContactPageSettings;
+  channels: ContactChannel[];
+  responseTimes: ResponseTimeItem[];
+}
