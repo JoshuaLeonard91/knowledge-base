@@ -216,19 +216,16 @@ export function LandingPageHeader({
           {siteName}
         </Link>
         <div className="flex items-center gap-6">
-          {/* Main domain shows Pricing */}
-          {isMainDomain && (
-            <Link
-              href={urls.pricing}
-              className={`transition ${
-                pathname === urls.pricing
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Pricing
-            </Link>
-          )}
+          <Link
+            href={urls.pricing}
+            className={`transition ${
+              pathname === urls.pricing
+                ? 'text-[var(--text-primary)]'
+                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+            }`}
+          >
+            Pricing
+          </Link>
           <Link
             href={urls.support}
             className={`transition ${
