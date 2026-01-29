@@ -14,6 +14,7 @@ import { prisma } from '@/lib/db/client';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { Prisma } from '@/generated/prisma';
+import { hasActiveAccess, syncSubscriptionWithStripe } from '@/lib/subscription/helpers';
 
 // Security headers for API responses
 const securityHeaders = {
@@ -170,7 +171,7 @@ export async function POST(request: NextRequest) {
 
     // Main domain - create a new tenant
     // First, get the main User record
-    const user = await prisma.user.findUnique({
+    let user = await prisma.user.findUnique({
       where: { discordId: session.id },
       include: { subscription: true },
     });
@@ -182,8 +183,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Sync with Stripe to ensure DB status is current
+    if (user.subscription) {
+      const synced = await syncSubscriptionWithStripe(user.subscription);
+      if (synced) {
+        user = await prisma.user.findUnique({
+          where: { discordId: session.id },
+          include: { subscription: true },
+        }) || user;
+      }
+    }
+
     // Check if user has an active subscription
-    if (!user.subscription || user.subscription.status !== 'ACTIVE') {
+    if (!hasActiveAccess(user.subscription)) {
       return NextResponse.json(
         { error: 'Active subscription required' },
         { status: 403, headers: securityHeaders }

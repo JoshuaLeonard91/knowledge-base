@@ -440,7 +440,7 @@ export default function DashboardPage() {
             </p>
             <Link
               href="/onboarding"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition text-white"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold transition !text-white"
             >
               Continue Setup
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

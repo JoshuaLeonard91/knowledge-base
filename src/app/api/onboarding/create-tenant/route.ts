@@ -9,7 +9,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
-import { getUserByDiscordId, hasActiveAccess } from '@/lib/subscription/helpers';
+import { getUserByDiscordId, hasActiveAccess, syncSubscriptionWithStripe } from '@/lib/subscription/helpers';
 import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 import { TenantStatus, TenantPlan } from '@/generated/prisma';
@@ -57,7 +57,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user from database and verify subscription
-    const user = await getUserByDiscordId(session.id);
+    let user = await getUserByDiscordId(session.id);
+    // Sync with Stripe to ensure DB status is current
+    if (user?.subscription) {
+      const synced = await syncSubscriptionWithStripe(user.subscription);
+      if (synced) {
+        user = await getUserByDiscordId(session.id);
+      }
+    }
     if (!user || !hasActiveAccess(user.subscription)) {
       return NextResponse.json(
         { success: false, error: 'Active subscription required' },
