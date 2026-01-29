@@ -35,7 +35,13 @@ async function getHygraphClient(): Promise<HygraphClient | null> {
 
     // If tenant has Hygraph config, use their client
     if (tenant?.hygraph?.endpoint && tenant?.hygraph?.token) {
+      console.log(`[CMS] Using tenant Hygraph config for: ${tenant.slug}`);
       return createHygraphClient(tenant.hygraph.endpoint, tenant.hygraph.token);
+    }
+
+    // Tenant exists but no Hygraph config - fall through to default
+    if (tenant) {
+      console.log(`[CMS] Tenant ${tenant.slug} has no Hygraph config, using default`);
     }
   } catch {
     // Not in a request context (e.g., build time), fall through to default
@@ -43,9 +49,11 @@ async function getHygraphClient(): Promise<HygraphClient | null> {
 
   // Fall back to default client (env vars)
   if (hygraph.isAvailable()) {
+    console.log('[CMS] Using default Hygraph client (env vars)');
     return hygraph.hygraph;
   }
 
+  console.log('[CMS] No Hygraph client available');
   return null;
 }
 
@@ -535,10 +543,13 @@ export async function getLandingPageContentOrNull(): Promise<LandingPageContent 
   const client = await getHygraphClient();
 
   if (client) {
-    return client.getLandingPageContentOrNull();
+    const content = await client.getLandingPageContentOrNull();
+    console.log('[CMS] getLandingPageContentOrNull:', content ? 'found' : 'null');
+    return content;
   }
 
   // Local provider has no landing page by default
+  console.log('[CMS] getLandingPageContentOrNull: no client, returning null');
   return null;
 }
 

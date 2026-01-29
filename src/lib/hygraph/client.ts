@@ -1595,6 +1595,7 @@ export class HygraphClient {
    * Used for optional tenant landing pages
    */
   async getLandingPageContentOrNull(): Promise<LandingPageContent | null> {
+    console.log('[Hygraph] getLandingPageContentOrNull: starting query...');
     const data = await this.query<{
       landingPageContents: Array<{
         heroTitle?: string;
@@ -1641,10 +1642,18 @@ export class HygraphClient {
       }
     `);
 
+    console.log('[Hygraph] getLandingPageContentOrNull: query result:', {
+      hasData: !!data,
+      contentsLength: data?.landingPageContents?.length ?? 0,
+      firstContent: data?.landingPageContents?.[0] ? 'exists' : 'null',
+      heroTitle: data?.landingPageContents?.[0]?.heroTitle ?? 'undefined',
+    });
+
     const content = data?.landingPageContents?.[0];
 
     // Return null if no content exists in CMS
     if (!content || !content.heroTitle) {
+      console.log('[Hygraph] getLandingPageContentOrNull: returning null (no content or no heroTitle)');
       return null;
     }
 
