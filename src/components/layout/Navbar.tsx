@@ -61,9 +61,10 @@ interface NavbarProps {
   settings: HeaderSettings;
   navLinks: NavLink[];
   hasContactPage: boolean;
+  hasLandingPage: boolean;
 }
 
-export function Navbar({ settings, navLinks, hasContactPage }: NavbarProps) {
+export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: NavbarProps) {
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
   const tenant = useTenant();
@@ -84,8 +85,8 @@ export function Navbar({ settings, navLinks, hasContactPage }: NavbarProps) {
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
-          {/* Logo - goes to landing page on main domain, support hub on tenant */}
-          <Link href={isMainDomain ? '/' : '/support'} className="flex items-center gap-3 group">
+          {/* Logo - goes to landing page if configured, otherwise support hub */}
+          <Link href={isMainDomain || hasLandingPage ? '/' : '/support'} className="flex items-center gap-3 group">
             {settings.logoIcon ? (
               <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
                 <Image

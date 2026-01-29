@@ -1,3 +1,9 @@
+/**
+ * Contact Page (CMS-driven)
+ *
+ * Uses CSS variables for theming consistency with landing page.
+ */
+
 import Link from 'next/link';
 import {
   PaperPlaneTilt,
@@ -14,8 +20,8 @@ import {
   Headset,
 } from '@phosphor-icons/react/dist/ssr';
 import { getHeaderData, getContactPageSettings } from '@/lib/cms';
-import { MainHeader } from '@/components/layout/MainHeader';
-import { MainFooter } from '@/components/layout/MainFooter';
+import { getTenantFromRequest } from '@/lib/tenant';
+import { LandingPageHeader, LandingPageFooter } from '@/components/landing';
 
 export const metadata = {
   title: 'Contact Us | Help Portal',
@@ -31,6 +37,8 @@ const defaults = {
 };
 
 export default async function ContactPage() {
+  const tenant = await getTenantFromRequest();
+  const isMainDomain = !tenant;
   const headerData = await getHeaderData();
   const settings = await getContactPageSettings();
   const siteName = headerData.settings.siteName || 'Help Portal';
@@ -55,8 +63,8 @@ export default async function ContactPage() {
       enabled: showTicket,
       name: settings.ticketChannel?.name || 'Submit a Ticket',
       icon: PaperPlaneTilt,
-      color: '#eab308',
-      bgColor: '#eab308',
+      color: 'var(--accent-warning, #eab308)',
+      bgColor: 'var(--accent-warning, #eab308)',
       href: `mailto:${emailAddress}?subject=Support%20Ticket`,
       external: true,
       bestFor: settings.ticketChannel?.bestFor || [
@@ -101,8 +109,8 @@ export default async function ContactPage() {
       enabled: showEmail,
       name: settings.emailChannel?.name || 'Email Us',
       icon: Envelope,
-      color: '#6366f1',
-      bgColor: '#6366f1',
+      color: 'var(--accent-primary)',
+      bgColor: 'var(--accent-primary)',
       href: `mailto:${emailAddress}`,
       external: true,
       bestFor: settings.emailChannel?.bestFor || [
@@ -148,37 +156,41 @@ export default async function ContactPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0a0f] to-[#12121a]">
-      <MainHeader siteName={siteName} />
+    <div className="min-h-screen bg-[var(--bg-primary)]">
+      <LandingPageHeader
+        siteName={siteName}
+        isMainDomain={isMainDomain}
+        hasContactPage={headerData.hasContactPage}
+      />
 
       {/* Hero Section */}
       <section className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#12121a] to-[#0a0a0f]" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-indigo-900/20 via-transparent to-transparent" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-indigo-500/10 blur-[100px]" />
+        <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[var(--accent-primary)]/20 via-transparent to-transparent" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[var(--accent-primary)]/10 blur-[100px]" />
 
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500/10 border border-indigo-500/20 mb-6">
-            <Sparkle size={16} weight="duotone" className="text-indigo-400" />
-            <span className="text-sm font-medium text-indigo-400">Contact Us</span>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 mb-6">
+            <Sparkle size={16} weight="duotone" className="text-[var(--accent-primary)]" />
+            <span className="text-sm font-medium text-[var(--accent-primary)]">Contact Us</span>
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-6">
+          <h1 className="text-4xl md:text-5xl font-bold text-[var(--text-primary)] mb-6">
             {pageTitle.includes(' ') ? (
               <>
                 {pageTitle.split(' ').slice(0, -1).join(' ')}{' '}
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
                   {pageTitle.split(' ').slice(-1)[0]}
                 </span>
               </>
             ) : (
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-purple-400">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
                 {pageTitle}
               </span>
             )}
           </h1>
 
-          <p className="text-lg text-white/60 max-w-2xl mx-auto">
+          <p className="text-lg text-[var(--text-secondary)] max-w-2xl mx-auto">
             {pageSubtitle}
           </p>
         </div>
@@ -193,7 +205,7 @@ export default async function ContactPage() {
             return (
               <div
                 key={channel.id}
-                className="group relative rounded-2xl bg-[#16161f] border border-white/10 overflow-hidden hover:border-white/20 transition-all"
+                className="group relative rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] overflow-hidden hover:border-[var(--border-hover)] transition-all"
               >
                 {/* Top accent bar */}
                 <div
@@ -206,15 +218,15 @@ export default async function ContactPage() {
                   <div className="flex items-center gap-4 mb-4">
                     <div
                       className="p-3 rounded-xl"
-                      style={{ backgroundColor: `${channel.bgColor}20` }}
+                      style={{ backgroundColor: `color-mix(in srgb, ${channel.bgColor} 20%, transparent)` }}
                     >
                       <Icon size={28} weight="duotone" style={{ color: channel.color }} />
                     </div>
                     <div>
-                      <h3 className="text-xl font-semibold text-white">
+                      <h3 className="text-xl font-semibold text-[var(--text-primary)]">
                         {channel.name}
                       </h3>
-                      <div className="flex items-center gap-1 text-sm text-white/50">
+                      <div className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
                         <Clock size={14} weight="duotone" />
                         {channel.responseTime}
                       </div>
@@ -222,7 +234,7 @@ export default async function ContactPage() {
                   </div>
 
                   {/* Description */}
-                  <p className="text-white/60 mb-4">
+                  <p className="text-[var(--text-secondary)] mb-4">
                     {channel.description}
                   </p>
 
@@ -233,7 +245,7 @@ export default async function ContactPage() {
                       return (
                         <span
                           key={idx}
-                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-white/5 text-xs text-white/60"
+                          className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--bg-tertiary)] text-xs text-[var(--text-secondary)]"
                         >
                           <FeatureIcon size={12} weight="duotone" />
                           {feature.text}
@@ -244,11 +256,11 @@ export default async function ContactPage() {
 
                   {/* Best for list */}
                   <div className="mb-6">
-                    <p className="text-sm font-medium text-white mb-2">Best for:</p>
+                    <p className="text-sm font-medium text-[var(--text-primary)] mb-2">Best for:</p>
                     <ul className="space-y-1">
                       {channel.bestFor.map((item, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-sm text-white/60">
-                          <CheckCircle size={16} weight="duotone" className="text-green-400 flex-shrink-0 mt-0.5" />
+                        <li key={idx} className="flex items-start gap-2 text-sm text-[var(--text-secondary)]">
+                          <CheckCircle size={16} weight="duotone" className="text-[var(--accent-success)] flex-shrink-0 mt-0.5" />
                           {item}
                         </li>
                       ))}
@@ -260,7 +272,7 @@ export default async function ContactPage() {
                     href={channel.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold !text-white transition-all hover:opacity-90"
+                    className="flex items-center justify-center gap-2 w-full py-3 rounded-xl font-semibold text-white transition-all hover:opacity-90"
                     style={{ backgroundColor: channel.bgColor }}
                   >
                     {channel.name}
@@ -277,10 +289,10 @@ export default async function ContactPage() {
       {showDecisionGuide && (
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-white mb-4">
+            <h2 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-4">
               Not sure which to choose?
             </h2>
-            <p className="text-white/60">
+            <p className="text-[var(--text-secondary)]">
               Here&apos;s a quick guide to help you pick the right channel
             </p>
           </div>
@@ -289,20 +301,20 @@ export default async function ContactPage() {
             {decisionGuide.map((item, idx) => (
               <div
                 key={idx}
-                className="p-6 rounded-xl bg-[#16161f] border border-white/10"
+                className="p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]"
               >
                 <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div>
-                    <h3 className="font-semibold text-white mb-1">
+                    <h3 className="font-semibold text-[var(--text-primary)] mb-1">
                       {item.question}
                     </h3>
-                    <p className="text-white/60">
+                    <p className="text-[var(--text-secondary)]">
                       {item.answer}
                     </p>
                   </div>
                   <Link
                     href={item.action.href}
-                    className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-indigo-500/10 text-indigo-400 font-medium hover:bg-indigo-500/20 transition-colors"
+                    className="flex-shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium hover:bg-[var(--accent-primary)]/20 transition-colors"
                   >
                     {item.action.text}
                     <CaretRight size={16} weight="bold" />
@@ -317,34 +329,34 @@ export default async function ContactPage() {
       {/* Response Time Expectations */}
       {showResponseTimes && (
         <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-          <div className="rounded-2xl bg-gradient-to-r from-[#16161f] to-[#1a1a24] border border-white/10 p-8">
-            <h2 className="text-xl font-bold text-white mb-6 text-center">
+          <div className="rounded-2xl bg-gradient-to-r from-[var(--bg-secondary)] to-[var(--bg-tertiary)] border border-[var(--border-primary)] p-8">
+            <h2 className="text-xl font-bold text-[var(--text-primary)] mb-6 text-center">
               Response Time Expectations
             </h2>
 
             <div className="grid gap-4 md:grid-cols-3">
               <div className="text-center p-4">
-                <div className="text-3xl font-bold text-indigo-400 mb-1">Discord</div>
-                <div className="text-sm text-white/60">Usually within hours</div>
+                <div className="text-3xl font-bold text-[#5865F2] mb-1">Discord</div>
+                <div className="text-sm text-[var(--text-secondary)]">Usually within hours</div>
               </div>
               <div className="text-center p-4">
-                <div className="text-3xl font-bold text-yellow-400 mb-1">Tickets</div>
-                <div className="text-sm text-white/60">24-48 hours</div>
+                <div className="text-3xl font-bold text-[var(--accent-warning)] mb-1">Tickets</div>
+                <div className="text-sm text-[var(--text-secondary)]">24-48 hours</div>
               </div>
               <div className="text-center p-4">
-                <div className="text-3xl font-bold text-purple-400 mb-1">Email</div>
-                <div className="text-sm text-white/60">2-3 business days</div>
+                <div className="text-3xl font-bold text-[var(--accent-secondary)] mb-1">Email</div>
+                <div className="text-sm text-[var(--text-secondary)]">2-3 business days</div>
               </div>
             </div>
 
-            <p className="text-center text-sm text-white/40 mt-6">
+            <p className="text-center text-sm text-[var(--text-muted)] mt-6">
               Response times are during business hours (Mon-Fri, 9am-6pm). Discord community support may vary.
             </p>
           </div>
         </section>
       )}
 
-      <MainFooter siteName={siteName} />
+      <LandingPageFooter siteName={siteName} isMainDomain={isMainDomain} />
     </div>
   );
 }

@@ -418,17 +418,20 @@ export async function getHeaderData(): Promise<{
   settings: HeaderSettings;
   navLinks: NavLink[];
   hasContactPage: boolean;
+  hasLandingPage: boolean;
 }> {
   const client = await getHygraphClient();
 
   if (client) {
-    const [headerData, hasContact] = await Promise.all([
+    const [headerData, hasContact, landingContent] = await Promise.all([
       client.getHeaderData(),
       client.hasContactPageSettings(),
+      client.getLandingPageContentOrNull(),
     ]);
     return {
       ...headerData,
       hasContactPage: hasContact,
+      hasLandingPage: landingContent !== null,
     };
   }
 
@@ -447,6 +450,7 @@ export async function getHeaderData(): Promise<{
       { id: 'default-5', title: 'Contact', url: '/support/contact', icon: 'Envelope', order: 5 },
     ],
     hasContactPage: true, // Default to true for local provider
+    hasLandingPage: false, // Default to false for local provider
   };
 }
 

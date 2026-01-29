@@ -40,10 +40,8 @@ export function LandingPageHeader({
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  // URL paths differ between main domain and tenant
-  const urls = isMainDomain
-    ? { pricing: '/pricing', support: '/support', contact: '/contact' }
-    : { pricing: '/support/pricing', support: '/support', contact: '/support/contact' };
+  // URL paths - pricing and contact stay at root level for consistent landing experience
+  const urls = { pricing: '/pricing', support: '/support', contact: '/contact' };
 
   // Close menu when clicking outside
   useEffect(() => {

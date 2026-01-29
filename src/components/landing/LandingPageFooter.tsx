@@ -13,10 +13,8 @@ interface LandingPageFooterProps {
 }
 
 export function LandingPageFooter({ siteName, isMainDomain = false }: LandingPageFooterProps) {
-  // URL paths differ between main domain and tenant
-  const urls = isMainDomain
-    ? { pricing: '/pricing', support: '/support', contact: '/contact' }
-    : { pricing: '/support/pricing', support: '/support', contact: '/support/contact' };
+  // URL paths - pricing and contact stay at root level for consistent landing experience
+  const urls = { pricing: '/pricing', support: '/support', contact: '/contact' };
 
   return (
     <footer className="border-t border-[var(--border-primary)] py-8 px-6 bg-[var(--bg-secondary)]">
