@@ -30,7 +30,8 @@ type CMSProvider = 'hygraph' | 'local';
 
 /**
  * Get the Hygraph client for the current request
- * Returns tenant's client if configured, otherwise default client
+ * Returns tenant's client if configured, otherwise default client (main domain only)
+ * Tenants without their own Hygraph config get null (empty/fallback content)
  */
 async function getHygraphClient(): Promise<HygraphClient | null> {
   try {
@@ -42,15 +43,16 @@ async function getHygraphClient(): Promise<HygraphClient | null> {
       return createHygraphClient(tenant.hygraph.endpoint, tenant.hygraph.token);
     }
 
-    // Tenant exists but no Hygraph config - fall through to default
+    // Tenant exists but no Hygraph config - return null (don't use main domain credentials)
     if (tenant) {
-      console.log(`[CMS] Tenant ${tenant.slug} has no Hygraph config, using default`);
+      console.log(`[CMS] Tenant ${tenant.slug} has no Hygraph config, returning null`);
+      return null;
     }
   } catch {
     // Not in a request context (e.g., build time), fall through to default
   }
 
-  // Fall back to default client (env vars)
+  // Main domain - use default client (env vars)
   if (hygraph.isAvailable()) {
     console.log('[CMS] Using default Hygraph client (env vars)');
     return hygraph.hygraph;
