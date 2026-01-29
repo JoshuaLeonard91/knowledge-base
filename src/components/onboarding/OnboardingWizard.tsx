@@ -149,7 +149,7 @@ export function OnboardingWizard({
           )}
           <Link
             href={config.completionCtaLink}
-            className="inline-block px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold text-white transition"
+            className="inline-block px-8 py-3 bg-indigo-600 hover:bg-indigo-500 rounded-xl font-semibold !text-white transition"
           >
             {config.completionCtaText}
           </Link>

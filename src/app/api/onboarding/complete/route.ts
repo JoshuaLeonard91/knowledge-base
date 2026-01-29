@@ -276,7 +276,7 @@ export async function POST(request: NextRequest) {
         slug: subdomain,
         name: (sanitizedData.portalName as string) || `${subdomain} Portal`,
         ownerId: user.id,
-        status: 'SETUP',
+        status: 'ACTIVE',
       },
     });
 
