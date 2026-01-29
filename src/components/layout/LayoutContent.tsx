@@ -45,10 +45,14 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
   // Check if we're on the landing page
   const isLandingPage = pathname === '/';
 
+  // Check if we're on a landing-style page that handles its own header/footer
+  // These pages use LandingPageHeader/Footer and should not have the support Navbar
+  const isLandingStylePage = pathname === '/' || pathname === '/contact' || pathname === '/pricing';
+
   // Use shared Navbar/Footer for:
-  // 1. Tenant subdomains on support pages (NOT landing page - it handles its own header)
+  // 1. Tenant subdomains on support pages (NOT landing-style pages - they handle their own header)
   // 2. Main domain /support/* pages (documentation/help center)
-  if ((tenant && !isLandingPage) || isSupportPage) {
+  if ((tenant && !isLandingStylePage) || isSupportPage) {
     return (
       <>
         {/* Progress bar for route transitions */}
@@ -66,7 +70,7 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
     );
   }
 
-  // Main domain marketing pages - they handle their own layout
+  // Landing-style pages (/, /contact, /pricing) - they handle their own header/footer
   return (
     <>
       {/* Progress bar for route transitions */}

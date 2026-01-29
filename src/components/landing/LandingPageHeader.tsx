@@ -15,6 +15,7 @@ interface LandingPageHeaderProps {
   siteName: string;
   isMainDomain?: boolean;
   hasContactPage?: boolean;
+  hasTicketing?: boolean; // Show ticket button if tenant has Jira configured
 }
 
 interface UserStatus {
@@ -28,6 +29,7 @@ export function LandingPageHeader({
   siteName,
   isMainDomain = false,
   hasContactPage = true,
+  hasTicketing = false,
 }: LandingPageHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -35,7 +37,7 @@ export function LandingPageHeader({
     isLoggedIn: false,
     hasDashboard: false,
   });
-  const [isLoading, setIsLoading] = useState(isMainDomain);
+  const [isLoading, setIsLoading] = useState(true); // Check auth for both main and tenant
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -45,7 +47,6 @@ export function LandingPageHeader({
 
   // Close menu when clicking outside
   useEffect(() => {
-    if (!isMainDomain) return;
     function handleClickOutside(event: MouseEvent) {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
         setShowUserMenu(false);
@@ -53,7 +54,7 @@ export function LandingPageHeader({
     }
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [isMainDomain]);
+  }, []);
 
   // Handle logout (main domain only)
   const handleLogout = async () => {
@@ -73,10 +74,8 @@ export function LandingPageHeader({
     }
   };
 
-  // Check auth status (main domain only)
+  // Check auth status (both main domain and tenants)
   useEffect(() => {
-    if (!isMainDomain) return;
-
     async function checkAuth() {
       setIsLoading(true);
       try {
@@ -89,9 +88,13 @@ export function LandingPageHeader({
           return;
         }
 
-        const subRes = await fetch('/api/stripe/subscription', { cache: 'no-store' });
-        const subData = await subRes.json();
-        const hasDashboard = subData.success && subData.nextStep === 'dashboard';
+        // Only check subscription status for main domain
+        let hasDashboard = false;
+        if (isMainDomain) {
+          const subRes = await fetch('/api/stripe/subscription', { cache: 'no-store' });
+          const subData = await subRes.json();
+          hasDashboard = subData.success && subData.nextStep === 'dashboard';
+        }
 
         setUserStatus({
           isLoggedIn: true,
@@ -115,20 +118,8 @@ export function LandingPageHeader({
   const isDashboardPage = pathname.startsWith('/dashboard');
 
   const renderActionButton = () => {
-    // Tenant: Simple "Get Help" button
-    if (!isMainDomain) {
-      return (
-        <Link
-          href="/support"
-          className="btn-primary px-5 py-2 rounded-lg font-medium transition"
-        >
-          Get Help
-        </Link>
-      );
-    }
-
     // Main domain: Hide on certain pages
-    if (isSignupPage || isOnboardingPage || isDashboardPage) {
+    if (isMainDomain && (isSignupPage || isOnboardingPage || isDashboardPage)) {
       return null;
     }
 
@@ -162,13 +153,34 @@ export function LandingPageHeader({
 
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg py-1 z-50">
-              <Link
-                href="/dashboard"
-                onClick={() => setShowUserMenu(false)}
-                className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
-              >
-                Dashboard
-              </Link>
+              {isMainDomain ? (
+                <Link
+                  href="/dashboard"
+                  onClick={() => setShowUserMenu(false)}
+                  className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                >
+                  Dashboard
+                </Link>
+              ) : (
+                <>
+                  <Link
+                    href="/support"
+                    onClick={() => setShowUserMenu(false)}
+                    className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                  >
+                    Support Hub
+                  </Link>
+                  {hasTicketing && (
+                    <Link
+                      href="/support/ticket"
+                      onClick={() => setShowUserMenu(false)}
+                      className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                    >
+                      Submit Ticket
+                    </Link>
+                  )}
+                </>
+              )}
               <hr className="my-1 border-[var(--border-primary)]" />
               <button
                 onClick={handleLogout}
@@ -183,10 +195,13 @@ export function LandingPageHeader({
       );
     }
 
-    // Not logged in: Login
+    // Not logged in: Login button
+    // Main domain -> redirect to dashboard after login
+    // Tenant -> redirect back to landing page after login
+    const callbackUrl = isMainDomain ? '/dashboard' : '/';
     return (
       <Link
-        href="/api/auth/discord?callbackUrl=/dashboard"
+        href={`/api/auth/discord?callbackUrl=${callbackUrl}`}
         className="btn-primary flex items-center justify-center w-[118px] h-[38px] rounded-lg font-medium transition"
       >
         Login
@@ -201,16 +216,19 @@ export function LandingPageHeader({
           {siteName}
         </Link>
         <div className="flex items-center gap-6">
-          <Link
-            href={urls.pricing}
-            className={`transition ${
-              pathname === urls.pricing
-                ? 'text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Pricing
-          </Link>
+          {/* Main domain shows Pricing */}
+          {isMainDomain && (
+            <Link
+              href={urls.pricing}
+              className={`transition ${
+                pathname === urls.pricing
+                  ? 'text-[var(--text-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+              }`}
+            >
+              Pricing
+            </Link>
+          )}
           <Link
             href={urls.support}
             className={`transition ${
@@ -233,7 +251,16 @@ export function LandingPageHeader({
               Contact
             </Link>
           )}
-          {/* Action button area */}
+          {/* Ticket button for tenants with ticketing enabled */}
+          {!isMainDomain && hasTicketing && (
+            <Link
+              href="/support/ticket"
+              className="btn-primary px-4 py-2 rounded-lg font-medium transition text-sm"
+            >
+              Submit Ticket
+            </Link>
+          )}
+          {/* Action button area (Login/User menu) */}
           <div className="min-w-[118px] h-[38px] flex items-center justify-end">
             {renderActionButton()}
           </div>

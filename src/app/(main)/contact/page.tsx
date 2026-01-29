@@ -42,6 +42,7 @@ export default async function ContactPage() {
   const headerData = await getHeaderData();
   const settings = await getContactPageSettings();
   const siteName = headerData.settings.siteName || 'Help Portal';
+  const hasTicketing = tenant?.jira?.connected ?? false;
 
   // CMS values with defaults
   const pageTitle = settings.pageTitle || defaults.pageTitle;
@@ -161,6 +162,7 @@ export default async function ContactPage() {
         siteName={siteName}
         isMainDomain={isMainDomain}
         hasContactPage={headerData.hasContactPage}
+        hasTicketing={hasTicketing}
       />
 
       {/* Hero Section */}

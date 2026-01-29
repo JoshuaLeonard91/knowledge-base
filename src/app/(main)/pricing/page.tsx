@@ -63,6 +63,7 @@ export default async function PricingPage() {
   }
 
   const siteName = headerData.settings.siteName || 'HelpPortal';
+  const hasTicketing = tenant?.jira?.connected ?? false;
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
@@ -70,6 +71,7 @@ export default async function PricingPage() {
         siteName={siteName}
         isMainDomain={isMainDomain}
         hasContactPage={headerData.hasContactPage}
+        hasTicketing={hasTicketing}
       />
 
       <GenericPricingPage

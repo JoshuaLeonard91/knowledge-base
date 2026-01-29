@@ -29,6 +29,7 @@ export default async function RootPage() {
     }
 
     const siteName = tenantHeaderData.settings.siteName || tenant.name || 'Help Center';
+    const hasTicketing = tenant.jira?.connected ?? false;
 
     // Tenant landing page
     return (
@@ -37,6 +38,7 @@ export default async function RootPage() {
           siteName={siteName}
           isMainDomain={false}
           hasContactPage={tenantHeaderData.hasContactPage}
+          hasTicketing={hasTicketing}
         />
         <LandingPageContent content={tenantLandingContent} />
         <LandingPageFooter siteName={siteName} isMainDomain={false} />
