@@ -437,13 +437,14 @@ export class HygraphClient {
 
       if (!response.ok) {
         const errorText = await response.text();
-        // Check if this is a "field not defined" error (model doesn't exist in CMS)
-        // This is expected for optional models - silently return null
-        if (errorText.includes('is not defined in')) {
-          console.log(`[Hygraph] ${queryName}: Field not defined (optional model)`);
-          return null;
-        }
+        // Log full error for debugging
         console.error(`[Hygraph] ${queryName}: HTTP error ${response.status}:`, errorText);
+        // Check if this is a "field not defined" error (model doesn't exist in CMS)
+        if (errorText.includes('is not defined in')) {
+          // Extract the field name from error for debugging
+          const match = errorText.match(/"([^"]+)" is not defined/);
+          console.error(`[Hygraph] ${queryName}: Missing field: ${match?.[1] || 'unknown'}`);
+        }
         return null;
       }
 

@@ -1,9 +1,8 @@
 /**
  * Root Page
  *
- * - Main domain: Shows the marketing landing page (CMS-driven with defaults)
- * - Tenant subdomain with own CMS: Shows landing page if configured, otherwise redirects to /support
- * - Tenant subdomain sharing main CMS: Shows landing page (same behavior as main domain)
+ * - Main domain: Shows the marketing landing page (CMS-driven)
+ * - Tenant subdomain: Shows landing page if configured, otherwise redirects to /support
  *
  * Both use the same shared landing page components with CSS variables for theming.
  */
@@ -17,20 +16,14 @@ export default async function RootPage() {
   // Check if we're on a tenant subdomain
   const tenant = await getTenantFromRequest();
 
-  // Tenant subdomain
+  // Tenant subdomain - check for optional landing page
   if (tenant) {
-    // Check if tenant has their own Hygraph CMS or uses default (main domain's CMS)
-    const hasOwnCms = !!(tenant.hygraph?.endpoint && tenant.hygraph?.token);
-
-    // Get landing page content
-    // - Tenants with own CMS: use getLandingPageContentOrNull (landing page is optional)
-    // - Tenants sharing main CMS: use getLandingPageContent (same defaults as main domain)
     const [tenantLandingContent, tenantHeaderData] = await Promise.all([
-      hasOwnCms ? getLandingPageContentOrNull() : getLandingPageContent(),
+      getLandingPageContentOrNull(),
       getHeaderData(),
     ]);
 
-    // No landing page configured (only possible for tenants with own CMS)
+    // No landing page configured - redirect to support hub
     if (!tenantLandingContent) {
       redirect('/support');
     }
