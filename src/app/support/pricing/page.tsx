@@ -67,6 +67,7 @@ export default async function SupportPricingPage() {
         subtitle="Choose the plan that works best for you"
         products={products}
         currentProductSlug={currentProductSlug}
+        isMainDomain={isMainDomain}
       />
     </div>
   );

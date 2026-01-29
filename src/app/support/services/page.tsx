@@ -1,9 +1,6 @@
 import { notFound } from 'next/navigation';
 import { getServicesPageData } from '@/lib/cms';
 import { ServicesContent } from './ServicesContent';
-import { getTenantFromRequest } from '@/lib/tenant';
-import { getSession, isAuthenticated } from '@/lib/auth';
-import { prisma } from '@/lib/db/client';
 
 // Force dynamic rendering - fetches fresh data on every request
 // Required for multi-tenant setup where content changes without rebuilds
@@ -32,43 +29,6 @@ export default async function ServicesPage() {
     notFound();
   }
 
-  // Get current subscription to show "Current Plan" on buttons
-  const tenant = await getTenantFromRequest();
-  const isMainDomain = !tenant;
-  const authenticated = await isAuthenticated();
-  let currentProductSlug: string | undefined;
-
-  if (authenticated) {
-    const session = await getSession();
-    if (session) {
-      if (isMainDomain) {
-        // Main domain: Check User subscription (platform level)
-        const user = await prisma.user.findUnique({
-          where: { discordId: session.id },
-          include: { subscription: true },
-        });
-        if (user?.subscription?.status === 'ACTIVE') {
-          currentProductSlug = 'pro'; // Main domain uses 'pro' product
-        }
-      } else {
-        // Tenant subdomain: Check TenantUser subscription
-        const tenantUser = await prisma.tenantUser.findUnique({
-          where: {
-            tenantId_discordId: {
-              tenantId: tenant.id,
-              discordId: session.id,
-            },
-          },
-          include: { subscription: true },
-        });
-
-        if (tenantUser?.subscription) {
-          currentProductSlug = tenantUser.subscription.productSlug;
-        }
-      }
-    }
-  }
-
   return (
     <ServicesContent
       services={services}
@@ -78,7 +38,6 @@ export default async function ServicesPage() {
       pageContent={pageContent}
       contactSettings={contactSettings}
       inquiryTypes={inquiryTypes}
-      currentProductSlug={currentProductSlug}
     />
   );
 }

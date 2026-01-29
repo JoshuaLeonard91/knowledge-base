@@ -5,7 +5,10 @@
  *
  * CMS-driven pricing page that works on both main domain and tenant subdomains.
  * Uses ServiceTier from CMS for pricing data.
- * Redirects to buttonUrl (from CMS) or defaults to /signup.
+ *
+ * Behavior:
+ * - Main domain (isMainDomain=true): Always uses internal /signup flow (Stripe API checkout)
+ * - Tenant subdomains: Uses buttonUrl from CMS (Stripe Payment Links)
  */
 
 import { useState } from 'react';
@@ -18,6 +21,7 @@ interface PricingPageProps {
   subtitle?: string;
   products: ServiceTier[];
   currentProductSlug?: string;  // If user already has a subscription
+  isMainDomain?: boolean;       // If true, always use internal checkout flow
 }
 
 export function PricingPage({
@@ -25,6 +29,7 @@ export function PricingPage({
   subtitle = 'Select the plan that works best for you',
   products,
   currentProductSlug,
+  isMainDomain = false,
 }: PricingPageProps) {
   const router = useRouter();
   const [loadingProduct, setLoadingProduct] = useState<string | null>(null);
@@ -32,14 +37,26 @@ export function PricingPage({
   const handleSelectProduct = (product: ServiceTier) => {
     setLoadingProduct(product.slug);
 
-    // Use buttonUrl from CMS if set, otherwise default to /signup
-    const targetUrl = product.buttonUrl || `/signup?product=${product.slug}`;
+    // Main domain: Always use internal signup flow (Discord OAuth → Onboarding → Stripe API)
+    // Tenants: Use buttonUrl from CMS (Stripe Payment Links)
+    if (isMainDomain) {
+      router.push(`/signup?product=${product.slug}`);
+      return;
+    }
 
-    // Check if it's an external URL (starts with http)
-    if (targetUrl.startsWith('http')) {
-      window.location.href = targetUrl;
+    // Tenant: Use buttonUrl from CMS if set
+    const targetUrl = product.buttonUrl;
+
+    if (targetUrl) {
+      // Check if it's an external URL (starts with http)
+      if (targetUrl.startsWith('http')) {
+        window.location.href = targetUrl;
+      } else {
+        router.push(targetUrl);
+      }
     } else {
-      router.push(targetUrl);
+      // No buttonUrl configured - redirect to contact page
+      router.push('/support/contact');
     }
   };
 

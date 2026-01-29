@@ -74,6 +74,7 @@ export default async function PricingPage() {
         subtitle={isMainDomain ? 'One plan, everything included. No hidden fees.' : 'Select the plan that works best for you'}
         products={products}
         currentProductSlug={currentProductSlug}
+        isMainDomain={isMainDomain}
       />
 
       {/* FAQ Section (main domain only) */}
