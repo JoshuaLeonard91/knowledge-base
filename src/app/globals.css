@@ -119,13 +119,14 @@ body {
 
 .btn-primary {
   background: var(--accent-primary);
-  color: white;
+  color: white !important;
 }
 
 .btn-primary:hover {
   background: var(--accent-hover);
   box-shadow: var(--shadow-glow);
   transform: translateY(-1px);
+  color: white !important;
 }
 
 .btn-secondary {

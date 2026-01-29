@@ -104,25 +104,30 @@ export function LandingPageContent({ content, showAnimations = true }: LandingPa
             {content.heroSubtitle}
           </p>
 
-          <div
-            className={`flex flex-col sm:flex-row items-center justify-center gap-4 ${animationClass}`}
-            style={showAnimations ? { animationDelay: '0.2s' } : undefined}
-          >
-            <Link
-              href={content.heroCtaLink}
-              className="btn-primary px-8 py-4 rounded-xl font-semibold transition text-lg hover:opacity-90"
+          {/* Hero buttons - only show if at least one is configured */}
+          {(content.heroButtonText && content.heroButtonUrl) || (content.heroSecondaryButtonText && content.heroSecondaryButtonUrl) ? (
+            <div
+              className={`flex flex-col sm:flex-row items-center justify-center gap-4 ${animationClass}`}
+              style={showAnimations ? { animationDelay: '0.2s' } : undefined}
             >
-              {content.heroCta}
-            </Link>
-            {content.heroSecondaryCtaText && content.heroSecondaryCtaLink && (
-              <Link
-                href={content.heroSecondaryCtaLink}
-                className="px-8 py-4 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-xl font-semibold transition text-[var(--text-secondary)] text-lg border border-[var(--border-primary)]"
-              >
-                {content.heroSecondaryCtaText}
-              </Link>
-            )}
-          </div>
+              {content.heroButtonText && content.heroButtonUrl && (
+                <Link
+                  href={content.heroButtonUrl}
+                  className="btn-primary px-8 py-4 rounded-xl font-semibold transition text-lg hover:opacity-90"
+                >
+                  {content.heroButtonText}
+                </Link>
+              )}
+              {content.heroSecondaryButtonText && content.heroSecondaryButtonUrl && (
+                <Link
+                  href={content.heroSecondaryButtonUrl}
+                  className="px-8 py-4 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-xl font-semibold transition text-[var(--text-secondary)] text-lg border border-[var(--border-primary)]"
+                >
+                  {content.heroSecondaryButtonText}
+                </Link>
+              )}
+            </div>
+          ) : null}
         </div>
       </section>
 
@@ -165,25 +170,33 @@ export function LandingPageContent({ content, showAnimations = true }: LandingPa
         </section>
       )}
 
-      {/* CTA Section */}
-      <section className="py-20 px-6">
-        <div className="max-w-4xl mx-auto text-center">
-          <div className={`bg-gradient-to-r from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 rounded-3xl border border-[var(--accent-primary)]/20 p-12 ${animationScaleClass}`}>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text-primary)]">
-              {content.ctaTitle}
-            </h2>
-            <p className="text-[var(--text-secondary)] mb-8 max-w-xl mx-auto">
-              {content.ctaSubtitle}
-            </p>
-            <Link
-              href={content.ctaButtonLink}
-              className="btn-primary inline-block px-8 py-4 rounded-xl font-semibold transition text-lg hover:opacity-90 hover:scale-105"
-            >
-              {content.ctaButtonText}
-            </Link>
+      {/* CTA Section - only show if title or button is configured */}
+      {(content.ctaTitle || (content.ctaButtonText && content.ctaButtonLink)) && (
+        <section className="py-20 px-6">
+          <div className="max-w-4xl mx-auto text-center">
+            <div className={`bg-gradient-to-r from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 rounded-3xl border border-[var(--accent-primary)]/20 p-12 ${animationScaleClass}`}>
+              {content.ctaTitle && (
+                <h2 className="text-3xl md:text-4xl font-bold mb-4 text-[var(--text-primary)]">
+                  {content.ctaTitle}
+                </h2>
+              )}
+              {content.ctaSubtitle && (
+                <p className="text-[var(--text-secondary)] mb-8 max-w-xl mx-auto">
+                  {content.ctaSubtitle}
+                </p>
+              )}
+              {content.ctaButtonText && content.ctaButtonLink && (
+                <Link
+                  href={content.ctaButtonLink}
+                  className="btn-primary inline-block px-8 py-4 rounded-xl font-semibold transition text-lg hover:opacity-90 hover:scale-105"
+                >
+                  {content.ctaButtonText}
+                </Link>
+              )}
+            </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
     </>
   );
 }

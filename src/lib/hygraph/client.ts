@@ -115,21 +115,22 @@ export interface LandingFeature {
 export interface LandingPageContent {
   // Hero section
   heroTitle: string;
-  heroHighlight: string; // The highlighted/gradient text
+  heroHighlight?: string; // The highlighted/gradient text (optional)
   heroSubtitle: string;
-  heroCta: string;
-  heroCtaLink: string;
-  heroSecondaryCtaText?: string;
-  heroSecondaryCtaLink?: string;
+  // Hero buttons (optional - hidden if not set)
+  heroButtonText?: string;           // Hero primary button text
+  heroButtonUrl?: string;            // Hero primary button URL
+  heroSecondaryButtonText?: string;  // Hero secondary button text
+  heroSecondaryButtonUrl?: string;   // Hero secondary button URL
   // Features section
-  featuresTitle: string;
-  featuresSubtitle: string;
+  featuresTitle?: string;
+  featuresSubtitle?: string;
   features: LandingFeature[]; // Components with title, description, icon
-  // CTA section
-  ctaTitle: string;
-  ctaSubtitle: string;
-  ctaButtonText: string;
-  ctaButtonLink: string;
+  // CTA section (optional - hidden if not set)
+  ctaTitle?: string;
+  ctaSubtitle?: string;
+  ctaButtonText?: string;     // Bottom CTA button text
+  ctaButtonLink?: string;     // Bottom CTA button URL
 }
 
 // Extended LandingFeature with optional styling (for UI rendering)
@@ -1512,10 +1513,10 @@ export class HygraphClient {
         heroTitle?: string;
         heroHighlight?: string;
         heroSubtitle?: string;
-        heroCta?: string;
-        heroCtaLink?: string;
-        heroSecondaryCtaText?: string;
-        heroSecondaryCtaLink?: string;
+        heroButtonText?: string;
+        heroButtonUrl?: string;
+        heroSecondaryButtonText?: string;
+        heroSecondaryButtonUrl?: string;
         featuresTitle?: string;
         featuresSubtitle?: string;
         features?: Array<{
@@ -1534,10 +1535,10 @@ export class HygraphClient {
           heroTitle
           heroHighlight
           heroSubtitle
-          heroCta
-          heroCtaLink
-          heroSecondaryCtaText
-          heroSecondaryCtaLink
+          heroButtonText
+          heroButtonUrl
+          heroSecondaryButtonText
+          heroSecondaryButtonUrl
           featuresTitle
           featuresSubtitle
           features {
@@ -1567,10 +1568,10 @@ export class HygraphClient {
       heroTitle: content?.heroTitle || 'Your Own',
       heroHighlight: content?.heroHighlight || 'Support Portal',
       heroSubtitle: content?.heroSubtitle || 'Create a professional support portal for your Discord community. Knowledge base, service catalog, and Jira integration — all under your brand.',
-      heroCta: content?.heroCta || 'Get Started — $5/mo',
-      heroCtaLink: content?.heroCtaLink || '/signup',
-      heroSecondaryCtaText: content?.heroSecondaryCtaText,
-      heroSecondaryCtaLink: content?.heroSecondaryCtaLink,
+      heroButtonText: content?.heroButtonText || 'Get Started — $5/mo',
+      heroButtonUrl: content?.heroButtonUrl || '/signup',
+      heroSecondaryButtonText: content?.heroSecondaryButtonText,
+      heroSecondaryButtonUrl: content?.heroSecondaryButtonUrl,
       featuresTitle: content?.featuresTitle || 'Everything You Need',
       featuresSubtitle: content?.featuresSubtitle || 'Launch a fully-featured support portal in minutes, not months.',
       features: features.length > 0 ? features : [
@@ -1599,10 +1600,10 @@ export class HygraphClient {
         heroTitle?: string;
         heroHighlight?: string;
         heroSubtitle?: string;
-        heroCta?: string;
-        heroCtaLink?: string;
-        heroSecondaryCtaText?: string;
-        heroSecondaryCtaLink?: string;
+        heroButtonText?: string;
+        heroButtonUrl?: string;
+        heroSecondaryButtonText?: string;
+        heroSecondaryButtonUrl?: string;
         featuresTitle?: string;
         featuresSubtitle?: string;
         features?: Array<{
@@ -1621,10 +1622,10 @@ export class HygraphClient {
           heroTitle
           heroHighlight
           heroSubtitle
-          heroCta
-          heroCtaLink
-          heroSecondaryCtaText
-          heroSecondaryCtaLink
+          heroButtonText
+          heroButtonUrl
+          heroSecondaryButtonText
+          heroSecondaryButtonUrl
           featuresTitle
           featuresSubtitle
           features {
@@ -1654,21 +1655,22 @@ export class HygraphClient {
       icon: f.icon || 'Lightning',
     })) || [];
 
+    // Return content - buttons are optional (hidden if not set)
     return {
       heroTitle: content.heroTitle,
-      heroHighlight: content.heroHighlight || '',
+      heroHighlight: content.heroHighlight,
       heroSubtitle: content.heroSubtitle || '',
-      heroCta: content.heroCta || 'Get Started',
-      heroCtaLink: content.heroCtaLink || '/support',
-      heroSecondaryCtaText: content.heroSecondaryCtaText,
-      heroSecondaryCtaLink: content.heroSecondaryCtaLink,
-      featuresTitle: content.featuresTitle || 'Features',
-      featuresSubtitle: content.featuresSubtitle || '',
+      heroButtonText: content.heroButtonText,
+      heroButtonUrl: content.heroButtonUrl,
+      heroSecondaryButtonText: content.heroSecondaryButtonText,
+      heroSecondaryButtonUrl: content.heroSecondaryButtonUrl,
+      featuresTitle: content.featuresTitle,
+      featuresSubtitle: content.featuresSubtitle,
       features,
-      ctaTitle: content.ctaTitle || 'Get Started',
-      ctaSubtitle: content.ctaSubtitle || '',
-      ctaButtonText: content.ctaButtonText || 'Learn More',
-      ctaButtonLink: content.ctaButtonLink || '/support',
+      ctaTitle: content.ctaTitle,
+      ctaSubtitle: content.ctaSubtitle,
+      ctaButtonText: content.ctaButtonText,
+      ctaButtonLink: content.ctaButtonLink,
     };
   }
 

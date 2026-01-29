@@ -183,13 +183,13 @@ export function LandingPageHeader({
       );
     }
 
-    // Not logged in: Get Started
+    // Not logged in: Login
     return (
       <Link
         href="/api/auth/discord?callbackUrl=/dashboard"
         className="btn-primary flex items-center justify-center w-[118px] h-[38px] rounded-lg font-medium transition"
       >
-        Get Started
+        Login
       </Link>
     );
   };
