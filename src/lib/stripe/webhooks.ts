@@ -58,7 +58,7 @@ async function handleMainDomainCheckout(
   });
 
   if (!tenantUser) {
-    console.error('[Stripe Webhook] TenantUser not found:', tenantUserId);
+    console.error('[Stripe Webhook] TenantUser not found');
     return;
   }
 
@@ -122,7 +122,7 @@ async function handleMainDomainCheckout(
     },
   });
 
-  console.log('[Stripe Webhook] Main domain subscription created/updated for user:', user.id);
+  console.log('[Stripe Webhook] Main domain subscription created/updated');
 }
 
 /**

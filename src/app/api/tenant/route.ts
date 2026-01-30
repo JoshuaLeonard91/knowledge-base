@@ -19,10 +19,10 @@ export async function GET() {
     const tenant = await getTenantFromRequest();
 
     if (!tenant) {
-      // Generic error - don't reveal if tenant exists or not
+      // Generic 404 - don't reveal whether tenant exists or not
       return NextResponse.json({
         success: false,
-        error: 'Tenant not found',
+        error: 'Not found',
       }, { status: 404 });
     }
 

@@ -84,6 +84,22 @@ export async function GET(request: NextRequest) {
     return NextResponse.redirect(`${tenantOrigin}/support/login?error=${debugError}`);
   }
 
+  // Validate state token expiration (embedded timestamp)
+  // State format: {random}.{base36_timestamp}
+  const STATE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+  const stateParts = state!.split('.');
+  if (stateParts.length === 2) {
+    const stateTimestamp = parseInt(stateParts[1], 36);
+    if (isNaN(stateTimestamp) || Date.now() - stateTimestamp > STATE_MAX_AGE_MS) {
+      logAuthAttempt({
+        success: false,
+        method: 'discord',
+        details: { error: 'state_expired', tenantOrigin },
+      });
+      return NextResponse.redirect(`${tenantOrigin}/support/login?error=StateExpired`);
+    }
+  }
+
   try {
     // Exchange code for tokens (always use main domain for redirect_uri)
     const tokenResponse = await fetch(DISCORD_TOKEN_URL, {
@@ -174,7 +190,7 @@ export async function GET(request: NextRequest) {
       details: { username: discordUser.username },
     });
 
-    // Create short-lived handoff token (expires in 30 seconds)
+    // Create short-lived handoff token (expires in 5 seconds)
     // This prevents the actual session token from being logged in URLs
     const handoffToken = createHandoffToken(sessionToken);
 

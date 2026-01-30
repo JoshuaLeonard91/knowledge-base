@@ -131,7 +131,7 @@ export default function OnboardingPage() {
           }
         }
       } catch (err) {
-        console.error('Failed to load onboarding data:', err);
+        console.error('Failed to load onboarding data');
         setError('Failed to load. Please refresh the page.');
       } finally {
         setIsLoading(false);

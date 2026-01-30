@@ -48,11 +48,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   // Save preferences to secure httpOnly cookie via API
   const savePreferences = useCallback(async (mode: UIMode) => {
     try {
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
       await fetch('/api/preferences', {
         method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfData.csrf,
         },
         body: JSON.stringify({
           preferences: { uiMode: mode },

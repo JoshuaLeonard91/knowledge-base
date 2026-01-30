@@ -44,6 +44,13 @@ function isValidCallbackUrl(callback: string): boolean {
     return false;
   }
 
+  // Block dangerous URI schemes
+  const lower = callback.toLowerCase();
+  const blockedSchemes = ['javascript:', 'data:', 'vbscript:', 'file:'];
+  if (blockedSchemes.some(scheme => lower.includes(scheme))) {
+    return false;
+  }
+
   return true;
 }
 
@@ -51,7 +58,7 @@ function isValidCallbackUrl(callback: string): boolean {
  * GET handler - receives handoff token via query param
  *
  * SECURITY:
- * - Handoff token expires in 30 seconds (useless if logged after that)
+ * - Handoff token expires in 5 seconds (useless if logged after that)
  * - Handoff token is encrypted and signed
  * - Extracts the real session token from handoff token
  * - Callback URL is validated to prevent open redirects

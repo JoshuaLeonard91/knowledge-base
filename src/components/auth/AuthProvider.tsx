@@ -88,10 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     setIsLoading(true);
     try {
+      // Get CSRF token for logout request
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
+
       // Clear our session
       const res = await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
+        headers: { 'X-CSRF-Token': csrfData.csrf },
       });
 
       if (res.ok) {
@@ -100,10 +105,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // This is more reliable than just setting state
         window.location.href = '/';
       } else {
-        console.error('Logout failed:', await res.text());
+        console.error('Logout failed');
       }
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch {
+      console.error('Logout failed');
     } finally {
       setIsLoading(false);
     }

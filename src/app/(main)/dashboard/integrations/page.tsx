@@ -68,7 +68,7 @@ export default function IntegrationsPage() {
       setHygraphStatus(hygraphData);
       setJiraStatus(jiraData);
     } catch (err) {
-      console.error('Failed to fetch statuses:', err);
+      console.error('Failed to fetch integration statuses');
       setError('Failed to load integration statuses');
     } finally {
       setIsLoading(false);

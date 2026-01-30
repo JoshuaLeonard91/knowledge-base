@@ -173,12 +173,12 @@ export async function POST(request: NextRequest) {
     return createSuccessResponse({
       ticketId,
     });
-  } catch (error) {
+  } catch {
     logTicketSubmission({
       success: false,
       ip,
     });
 
-    return createErrorResponse('server', 500, error);
+    return createErrorResponse('server', 500);
   }
 }

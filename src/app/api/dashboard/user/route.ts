@@ -49,7 +49,6 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(
         {
           user: user ? {
-            id: user.id,
             username: user.discordUsername,
             avatar: user.discordAvatar,
             email: user.email,
@@ -83,14 +82,11 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         user: {
-          id: tenantUser.id,
           username: tenantUser.discordUsername,
           avatar: tenantUser.discordAvatar,
           email: tenantUser.email,
-          onboardingData: tenantUser.onboardingData,
         },
         subscription: tenantUser.subscription ? {
-          id: tenantUser.subscription.id,
           status: tenantUser.subscription.status,
           productSlug: tenantUser.subscription.productSlug,
           productName: tenantUser.subscription.productSlug,
@@ -103,7 +99,7 @@ export async function GET(request: NextRequest) {
       { headers: securityHeaders }
     );
   } catch (error) {
-    console.error('[Dashboard User] Error:', error);
+    console.error('[Dashboard User] Error occurred');
     return NextResponse.json(
       { error: 'Failed to get user data' },
       { status: 500, headers: securityHeaders }

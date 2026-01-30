@@ -51,12 +51,11 @@ export async function revokeDiscordToken(accessToken: string): Promise<boolean> 
     }
 
     // Log error but don't throw - logout should still proceed
-    const errorText = await response.text();
-    console.error('[Discord OAuth] Token revocation failed:', response.status, errorText);
+    console.error('[Discord OAuth] Token revocation failed:', response.status);
     return false;
-  } catch (error) {
+  } catch {
     // Network errors shouldn't block logout
-    console.error('[Discord OAuth] Token revocation error:', error);
+    console.error('[Discord OAuth] Token revocation error');
     return false;
   }
 }

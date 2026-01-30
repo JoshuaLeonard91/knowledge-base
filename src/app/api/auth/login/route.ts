@@ -78,7 +78,7 @@ export async function POST(request: NextRequest) {
 
     // Return sanitized response (no internal IDs exposed)
     return createSuccessResponse({ user, mode: 'mock' });
-  } catch (error) {
+  } catch {
     // Log failed auth
     logAuthAttempt({
       success: false,
@@ -89,6 +89,6 @@ export async function POST(request: NextRequest) {
     });
 
     // Return generic error (no details exposed)
-    return createErrorResponse('authentication', 500, error);
+    return createErrorResponse('authentication', 401);
   }
 }

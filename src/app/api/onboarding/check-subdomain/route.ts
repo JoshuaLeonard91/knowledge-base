@@ -60,6 +60,15 @@ const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 // GET handler for quick subdomain availability check (used by onboarding wizard)
 export async function GET(request: NextRequest) {
   try {
+    // Require authentication to prevent unauthenticated subdomain enumeration
+    const authenticated = await isAuthenticated();
+    if (!authenticated) {
+      return NextResponse.json(
+        { available: false, message: 'Authentication required' },
+        { status: 401, headers: securityHeaders }
+      );
+    }
+
     const subdomain = request.nextUrl.searchParams.get('subdomain');
 
     if (!subdomain) {

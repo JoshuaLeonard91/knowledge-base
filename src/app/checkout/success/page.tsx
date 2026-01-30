@@ -43,7 +43,7 @@ export default function CheckoutSuccessPage() {
           setStatus('success');
         }
       } catch (error) {
-        console.error('Failed to verify session:', error);
+        console.error('Failed to verify session');
         setStatus('error');
       }
     }

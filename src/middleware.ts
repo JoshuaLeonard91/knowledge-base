@@ -309,6 +309,10 @@ export async function middleware(request: NextRequest) {
     response.headers.set('X-RateLimit-Remaining', String(result.remaining));
     response.headers.set('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
 
+    // Apply global security headers to all API responses
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Cache-Control', 'no-store, private');
+
     // Add tenant header for API routes
     if (tenantSlug) {
       response.headers.set('x-tenant-slug', tenantSlug);

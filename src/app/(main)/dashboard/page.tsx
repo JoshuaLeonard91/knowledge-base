@@ -153,7 +153,7 @@ export default function DashboardPage() {
           });
         }
       } catch (err) {
-        console.error('Failed to fetch dashboard data:', err);
+        console.error('Failed to fetch dashboard data');
         router.push('/signup');
       } finally {
         setIsLoading(false);
@@ -166,10 +166,15 @@ export default function DashboardPage() {
   // Handle logout
   const handleLogout = async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        headers: { 'X-CSRF-Token': csrfData.csrf },
+      });
       router.push('/');
-    } catch (err) {
-      console.error('Logout failed:', err);
+    } catch {
+      console.error('Logout failed');
     }
   };
 
@@ -203,7 +208,7 @@ export default function DashboardPage() {
         setPaymentError(result.error || 'Failed to start checkout');
       }
     } catch (err) {
-      console.error('Checkout failed:', err);
+      console.error('Checkout failed');
       setPaymentError('Something went wrong. Please try again.');
     } finally {
       setIsProcessingPayment(false);

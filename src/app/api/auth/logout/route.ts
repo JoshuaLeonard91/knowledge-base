@@ -3,6 +3,7 @@ import { revalidatePath } from 'next/cache';
 import { getSession, getDiscordAccessToken } from '@/lib/auth';
 import { SESSION_COOKIE_CONFIG } from '@/lib/security/session';
 import { revokeDiscordToken } from '@/lib/discord/oauth';
+import { validateCsrfRequest } from '@/lib/security/csrf';
 import {
   logLogout,
   getClientIp,
@@ -12,6 +13,14 @@ export async function POST(request: NextRequest) {
   const ip = getClientIp(request.headers);
 
   try {
+    // Validate CSRF token to prevent cross-site logout attacks
+    const csrfResult = await validateCsrfRequest(request);
+    if (!csrfResult.valid) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid request' },
+        { status: 403 }
+      );
+    }
     // Get user before destroying session (for logging)
     const user = await getSession();
 
@@ -21,8 +30,8 @@ export async function POST(request: NextRequest) {
     if (accessToken) {
       // Don't await - revocation shouldn't block logout
       // If it fails, the session is still cleared locally
-      revokeDiscordToken(accessToken).catch((err) => {
-        console.error('[Logout] Token revocation failed:', err);
+      revokeDiscordToken(accessToken).catch(() => {
+        console.error('[Logout] Token revocation failed');
       });
     }
 
@@ -57,8 +66,8 @@ export async function POST(request: NextRequest) {
     response.headers.set('Cache-Control', 'no-store');
 
     return response;
-  } catch (error) {
-    console.error('[Logout] Error:', error);
+  } catch {
+    console.error('[Logout] Error occurred');
     return NextResponse.json(
       { success: false, error: 'Logout failed' },
       { status: 500 }

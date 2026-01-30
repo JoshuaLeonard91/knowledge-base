@@ -34,8 +34,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    // Validate email format (RFC 5322 simplified — requires local part, @, domain with dot, and TLD of 2+)
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}$/;
     if (!emailRegex.test(body.email)) {
       return NextResponse.json(
         { success: false, error: 'Invalid email format' },
@@ -117,6 +117,9 @@ export async function POST(request: NextRequest) {
         }
       };
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
       const jiraResponse = await fetch(
         `https://${atlassianDomain}/rest/api/3/issue`,
         {
@@ -127,12 +130,14 @@ export async function POST(request: NextRequest) {
             'Accept': 'application/json',
           },
           body: JSON.stringify(jiraPayload),
+          signal: controller.signal,
         }
       );
+      clearTimeout(timeoutId);
 
       if (jiraResponse.ok) {
         const jiraData = await jiraResponse.json();
-        console.log('[Service Inquiry] Created Jira issue:', jiraData.key);
+        console.log('[Service Inquiry] Jira issue created successfully');
         return NextResponse.json({
           success: true,
           message: 'Thank you for your inquiry! Our team will contact you within 1-2 business days.',
@@ -145,14 +150,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Mock mode - log the inquiry (using sanitized values)
+    // Mock mode - log minimal info (no PII)
     console.log('[Service Inquiry] Mock mode - inquiry received:', {
-      name: sanitizedName,
-      email: sanitizedEmail,
-      company: sanitizedCompany,
       service: sanitizedService,
       inquiryType: body.inquiryType,
-      messagePreview: sanitizedMessage.substring(0, 100) + (sanitizedMessage.length > 100 ? '...' : ''),
       timestamp: new Date().toISOString(),
     });
 

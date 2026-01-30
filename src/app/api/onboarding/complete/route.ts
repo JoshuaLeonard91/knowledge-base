@@ -139,10 +139,17 @@ export async function POST(request: NextRequest) {
       // Tenant subdomain - save data to TenantUser
       const tenantId = tenant?.id;
 
+      if (!tenantId) {
+        return NextResponse.json(
+          { error: 'Tenant could not be resolved' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+
       const tenantUser = await prisma.tenantUser.findUnique({
         where: {
           tenantId_discordId: {
-            tenantId: tenantId || 'main',
+            tenantId,
             discordId: session.id,
           },
         },

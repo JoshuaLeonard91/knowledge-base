@@ -1,4 +1,4 @@
-import { getSafeUser } from '@/lib/auth';
+import { getSafeUser, getSessionId } from '@/lib/auth';
 import {
   createSafeResponse,
   createErrorResponse,
@@ -10,10 +10,13 @@ export async function GET() {
     // Get safe user (no internal IDs exposed)
     const user = await getSafeUser();
 
-    // Get or create CSRF token (not session-bound since we don't expose internal IDs)
+    // Get session ID for CSRF binding
+    const sessionId = await getSessionId();
+
+    // Get or create CSRF token bound to session
     let csrfToken = await getCsrfFromCookie();
     if (!csrfToken) {
-      csrfToken = await setCsrfCookie();
+      csrfToken = await setCsrfCookie(sessionId || undefined);
     }
 
     if (!user) {
@@ -30,7 +33,7 @@ export async function GET() {
       user,
       csrf: csrfToken,
     });
-  } catch (error) {
-    return createErrorResponse('server', 500, error);
+  } catch {
+    return createErrorResponse('server', 500);
   }
 }

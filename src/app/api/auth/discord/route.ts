@@ -14,7 +14,10 @@ const DISCORD_AUTHORIZE_URL = 'https://discord.com/api/oauth2/authorize';
 const SCOPES = ['identify', 'guilds'].join(' ');
 
 function generateState(): string {
-  return randomBytes(32).toString('hex');
+  // Include timestamp for expiration validation in callback
+  const random = randomBytes(32).toString('hex');
+  const timestamp = Date.now().toString(36);
+  return `${random}.${timestamp}`;
 }
 
 export async function GET(request: NextRequest) {

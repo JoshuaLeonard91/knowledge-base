@@ -59,7 +59,7 @@ export async function POST(request: NextRequest) {
 
     // Return minimal success response
     return createSuccessResponse({});
-  } catch (error) {
+  } catch {
     logApiAccess({
       method: 'POST',
       resource: '/api/feedback',
@@ -68,6 +68,6 @@ export async function POST(request: NextRequest) {
       ip,
     });
 
-    return createErrorResponse('server', 500, error);
+    return createErrorResponse('server', 500);
   }
 }

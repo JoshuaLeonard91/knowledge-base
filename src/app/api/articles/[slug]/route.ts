@@ -15,6 +15,15 @@ export async function GET(
       );
     }
 
+    // Validate slug format to prevent traversal patterns
+    const SLUG_REGEX = /^[a-z0-9][a-z0-9-]*[a-z0-9]$/;
+    if (slug.length < 2 || slug.length > 200 || !SLUG_REGEX.test(slug)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid slug format' },
+        { status: 400 }
+      );
+    }
+
     const article = await getArticleBySlug(slug);
 
     if (!article) {

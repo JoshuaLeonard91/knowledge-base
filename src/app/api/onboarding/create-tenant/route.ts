@@ -72,8 +72,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check if user already has a tenant
+    // Check if user already has a tenant (application-level check)
     if (user.tenants.length > 0) {
+      return NextResponse.json(
+        { success: false, error: 'You already have a portal', code: 'ALREADY_HAS_TENANT' },
+        { status: 400 }
+      );
+    }
+
+    // Double-check at database level to prevent race conditions
+    const existingOwnerTenant = await prisma.tenant.findFirst({
+      where: { ownerId: user.id },
+    });
+    if (existingOwnerTenant) {
       return NextResponse.json(
         { success: false, error: 'You already have a portal', code: 'ALREADY_HAS_TENANT' },
         { status: 400 }

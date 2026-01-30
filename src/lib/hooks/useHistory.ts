@@ -56,8 +56,8 @@ export function useHistory(): UseHistoryReturn {
             viewedArticlesRef.current = views;
           }
         }
-      } catch (error) {
-        console.error('Failed to load history:', error);
+      } catch {
+        console.error('Failed to load history');
       } finally {
         setIsLoaded(true);
       }
@@ -74,10 +74,15 @@ export function useHistory(): UseHistoryReturn {
 
     saveTimeoutRef.current = setTimeout(async () => {
       try {
+        const csrfRes = await fetch('/api/auth/session');
+        const csrfData = await csrfRes.json();
         await fetch('/api/preferences', {
           method: 'POST',
           credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfData.csrf,
+          },
           body: JSON.stringify({
             preferences: {
               recentSearches: recentSearchesRef.current,
@@ -85,8 +90,8 @@ export function useHistory(): UseHistoryReturn {
             },
           }),
         });
-      } catch (error) {
-        console.error('Failed to save history:', error);
+      } catch {
+        console.error('Failed to save history');
       }
     }, DEBOUNCE_MS);
   }, []);

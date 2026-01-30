@@ -46,7 +46,7 @@ export function OnboardingWizard({
           setCsrfToken(data.csrf);
         }
       } catch (err) {
-        console.error('Failed to fetch CSRF token:', err);
+        console.error('Failed to fetch CSRF token');
       }
     }
     fetchCsrf();

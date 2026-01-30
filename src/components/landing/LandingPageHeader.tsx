@@ -62,15 +62,18 @@ export function LandingPageHeader({
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
       await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
+        headers: { 'X-CSRF-Token': csrfData.csrf },
       });
       setUserStatus({ isLoggedIn: false, hasDashboard: false });
       setShowUserMenu(false);
       router.refresh();
-    } catch (error) {
-      console.error('Logout failed:', error);
+    } catch {
+      console.error('Logout failed');
     } finally {
       setIsLoggingOut(false);
     }

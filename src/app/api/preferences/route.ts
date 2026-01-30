@@ -14,6 +14,7 @@ import {
   createSuccessResponse,
   createErrorResponse,
 } from '@/lib/security/sanitize';
+import { validateCsrfRequest } from '@/lib/security/csrf';
 import { logApiAccess, getClientIp } from '@/lib/security/logger';
 import { SearchHistoryItem, ViewHistoryItem } from '@/types';
 
@@ -141,6 +142,12 @@ export async function POST(request: NextRequest) {
   const ip = getClientIp(request.headers);
 
   try {
+    // Validate CSRF token
+    const csrfResult = await validateCsrfRequest(request);
+    if (!csrfResult.valid) {
+      return createErrorResponse('forbidden', 403);
+    }
+
     const body = await request.json();
     const { preferences } = body;
 

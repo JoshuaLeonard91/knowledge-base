@@ -129,7 +129,7 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
     },
   });
 
-  console.log('[Webhook] TenantSubscription created for user:', userId);
+  console.log('[Webhook] TenantSubscription created');
 }
 
 async function handleInvoicePaid(invoice: Stripe.Invoice) {

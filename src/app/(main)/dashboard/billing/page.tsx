@@ -64,7 +64,7 @@ export default function BillingPage() {
 
       setData(subData);
     } catch (err) {
-      console.error('Failed to fetch billing data:', err);
+      console.error('Failed to fetch billing data');
       router.push('/dashboard');
     } finally {
       setIsLoading(false);
@@ -119,7 +119,7 @@ export default function BillingPage() {
         setError(portalData.error || 'Failed to open billing portal');
       }
     } catch (err) {
-      console.error('Portal request failed:', err);
+      console.error('Portal request failed');
       setError('Something went wrong. Please try again.');
     } finally {
       setIsPortalLoading(false);

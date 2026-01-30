@@ -55,7 +55,7 @@ export interface TenantContext {
 
 // Simple in-memory cache for tenant lookups (short TTL)
 const tenantCache = new Map<string, { tenant: TenantWithConfig | null; timestamp: number }>();
-const CACHE_TTL = 60 * 1000; // 1 minute
+const CACHE_TTL = 10 * 1000; // 10 seconds
 
 /**
  * Extract subdomain from hostname
@@ -117,8 +117,8 @@ export async function getTenantBySlug(slug: string): Promise<TenantWithConfig | 
     tenantCache.set(slug, { tenant, timestamp: Date.now() });
 
     return tenant;
-  } catch (error) {
-    console.error('[Tenant] Error fetching tenant:', error);
+  } catch {
+    console.error('[Tenant] Error fetching tenant');
     return null;
   }
 }

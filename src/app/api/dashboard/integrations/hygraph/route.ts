@@ -16,6 +16,7 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
 import { validateCsrfRequest } from '@/lib/security/csrf';
+import { getTenantFromRequest } from '@/lib/tenant/resolver';
 
 // Security headers
 const securityHeaders = {
@@ -45,7 +46,10 @@ export async function GET() {
       );
     }
 
-    // Get user's tenant
+    // Get tenant from request context (validates subdomain)
+    const tenantContext = await getTenantFromRequest();
+
+    // Get user's tenant and validate against request context
     const user = await prisma.user.findUnique({
       where: { discordId: session.id },
       include: {
@@ -64,7 +68,10 @@ export async function GET() {
       );
     }
 
-    const tenant = user.tenants[0];
+    // Find the tenant matching the current request context
+    const tenant = tenantContext
+      ? user.tenants.find(t => t.slug === tenantContext.slug) || user.tenants[0]
+      : user.tenants[0];
     const config = tenant.hygraphConfig;
 
     // Return status only - NEVER return credentials
@@ -143,7 +150,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get user's tenant
+    // Get tenant from request context (validates subdomain)
+    const tenantContext = await getTenantFromRequest();
+
+    // Get user's tenant and validate against request context
     const user = await prisma.user.findUnique({
       where: { discordId: session.id },
       include: { tenants: true },
@@ -156,7 +166,17 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tenant = user.tenants[0];
+    // Find the tenant matching the current request context
+    const tenant = tenantContext
+      ? user.tenants.find(t => t.slug === tenantContext.slug)
+      : user.tenants[0];
+
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Tenant access denied' },
+        { status: 403, headers: securityHeaders }
+      );
+    }
 
     // Encrypt credentials before storage
     const encryptedEndpoint = encryptToString(endpoint);
@@ -176,7 +196,7 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    console.log('[Hygraph Config] Configuration saved for tenant:', tenant.slug);
+    console.log('[Hygraph Config] Configuration saved');
 
     return NextResponse.json(
       { success: true },
@@ -222,7 +242,10 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Get user's tenant
+    // Get tenant from request context (validates subdomain)
+    const tenantContext = await getTenantFromRequest();
+
+    // Get user's tenant and validate against request context
     const user = await prisma.user.findUnique({
       where: { discordId: session.id },
       include: { tenants: true },
@@ -235,14 +258,24 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const tenant = user.tenants[0];
+    // Find the tenant matching the current request context
+    const tenant = tenantContext
+      ? user.tenants.find(t => t.slug === tenantContext.slug)
+      : user.tenants[0];
+
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Tenant access denied' },
+        { status: 403, headers: securityHeaders }
+      );
+    }
 
     // Delete configuration
     await prisma.tenantHygraphConfig.deleteMany({
       where: { tenantId: tenant.id },
     });
 
-    console.log('[Hygraph Config] Configuration deleted for tenant:', tenant.slug);
+    console.log('[Hygraph Config] Configuration deleted');
 
     return NextResponse.json(
       { success: true },

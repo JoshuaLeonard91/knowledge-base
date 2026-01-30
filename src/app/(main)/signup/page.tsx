@@ -41,7 +41,7 @@ export default function SignupPage() {
           return;
         }
       } catch (err) {
-        console.error('Failed to check auth:', err);
+        console.error('Failed to check auth');
       } finally {
         setIsLoading(false);
       }

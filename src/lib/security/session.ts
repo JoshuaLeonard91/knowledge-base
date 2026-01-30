@@ -43,10 +43,10 @@ export interface ParsedSession {
 }
 
 // Session configuration
-const SESSION_DURATION_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+const SESSION_DURATION_MS = 24 * 60 * 60 * 1000; // 24 hours
 const TOKEN_VERSION = 'v1';
 const HANDOFF_TOKEN_VERSION = 'h1';
-const HANDOFF_EXPIRY_MS = 30 * 1000; // 30 seconds - very short lived
+const HANDOFF_EXPIRY_MS = 5 * 1000; // 5 seconds - very short lived
 
 /**
  * Create a new session token
@@ -143,7 +143,7 @@ export function getSessionPayload(token: string): SessionPayload | null {
 /**
  * Check if session needs rotation (close to expiry)
  */
-export function needsRotation(token: string, thresholdMs: number = 24 * 60 * 60 * 1000): boolean {
+export function needsRotation(token: string, thresholdMs: number = 6 * 60 * 60 * 1000): boolean {
   const result = parseSessionToken(token);
   if (!result.valid || !result.payload) return false;
 
@@ -201,6 +201,9 @@ export const SESSION_COOKIE_CONFIG = {
   name: 'session',
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
+  // NOTE: 'lax' is required (not 'strict') because OAuth callback redirects
+  // arrive from Discord (external site) → main domain → tenant subdomain.
+  // 'strict' would block the cookie on the redirect from set-session.
   sameSite: 'lax' as const,
   path: '/',
   maxAge: SESSION_DURATION_MS / 1000, // Convert to seconds for cookie
@@ -280,7 +283,7 @@ interface HandoffPayload {
  * Used to securely pass session token during OAuth redirect
  *
  * SECURITY:
- * - Expires in 30 seconds (useless if logged)
+ * - Expires in 5 seconds (useless if logged)
  * - Single use (nonce makes each token unique)
  * - Encrypted and signed
  */
