@@ -80,14 +80,14 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
   const minLevel = Math.min(...headings.map((h) => h.level));
 
   return (
-    <nav aria-label="Table of contents" className="w-full">
-      <div className="flex items-center gap-2.5 mb-5 px-1">
+    <nav aria-label="Table of contents" className="flex flex-col max-h-[calc(100vh-8rem)] w-full">
+      <div className="flex items-center gap-2.5 mb-5 px-1 shrink-0">
         <List size={18} weight="bold" className="text-[var(--text-muted)]" />
         <span className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
           On this page
         </span>
       </div>
-      <ul className="space-y-1">
+      <ul className="space-y-1 overflow-y-auto overscroll-contain pr-1 min-h-0">
         {headings.map((heading) => {
           const indent = heading.level - minLevel;
           const isActive = activeId === heading.id;
