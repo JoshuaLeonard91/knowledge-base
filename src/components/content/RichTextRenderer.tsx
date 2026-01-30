@@ -1,12 +1,49 @@
 'use client';
 
+import React from 'react';
 import { RichText } from '@graphcms/rich-text-react-renderer';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 import Link from 'next/link';
+import { HeaderLink } from '@/app/support/articles/[slug]/HeaderLink';
+import { generateHeaderId } from '@/lib/utils/headings';
 
 interface RichTextRendererProps {
   content: RichTextContent;
   className?: string;
+}
+
+/** Extract plain text from React children for ID generation */
+function getTextFromChildren(children: React.ReactNode): string {
+  if (typeof children === 'string') return children;
+  if (typeof children === 'number') return String(children);
+  if (!children) return '';
+  if (Array.isArray(children)) return children.map(getTextFromChildren).join('');
+  if (React.isValidElement(children) && children.props) {
+    return getTextFromChildren((children.props as { children?: React.ReactNode }).children);
+  }
+  return '';
+}
+
+/** Heading renderer with anchor ID and copy-link button */
+function AnchorHeading({
+  level,
+  className,
+  children,
+}: {
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+  className: string;
+  children: React.ReactNode;
+}) {
+  const text = getTextFromChildren(children);
+  const id = generateHeaderId(text);
+  const Tag = `h${level}` as const;
+
+  return (
+    <Tag id={id} className={`group flex items-center ${className}`}>
+      <span>{children}</span>
+      <HeaderLink id={id} />
+    </Tag>
+  );
 }
 
 export function RichTextRenderer({ content, className = '' }: RichTextRendererProps) {
@@ -15,36 +52,36 @@ export function RichTextRenderer({ content, className = '' }: RichTextRendererPr
       <RichText
         content={content}
         renderers={{
-          // Headings with distinct sizes and subtle color accents
+          // Headings with anchor IDs and copy-link buttons
           h1: ({ children }) => (
-            <h1 className="text-4xl font-bold text-[var(--text-primary)] mb-6 mt-10 first:mt-0 leading-tight">
+            <AnchorHeading level={1} className="text-4xl font-bold text-[var(--text-primary)] mb-6 mt-10 first:mt-0 leading-tight">
               {children}
-            </h1>
+            </AnchorHeading>
           ),
           h2: ({ children }) => (
-            <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-5 mt-12 leading-tight">
+            <AnchorHeading level={2} className="text-3xl font-bold text-[var(--text-primary)] mb-5 mt-12 leading-tight">
               {children}
-            </h2>
+            </AnchorHeading>
           ),
           h3: ({ children }) => (
-            <h3 className="text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-10 leading-snug">
+            <AnchorHeading level={3} className="text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-10 leading-snug">
               {children}
-            </h3>
+            </AnchorHeading>
           ),
           h4: ({ children }) => (
-            <h4 className="text-xl font-semibold text-[var(--text-primary)] mb-3 mt-8 leading-snug">
+            <AnchorHeading level={4} className="text-xl font-semibold text-[var(--text-primary)] mb-3 mt-8 leading-snug">
               {children}
-            </h4>
+            </AnchorHeading>
           ),
           h5: ({ children }) => (
-            <h5 className="text-lg font-medium text-[var(--text-primary)] mb-2 mt-6 leading-normal">
+            <AnchorHeading level={5} className="text-lg font-medium text-[var(--text-primary)] mb-2 mt-6 leading-normal">
               {children}
-            </h5>
+            </AnchorHeading>
           ),
           h6: ({ children }) => (
-            <h6 className="text-base font-medium text-[var(--text-primary)] uppercase tracking-wider mb-2 mt-5 leading-normal">
+            <AnchorHeading level={6} className="text-base font-medium text-[var(--text-primary)] uppercase tracking-wider mb-2 mt-5 leading-normal">
               {children}
-            </h6>
+            </AnchorHeading>
           ),
 
           // Paragraphs

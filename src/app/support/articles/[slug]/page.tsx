@@ -6,6 +6,8 @@ import { ArticleFeedback } from './ArticleFeedback';
 import { ArticleViewTracker } from './ArticleViewTracker';
 import { HeaderLink } from './HeaderLink';
 import { RichTextRenderer } from '@/components/content/RichTextRenderer';
+import { TableOfContents } from '@/components/content/TableOfContents';
+import { generateHeaderId, extractHeadingsFromRichText, extractHeadingsFromMarkdown } from '@/lib/utils/headings';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 import {
   CaretLeft, Clock, BookOpenText, Tag,
@@ -17,16 +19,6 @@ import {
 // Force dynamic rendering - fetches fresh data on every request
 // Required for multi-tenant setup where content changes without rebuilds
 export const dynamic = 'force-dynamic';
-
-// Generate URL-safe slug from header text
-function generateHeaderId(text: string): string {
-  return text
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .trim();
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
@@ -47,12 +39,11 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     notFound();
   }
 
-  // Debug logging
-  console.log('[ArticlePage] Content type:', typeof article.content);
-  console.log('[ArticlePage] Is object:', typeof article.content === 'object' && article.content !== null);
-  if (typeof article.content === 'object' && article.content !== null) {
-    console.log('[ArticlePage] Has children:', 'children' in article.content);
-  }
+  // Extract headings for table of contents
+  const isRichText = typeof article.content === 'object' && article.content !== null;
+  const headings = isRichText
+    ? extractHeadingsFromRichText(article.content as RichTextContent)
+    : extractHeadingsFromMarkdown(article.content as string);
 
   const [relatedArticles, categories] = await Promise.all([
     getRelatedArticles(article, 4),
@@ -354,54 +345,66 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         </div>
       </section>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {/* Article Content */}
-        <article className="prose max-w-none">
-          {typeof article.content === 'object' && article.content !== null ? (
-            // Rich text AST - use RichTextRenderer
-            <RichTextRenderer content={article.content as RichTextContent} />
-          ) : (
-            // Legacy markdown string - use custom renderer
-            renderContent(article.content as string)
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex gap-10">
+          {/* Left sidebar - Table of Contents (desktop only) */}
+          {headings.length > 1 && (
+            <aside className="hidden xl:block w-64 shrink-0">
+              <div className="sticky top-24">
+                <TableOfContents headings={headings} />
+              </div>
+            </aside>
           )}
-        </article>
 
-        {/* Keywords */}
-        {article.keywords && article.keywords.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
-            <div className="flex items-center gap-2 mb-4">
-              <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
-              <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {article.keywords.map((keyword) => (
-                <span
-                  key={keyword}
-                  className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
-                >
-                  {keyword}
-                </span>
-              ))}
-            </div>
+          {/* Main content */}
+          <div className="flex-1 min-w-0 max-w-4xl">
+            {/* Article Content */}
+            <article className="prose max-w-none">
+              {isRichText ? (
+                <RichTextRenderer content={article.content as RichTextContent} />
+              ) : (
+                renderContent(article.content as string)
+              )}
+            </article>
+
+            {/* Keywords */}
+            {article.keywords && article.keywords.length > 0 && (
+              <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
+                <div className="flex items-center gap-2 mb-4">
+                  <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
+                  <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {article.keywords.map((keyword) => (
+                    <span
+                      key={keyword}
+                      className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Feedback */}
+            <ArticleFeedback articleSlug={article.slug} />
+
+            {/* Related Articles */}
+            {relatedArticles.length > 0 && (
+              <div className="mt-12">
+                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">
+                  Related Articles
+                </h2>
+                <div className="grid gap-4 md:grid-cols-2">
+                  {relatedArticles.slice(0, 4).map((related) => (
+                    <ArticleCard key={related.slug} article={related} variant="compact" />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
-        )}
-
-        {/* Feedback */}
-        <ArticleFeedback articleSlug={article.slug} />
-
-        {/* Related Articles */}
-        {relatedArticles.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">
-              Related Articles
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {relatedArticles.slice(0, 4).map((related) => (
-                <ArticleCard key={related.slug} article={related} variant="compact" />
-              ))}
-            </div>
-          </div>
-        )}
+        </div>
       </div>
     </div>
   );
