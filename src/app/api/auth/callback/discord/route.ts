@@ -206,6 +206,9 @@ export async function GET(request: NextRequest) {
     const oauthCookieDomain = process.env.AUTH_COOKIE_DOMAIN;
     const deleteOptions = {
       path: '/',
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
       ...(process.env.NODE_ENV === 'production' && oauthCookieDomain
         ? { domain: oauthCookieDomain }
         : {}),
