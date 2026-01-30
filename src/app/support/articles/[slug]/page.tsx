@@ -1,12 +1,13 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getArticleBySlug, getRelatedArticles, getCategories } from '@/lib/cms';
+import { getArticleBySlug, getRelatedArticles, getCategories, getArticles } from '@/lib/cms';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { ArticleFeedback } from './ArticleFeedback';
 import { ArticleViewTracker } from './ArticleViewTracker';
 import { HeaderLink } from './HeaderLink';
 import { RichTextRenderer } from '@/components/content/RichTextRenderer';
 import { TableOfContents } from '@/components/content/TableOfContents';
+import { ArticleNavSidebar } from '@/components/content/ArticleNavSidebar';
 import { generateHeaderId, extractHeadingsFromRichText, extractHeadingsFromMarkdown } from '@/lib/utils/headings';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 import {
@@ -45,11 +46,13 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     ? extractHeadingsFromRichText(article.content as RichTextContent)
     : extractHeadingsFromMarkdown(article.content as string);
 
-  const [relatedArticles, categories] = await Promise.all([
+  const [relatedArticles, categories, allArticles] = await Promise.all([
     getRelatedArticles(article, 4),
-    getCategories()
+    getCategories(),
+    getArticles()
   ]);
   const category = categories.find(c => c.id === article.category);
+  const navArticles = allArticles.map(({ slug: s, title, category: cat }) => ({ slug: s, title, category: cat }));
   const Icon = iconMap[article.icon] || BookOpenText;
 
   // Simple markdown-like rendering
@@ -305,19 +308,21 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     <div className="min-h-screen">
       <ArticleViewTracker slug={article.slug} title={article.title} category={article.category} />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex gap-10">
-          {/* Left sidebar - Table of Contents (desktop only) */}
-          {headings.length > 1 && (
-            <aside className="hidden xl:block w-72 shrink-0">
-              <div className="sticky top-1/2 -translate-y-1/2">
-                <TableOfContents headings={headings} />
-              </div>
-            </aside>
-          )}
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-[288px_1fr] xl:grid-cols-[288px_1fr_288px] gap-10">
+          {/* Left sidebar - Article Navigation (LG+) */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-1/2 -translate-y-1/2">
+              <ArticleNavSidebar
+                categories={categories}
+                articles={navArticles}
+                currentSlug={slug}
+              />
+            </div>
+          </aside>
 
           {/* Main content */}
-          <div className="flex-1 min-w-0 max-w-4xl">
+          <div className="min-w-0 max-w-4xl mx-auto w-full">
             {/* Breadcrumb */}
             <Link
               href="/support/articles"
@@ -396,6 +401,15 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               </div>
             )}
           </div>
+
+          {/* Right sidebar - Table of Contents (XL+) */}
+          {headings.length > 1 && (
+            <aside className="hidden xl:block">
+              <div className="sticky top-1/2 -translate-y-1/2">
+                <TableOfContents headings={headings} />
+              </div>
+            </aside>
+          )}
         </div>
       </div>
     </div>
