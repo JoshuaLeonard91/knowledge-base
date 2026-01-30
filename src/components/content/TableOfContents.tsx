@@ -11,6 +11,7 @@ interface TableOfContentsProps {
 export function TableOfContents({ headings }: TableOfContentsProps) {
   const [activeId, setActiveId] = useState<string>('');
   const observerRef = useRef<IntersectionObserver | null>(null);
+  const listRef = useRef<HTMLUListElement | null>(null);
   const isClickScrolling = useRef(false);
 
   useEffect(() => {
@@ -53,6 +54,15 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
     };
   }, [headings]);
 
+  // Auto-scroll TOC so the active item is always visible
+  useEffect(() => {
+    if (!activeId || !listRef.current) return;
+    const activeEl = listRef.current.querySelector(`[data-heading-id="${activeId}"]`);
+    if (activeEl) {
+      (activeEl as HTMLElement).scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    }
+  }, [activeId]);
+
   const handleClick = useCallback((id: string) => {
     const el = document.getElementById(id);
     if (!el) return;
@@ -85,13 +95,13 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
           On this page
         </span>
       </div>
-      <ul className="space-y-0.5 overflow-y-auto overscroll-contain pr-1 min-h-0">
+      <ul ref={listRef} className="space-y-0.5 overflow-y-auto overscroll-contain pr-1 min-h-0">
         {headings.map((heading) => {
           const indent = heading.level - minLevel;
           const isActive = activeId === heading.id;
 
           return (
-            <li key={heading.id}>
+            <li key={heading.id} data-heading-id={heading.id}>
               <button
                 onClick={() => handleClick(heading.id)}
                 className={`
