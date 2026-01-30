@@ -170,7 +170,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerText = line.replace('# ', '');
         const headerId = generateHeaderId(headerText);
         elements.push(
-          <h1 key={index} id={headerId} className="group text-3xl font-bold text-[var(--text-primary)] mb-6 mt-8 first:mt-0 flex items-center">
+          <h1 key={index} id={headerId} className="group scroll-mt-28 text-3xl font-bold text-[var(--text-primary)] mb-6 mt-8 first:mt-0 flex items-center">
             <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h1>
@@ -182,7 +182,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerText = line.replace('## ', '');
         const headerId = generateHeaderId(headerText);
         elements.push(
-          <h2 key={index} id={headerId} className="group text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-8 flex items-center">
+          <h2 key={index} id={headerId} className="group scroll-mt-28 text-2xl font-semibold text-[var(--text-primary)] mb-4 mt-8 flex items-center">
             <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h2>
@@ -194,7 +194,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerText = line.replace('### ', '');
         const headerId = generateHeaderId(headerText);
         elements.push(
-          <h3 key={index} id={headerId} className="group text-xl font-semibold text-[var(--text-primary)] mb-3 mt-6 flex items-center">
+          <h3 key={index} id={headerId} className="group scroll-mt-28 text-xl font-semibold text-[var(--text-primary)] mb-3 mt-6 flex items-center">
             <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h3>
@@ -206,7 +206,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerText = line.replace('#### ', '');
         const headerId = generateHeaderId(headerText);
         elements.push(
-          <h4 key={index} id={headerId} className="group text-lg font-semibold text-[var(--text-primary)] mb-2 mt-5 flex items-center">
+          <h4 key={index} id={headerId} className="group scroll-mt-28 text-lg font-semibold text-[var(--text-primary)] mb-2 mt-5 flex items-center">
             <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h4>
@@ -218,7 +218,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerText = line.replace('##### ', '');
         const headerId = generateHeaderId(headerText);
         elements.push(
-          <h5 key={index} id={headerId} className="group text-base font-semibold text-[var(--text-primary)] mb-2 mt-4 flex items-center">
+          <h5 key={index} id={headerId} className="group scroll-mt-28 text-base font-semibold text-[var(--text-primary)] mb-2 mt-4 flex items-center">
             <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h5>
@@ -230,7 +230,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         const headerText = line.replace('###### ', '');
         const headerId = generateHeaderId(headerText);
         elements.push(
-          <h6 key={index} id={headerId} className="group text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide mb-2 mt-4 flex items-center">
+          <h6 key={index} id={headerId} className="group scroll-mt-28 text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wide mb-2 mt-4 flex items-center">
             <span dangerouslySetInnerHTML={{ __html: formatInline(headerText) }} />
             <HeaderLink id={headerId} />
           </h6>
@@ -349,7 +349,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         <div className="flex gap-10">
           {/* Left sidebar - Table of Contents (desktop only) */}
           {headings.length > 1 && (
-            <aside className="hidden xl:block w-64 shrink-0">
+            <aside className="hidden xl:block w-72 shrink-0">
               <div className="sticky top-24">
                 <TableOfContents headings={headings} />
               </div>
@@ -361,7 +361,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             {/* Article Content */}
             <article className="prose max-w-none">
               {isRichText ? (
-                <RichTextRenderer content={article.content as RichTextContent} />
+                <RichTextRenderer content={article.content as RichTextContent} headings={headings} />
               ) : (
                 renderContent(article.content as string)
               )}
