@@ -310,7 +310,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           {/* Left sidebar - Table of Contents (desktop only) */}
           {headings.length > 1 && (
             <aside className="hidden xl:block w-72 shrink-0">
-              <div className="sticky top-20">
+              <div className="sticky top-1/2 -translate-y-1/2">
                 <TableOfContents headings={headings} />
               </div>
             </aside>

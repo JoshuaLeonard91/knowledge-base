@@ -87,7 +87,7 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
   return (
     <nav
       aria-label="Table of contents"
-      className="flex flex-col max-h-[calc(100vh-10rem)] w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-lg shadow-black/5 p-4"
+      className="flex flex-col h-[min(500px,70vh)] w-72 rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-lg shadow-black/5 p-4"
     >
       <div className="flex items-center gap-2.5 mb-4 px-1 shrink-0">
         <List size={18} weight="bold" className="text-[var(--text-muted)]" />
