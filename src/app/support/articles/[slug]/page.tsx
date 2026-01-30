@@ -303,54 +303,14 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
   return (
     <div className="min-h-screen">
-      {/* Track article view */}
       <ArticleViewTracker slug={article.slug} title={article.title} category={article.category} />
 
-      {/* Header */}
-      <section className="relative overflow-hidden border-b border-[var(--border-primary)]">
-        <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
-        <div className="absolute inset-0 bg-grid opacity-20" />
-
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          {/* Breadcrumb */}
-          <Link
-            href="/support/articles"
-            className="inline-flex items-center gap-2 text-[var(--text-secondary)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
-          >
-            <CaretLeft size={16} weight="bold" />
-            Back to Articles
-          </Link>
-
-          <div className="flex items-start gap-4">
-            <div className={`p-4 rounded-xl bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20`}>
-              <Icon size={32} weight="duotone" className="text-[var(--accent-primary)]" />
-            </div>
-            <div className="flex-1">
-              <div className="flex items-center gap-3 mb-3 flex-wrap">
-                {category && (
-                  <span className="px-3 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-sm font-medium">
-                    {category.name}
-                  </span>
-                )}
-                <span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
-                  <Clock size={16} weight="bold" />
-                  {article.readTime} min read
-                </span>
-              </div>
-              <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
-                {article.title}
-              </h1>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex gap-10">
           {/* Left sidebar - Table of Contents (desktop only) */}
           {headings.length > 1 && (
             <aside className="hidden xl:block w-72 shrink-0">
-              <div className="sticky top-24">
+              <div className="sticky top-20">
                 <TableOfContents headings={headings} />
               </div>
             </aside>
@@ -358,6 +318,38 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
           {/* Main content */}
           <div className="flex-1 min-w-0 max-w-4xl">
+            {/* Breadcrumb */}
+            <Link
+              href="/support/articles"
+              className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
+            >
+              <CaretLeft size={14} weight="bold" />
+              Back to Articles
+            </Link>
+
+            {/* Article header */}
+            <header className="mb-10">
+              <div className="flex items-center gap-3 mb-4 flex-wrap">
+                <div className="p-2.5 rounded-lg bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20">
+                  <Icon size={22} weight="duotone" className="text-[var(--accent-primary)]" />
+                </div>
+                {category && (
+                  <span className="px-3 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-sm font-medium">
+                    {category.name}
+                  </span>
+                )}
+                {article.readTime > 0 && (
+                  <span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
+                    <Clock size={14} weight="bold" />
+                    {article.readTime} min read
+                  </span>
+                )}
+              </div>
+              <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
+                {article.title}
+              </h1>
+            </header>
+
             {/* Article Content */}
             <article className="prose max-w-none">
               {isRichText ? (

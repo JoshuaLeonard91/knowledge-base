@@ -20,7 +20,6 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
 
     observerRef.current = new IntersectionObserver(
       (entries) => {
-        // Don't update active state while a click-scroll is in progress
         if (isClickScrolling.current) return;
 
         entries.forEach((entry) => {
@@ -58,18 +57,14 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
     const el = document.getElementById(id);
     if (!el) return;
 
-    // Set active immediately on click
     setActiveId(id);
     isClickScrolling.current = true;
 
-    // Calculate position accounting for sticky header offset (scroll-mt-28 = 7rem = 112px)
-    const top = el.getBoundingClientRect().top + window.scrollY - 112;
+    const top = el.getBoundingClientRect().top + window.scrollY - 96;
     window.scrollTo({ top, behavior: 'smooth' });
 
-    // Update URL hash
     window.history.replaceState(null, '', `#${id}`);
 
-    // Re-enable observer tracking after scroll settles
     setTimeout(() => {
       isClickScrolling.current = false;
     }, 800);
@@ -80,14 +75,17 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
   const minLevel = Math.min(...headings.map((h) => h.level));
 
   return (
-    <nav aria-label="Table of contents" className="flex flex-col max-h-[calc(100vh-8rem)] w-full">
-      <div className="flex items-center gap-2.5 mb-5 px-1 shrink-0">
+    <nav
+      aria-label="Table of contents"
+      className="flex flex-col max-h-[calc(100vh-10rem)] w-full rounded-xl border border-[var(--border-primary)] bg-[var(--bg-secondary)] shadow-lg shadow-black/5 p-4"
+    >
+      <div className="flex items-center gap-2.5 mb-4 px-1 shrink-0">
         <List size={18} weight="bold" className="text-[var(--text-muted)]" />
         <span className="text-sm font-semibold text-[var(--text-primary)] uppercase tracking-wider">
           On this page
         </span>
       </div>
-      <ul className="space-y-1 overflow-y-auto overscroll-contain pr-1 min-h-0">
+      <ul className="space-y-0.5 overflow-y-auto overscroll-contain pr-1 min-h-0">
         {headings.map((heading) => {
           const indent = heading.level - minLevel;
           const isActive = activeId === heading.id;
@@ -97,14 +95,14 @@ export function TableOfContents({ headings }: TableOfContentsProps) {
               <button
                 onClick={() => handleClick(heading.id)}
                 className={`
-                  w-full text-left py-2 px-3.5 rounded-lg transition-all duration-150
+                  w-full text-left py-1.5 px-3 rounded-lg transition-all duration-150
                   border-l-2 -ml-px leading-snug
                   ${isActive
                     ? 'text-[var(--accent-primary)] border-[var(--accent-primary)] bg-[var(--accent-primary)]/5 font-medium'
                     : 'text-[var(--text-muted)] border-transparent hover:text-[var(--text-secondary)] hover:border-[var(--border-primary)] hover:bg-[var(--bg-tertiary)]/50'
                   }
                 `}
-                style={{ paddingLeft: `${14 + indent * 14}px` }}
+                style={{ paddingLeft: `${12 + indent * 12}px` }}
               >
                 <span className="text-[0.8125rem]">{heading.text}</span>
               </button>
