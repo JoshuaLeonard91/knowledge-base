@@ -139,11 +139,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Get base URL
-    const isDev = process.env.NODE_ENV === 'development';
-    const baseUrl = isDev
-      ? `${request.nextUrl.protocol}//${request.nextUrl.host}`
-      : (process.env.NEXT_PUBLIC_APP_URL || `${request.nextUrl.protocol}//${request.nextUrl.host}`);
+    // Get base URL — use forwarded headers to handle DO App Platform's internal reverse proxy
+    const fwdHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+    const fwdProto = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${fwdProto}://${fwdHost}`;
 
     // Create Stripe checkout session
     const checkoutSession = await createGenericCheckoutSession({

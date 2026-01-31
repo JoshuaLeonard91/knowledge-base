@@ -254,7 +254,10 @@ export async function middleware(request: NextRequest) {
 
       if (!sessionCookie?.value) {
         // No session - redirect to signup
-        const signupUrl = new URL('/signup', request.url);
+        // Use forwarded headers since DO App Platform runs an internal reverse proxy
+        const fwdHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+        const fwdProto = request.headers.get('x-forwarded-proto') || 'https';
+        const signupUrl = new URL('/signup', `${fwdProto}://${fwdHost}`);
         signupUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(signupUrl);
       }
