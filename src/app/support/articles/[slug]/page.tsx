@@ -310,7 +310,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8 lg:grid lg:grid-cols-[288px_1fr] xl:grid-cols-[288px_1fr_288px] lg:gap-10">
         {/* Left sidebar - Article Navigation (LG+) */}
-        <aside className="hidden lg:block">
+        <aside className="hidden lg:block self-start">
           <div className="sticky top-24">
             <ArticleNavSidebar
               categories={categories}
@@ -322,61 +322,47 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Main content */}
         <div className="max-w-4xl mx-auto w-full">
-        {/* Breadcrumb */}
-        <Link
-          href="/support/articles"
-          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
-        >
-          <CaretLeft size={14} weight="bold" />
-          Back to Articles
-        </Link>
+          {/* Breadcrumb */}
+          <Link
+            href="/support/articles"
+            className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
+          >
+            <CaretLeft size={14} weight="bold" />
+            Back to Articles
+          </Link>
 
-        {/* Article header */}
-        <header className="mb-10">
-          <div className="flex items-center gap-3 mb-4 flex-wrap">
-            <div className="p-2.5 rounded-lg bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20">
-              <Icon size={22} weight="duotone" className="text-[var(--accent-primary)]" />
+          {/* Article header */}
+          <header className="mb-10">
+            <div className="flex items-center gap-3 mb-4 flex-wrap">
+              <div className="p-2.5 rounded-lg bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20">
+                <Icon size={22} weight="duotone" className="text-[var(--accent-primary)]" />
+              </div>
+              {category && (
+                <span className="px-3 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-sm font-medium">
+                  {category.name}
+                </span>
+              )}
+              {article.readTime > 0 && (
+                <span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
+                  <Clock size={14} weight="bold" />
+                  {article.readTime} min read
+                </span>
+              )}
             </div>
-            {category && (
-              <span className="px-3 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-sm font-medium">
-                {category.name}
-              </span>
+            <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
+              {article.title}
+            </h1>
+          </header>
+
+          {/* Article Content */}
+          <article className="prose max-w-none">
+            {isRichText ? (
+              <RichTextRenderer content={article.content as RichTextContent} headings={headings} />
+            ) : (
+              renderContent(article.content as string)
             )}
-            {article.readTime > 0 && (
-              <span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
-                <Clock size={14} weight="bold" />
-                {article.readTime} min read
-              </span>
-            )}
-          </div>
-          <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
-            {article.title}
-          </h1>
-        </header>
+          </article>
 
-        {/* Article Content */}
-        <article className="prose max-w-none">
-          {isRichText ? (
-            <RichTextRenderer content={article.content as RichTextContent} headings={headings} />
-          ) : (
-            renderContent(article.content as string)
-          )}
-        </article>
-        </div>
-
-        {/* Right sidebar - Table of Contents (XL+) */}
-        {headings.length > 1 && (
-          <aside className="hidden xl:block">
-            <div className="sticky top-24">
-              <TableOfContents headings={headings} />
-            </div>
-          </aside>
-        )}
-      </div>
-
-      {/* Post-article sections — outside the grid so sidebars don't stretch */}
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:pl-[calc(288px+2.5rem)] xl:pr-[calc(288px+2.5rem)]">
-        <div className="max-w-4xl mx-auto w-full">
           {/* Keywords */}
           {article.keywords && article.keywords.length > 0 && (
             <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
@@ -414,6 +400,15 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             </div>
           )}
         </div>
+
+        {/* Right sidebar - Table of Contents (XL+) */}
+        {headings.length > 1 && (
+          <aside className="hidden xl:block self-start">
+            <div className="sticky top-24">
+              <TableOfContents headings={headings} />
+            </div>
+          </aside>
+        )}
       </div>
     </div>
   );
