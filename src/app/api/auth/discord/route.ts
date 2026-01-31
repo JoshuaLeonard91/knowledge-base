@@ -28,7 +28,10 @@ export async function GET(request: NextRequest) {
   const authBaseUrl = process.env.AUTH_URL || 'http://localhost:3000';
 
   // Get the current origin (could be tenant subdomain)
-  const currentOrigin = `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+  // Use forwarded headers since DO App Platform runs an internal reverse proxy
+  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  const currentOrigin = `${forwardedProto}://${forwardedHost}`;
 
   // Generate state for CSRF protection
   const state = generateState();
