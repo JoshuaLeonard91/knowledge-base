@@ -310,8 +310,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
       <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8 lg:grid lg:grid-cols-[288px_1fr] xl:grid-cols-[288px_1fr_288px] lg:gap-10">
         {/* Left sidebar - Article Navigation (LG+) */}
-        <aside className="hidden lg:block self-start">
-          <div className="sticky top-24">
+        <aside className="hidden lg:block">
+          <div className="sticky top-[calc(50vh-min(300px,40vh))]">
             <ArticleNavSidebar
               categories={categories}
               articles={navArticles}
@@ -403,8 +403,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
 
         {/* Right sidebar - Table of Contents (XL+) */}
         {headings.length > 1 && (
-          <aside className="hidden xl:block self-start">
-            <div className="sticky top-24">
+          <aside className="hidden xl:block">
+            <div className="sticky top-[calc(50vh-min(300px,40vh))]">
               <TableOfContents headings={headings} />
             </div>
           </aside>
