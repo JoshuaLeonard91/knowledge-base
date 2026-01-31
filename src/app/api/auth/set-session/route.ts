@@ -67,9 +67,14 @@ export async function GET(request: NextRequest) {
   const handoffToken = request.nextUrl.searchParams.get('token');
   const callbackUrl = request.nextUrl.searchParams.get('callback') || '/support';
 
+  // Build real origin from forwarded headers (DO App Platform runs an internal reverse proxy)
+  const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+  const realOrigin = `${forwardedProto}://${forwardedHost}`;
+
   // Validate handoff token exists
   if (!handoffToken) {
-    return NextResponse.redirect(new URL('/support/login?error=NoToken', request.url));
+    return NextResponse.redirect(new URL('/support/login?error=NoToken', realOrigin));
   }
 
   // Validate callback URL (prevent open redirect)
@@ -79,11 +84,11 @@ export async function GET(request: NextRequest) {
   // This validates: signature, expiry (30s), and inner session token
   const sessionToken = parseHandoffToken(handoffToken);
   if (!sessionToken) {
-    return NextResponse.redirect(new URL('/support/login?error=InvalidToken', request.url));
+    return NextResponse.redirect(new URL('/support/login?error=InvalidToken', realOrigin));
   }
 
   // Create response with redirect to validated callback
-  const response = NextResponse.redirect(new URL(safeCallback, request.url));
+  const response = NextResponse.redirect(new URL(safeCallback, realOrigin));
 
   // Set session cookie WITHOUT domain = subdomain-isolated
   // Cookie will only be valid for this exact subdomain (e.g., acme.helpportal.app)
