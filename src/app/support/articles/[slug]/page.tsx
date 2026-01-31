@@ -308,24 +308,20 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     <div className="min-h-screen">
       <ArticleViewTracker slug={article.slug} title={article.title} category={article.category} />
 
-      {/* Left sidebar - Article Navigation (LG+) - Fixed position */}
-      <aside className="hidden lg:block fixed top-1/2 -translate-y-1/2 left-[max(1rem,calc((100vw-1600px)/2+1rem))] z-10">
-        <ArticleNavSidebar
-          categories={categories}
-          articles={navArticles}
-          currentSlug={slug}
-        />
-      </aside>
-
-      {/* Right sidebar - Table of Contents (XL+) - Fixed position */}
-      {headings.length > 1 && (
-        <aside className="hidden xl:block fixed top-1/2 -translate-y-1/2 right-[max(1rem,calc((100vw-1600px)/2+1rem))] z-10">
-          <TableOfContents headings={headings} />
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 py-8 lg:grid lg:grid-cols-[288px_1fr] xl:grid-cols-[288px_1fr_288px] lg:gap-10">
+        {/* Left sidebar - Article Navigation (LG+) */}
+        <aside className="hidden lg:block">
+          <div className="sticky top-24">
+            <ArticleNavSidebar
+              categories={categories}
+              articles={navArticles}
+              currentSlug={slug}
+            />
+          </div>
         </aside>
-      )}
 
-      {/* Main content - centered with padding for sidebars */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:pl-[328px] xl:px-[328px] py-8">
+        {/* Main content */}
+        <div className="max-w-4xl mx-auto w-full">
         {/* Breadcrumb */}
         <Link
           href="/support/articles"
@@ -402,6 +398,16 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               ))}
             </div>
           </div>
+        )}
+        </div>
+
+        {/* Right sidebar - Table of Contents (XL+) */}
+        {headings.length > 1 && (
+          <aside className="hidden xl:block">
+            <div className="sticky top-24">
+              <TableOfContents headings={headings} />
+            </div>
+          </aside>
         )}
       </div>
     </div>
