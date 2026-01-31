@@ -52,13 +52,6 @@ function extractTenantSubdomain(request: NextRequest): string | null {
     return null;
   }
 
-  // Handle Vercel preview URLs
-  if (hostname.endsWith('.vercel.app')) {
-    // Check query param for tenant override in previews
-    const previewTenant = request.nextUrl.searchParams.get('tenant');
-    return previewTenant || null;
-  }
-
   // Extract subdomain from hostname
   // e.g., "acme.helpportal.app" → "acme"
   const parts = hostname.split('.');

@@ -7,8 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "postinstall": "prisma generate",
-    "vercel-build": "prisma migrate deploy && next build"
+    "postinstall": "prisma generate || true",
+    "migrate": "prisma migrate deploy",
+    "production-build": "prisma generate && prisma migrate deploy && next build"
   },
   "dependencies": {
     "@auth/core": "^0.41.0",
@@ -16,7 +17,6 @@
     "@graphcms/rich-text-types": "^0.5.1",
     "@phosphor-icons/react": "^2.1.10",
     "@prisma/client": "^6.19.2",
-    "@vercel/blob": "^2.0.0",
     "clsx": "^2.1.1",
     "isomorphic-dompurify": "^2.35.0",
     "lucide-react": "^0.562.0",

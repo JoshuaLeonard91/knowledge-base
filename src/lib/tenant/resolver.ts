@@ -67,11 +67,6 @@ export function extractSubdomain(hostname: string): string | null {
     return null;
   }
 
-  // Handle Vercel preview URLs (e.g., project-name-git-branch.vercel.app)
-  if (hostname.endsWith('.vercel.app')) {
-    return null;
-  }
-
   // Extract subdomain from hostname
   // e.g., "acme.helpportal.app" → "acme"
   // e.g., "www.helpportal.app" → null (main site)
