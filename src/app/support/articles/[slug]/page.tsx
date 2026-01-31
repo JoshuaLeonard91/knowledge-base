@@ -362,43 +362,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             renderContent(article.content as string)
           )}
         </article>
-
-        {/* Keywords */}
-        {article.keywords && article.keywords.length > 0 && (
-          <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
-            <div className="flex items-center gap-2 mb-4">
-              <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
-              <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {article.keywords.map((keyword) => (
-                <span
-                  key={keyword}
-                  className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
-                >
-                  {keyword}
-                </span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Feedback */}
-        <ArticleFeedback articleSlug={article.slug} />
-
-        {/* Related Articles */}
-        {relatedArticles.length > 0 && (
-          <div className="mt-12">
-            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">
-              Related Articles
-            </h2>
-            <div className="grid gap-4 md:grid-cols-2">
-              {relatedArticles.slice(0, 4).map((related) => (
-                <ArticleCard key={related.slug} article={related} variant="compact" />
-              ))}
-            </div>
-          </div>
-        )}
         </div>
 
         {/* Right sidebar - Table of Contents (XL+) */}
@@ -409,6 +372,48 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
             </div>
           </aside>
         )}
+      </div>
+
+      {/* Post-article sections — outside the grid so sidebars don't stretch */}
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:pl-[calc(288px+2.5rem)] xl:pr-[calc(288px+2.5rem)]">
+        <div className="max-w-4xl mx-auto w-full">
+          {/* Keywords */}
+          {article.keywords && article.keywords.length > 0 && (
+            <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
+              <div className="flex items-center gap-2 mb-4">
+                <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
+                <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {article.keywords.map((keyword) => (
+                  <span
+                    key={keyword}
+                    className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
+                  >
+                    {keyword}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Feedback */}
+          <ArticleFeedback articleSlug={article.slug} />
+
+          {/* Related Articles */}
+          {relatedArticles.length > 0 && (
+            <div className="mt-12">
+              <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">
+                Related Articles
+              </h2>
+              <div className="grid gap-4 md:grid-cols-2">
+                {relatedArticles.slice(0, 4).map((related) => (
+                  <ArticleCard key={related.slug} article={related} variant="compact" />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
