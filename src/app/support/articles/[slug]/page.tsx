@@ -308,109 +308,101 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     <div className="min-h-screen">
       <ArticleViewTracker slug={article.slug} title={article.title} category={article.category} />
 
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-[288px_1fr] xl:grid-cols-[288px_1fr_288px] gap-10">
-          {/* Left sidebar - Article Navigation (LG+) */}
-          <aside className="hidden lg:block">
-            <div className="sticky top-[50vh] -translate-y-1/2">
-              <ArticleNavSidebar
-                categories={categories}
-                articles={navArticles}
-                currentSlug={slug}
-              />
+      {/* Left sidebar - Article Navigation (LG+) - Fixed position */}
+      <aside className="hidden lg:block fixed top-1/2 -translate-y-1/2 left-[max(1rem,calc((100vw-1600px)/2+1rem))] z-10">
+        <ArticleNavSidebar
+          categories={categories}
+          articles={navArticles}
+          currentSlug={slug}
+        />
+      </aside>
+
+      {/* Right sidebar - Table of Contents (XL+) - Fixed position */}
+      {headings.length > 1 && (
+        <aside className="hidden xl:block fixed top-1/2 -translate-y-1/2 right-[max(1rem,calc((100vw-1600px)/2+1rem))] z-10">
+          <TableOfContents headings={headings} />
+        </aside>
+      )}
+
+      {/* Main content - centered with padding for sidebars */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:pl-[328px] xl:px-[328px] py-8">
+        {/* Breadcrumb */}
+        <Link
+          href="/support/articles"
+          className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
+        >
+          <CaretLeft size={14} weight="bold" />
+          Back to Articles
+        </Link>
+
+        {/* Article header */}
+        <header className="mb-10">
+          <div className="flex items-center gap-3 mb-4 flex-wrap">
+            <div className="p-2.5 rounded-lg bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20">
+              <Icon size={22} weight="duotone" className="text-[var(--accent-primary)]" />
             </div>
-          </aside>
-
-          {/* Main content */}
-          <div className="min-w-0 max-w-4xl mx-auto w-full">
-            {/* Breadcrumb */}
-            <Link
-              href="/support/articles"
-              className="inline-flex items-center gap-1.5 text-sm text-[var(--text-muted)] hover:text-[var(--accent-primary)] mb-6 transition-colors"
-            >
-              <CaretLeft size={14} weight="bold" />
-              Back to Articles
-            </Link>
-
-            {/* Article header */}
-            <header className="mb-10">
-              <div className="flex items-center gap-3 mb-4 flex-wrap">
-                <div className="p-2.5 rounded-lg bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20">
-                  <Icon size={22} weight="duotone" className="text-[var(--accent-primary)]" />
-                </div>
-                {category && (
-                  <span className="px-3 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-sm font-medium">
-                    {category.name}
-                  </span>
-                )}
-                {article.readTime > 0 && (
-                  <span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
-                    <Clock size={14} weight="bold" />
-                    {article.readTime} min read
-                  </span>
-                )}
-              </div>
-              <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
-                {article.title}
-              </h1>
-            </header>
-
-            {/* Article Content */}
-            <article className="prose max-w-none">
-              {isRichText ? (
-                <RichTextRenderer content={article.content as RichTextContent} headings={headings} />
-              ) : (
-                renderContent(article.content as string)
-              )}
-            </article>
-
-            {/* Keywords */}
-            {article.keywords && article.keywords.length > 0 && (
-              <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
-                <div className="flex items-center gap-2 mb-4">
-                  <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
-                  <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {article.keywords.map((keyword) => (
-                    <span
-                      key={keyword}
-                      className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
-                    >
-                      {keyword}
-                    </span>
-                  ))}
-                </div>
-              </div>
+            {category && (
+              <span className="px-3 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] text-sm font-medium">
+                {category.name}
+              </span>
             )}
-
-            {/* Feedback */}
-            <ArticleFeedback articleSlug={article.slug} />
-
-            {/* Related Articles */}
-            {relatedArticles.length > 0 && (
-              <div className="mt-12">
-                <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">
-                  Related Articles
-                </h2>
-                <div className="grid gap-4 md:grid-cols-2">
-                  {relatedArticles.slice(0, 4).map((related) => (
-                    <ArticleCard key={related.slug} article={related} variant="compact" />
-                  ))}
-                </div>
-              </div>
+            {article.readTime > 0 && (
+              <span className="flex items-center gap-1 text-sm text-[var(--text-muted)]">
+                <Clock size={14} weight="bold" />
+                {article.readTime} min read
+              </span>
             )}
           </div>
+          <h1 className="text-3xl md:text-4xl font-bold text-[var(--text-primary)]">
+            {article.title}
+          </h1>
+        </header>
 
-          {/* Right sidebar - Table of Contents (XL+) */}
-          {headings.length > 1 && (
-            <aside className="hidden xl:block">
-              <div className="sticky top-[50vh] -translate-y-1/2">
-                <TableOfContents headings={headings} />
-              </div>
-            </aside>
+        {/* Article Content */}
+        <article className="prose max-w-none">
+          {isRichText ? (
+            <RichTextRenderer content={article.content as RichTextContent} headings={headings} />
+          ) : (
+            renderContent(article.content as string)
           )}
-        </div>
+        </article>
+
+        {/* Keywords */}
+        {article.keywords && article.keywords.length > 0 && (
+          <div className="mt-12 pt-8 border-t border-[var(--border-primary)]">
+            <div className="flex items-center gap-2 mb-4">
+              <Tag size={16} weight="duotone" className="text-[var(--text-muted)]" />
+              <span className="text-sm text-[var(--text-muted)]">Related topics:</span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {article.keywords.map((keyword) => (
+                <span
+                  key={keyword}
+                  className="px-3 py-1 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] text-sm"
+                >
+                  {keyword}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Feedback */}
+        <ArticleFeedback articleSlug={article.slug} />
+
+        {/* Related Articles */}
+        {relatedArticles.length > 0 && (
+          <div className="mt-12">
+            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-6">
+              Related Articles
+            </h2>
+            <div className="grid gap-4 md:grid-cols-2">
+              {relatedArticles.slice(0, 4).map((related) => (
+                <ArticleCard key={related.slug} article={related} variant="compact" />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
