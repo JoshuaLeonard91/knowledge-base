@@ -103,7 +103,7 @@ export function RichTextRenderer({ content, className = '', headings = [] }: Ric
 
           // Block quote - generic styling for any quoted content
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-[var(--border-primary)] pl-4 mb-4">
+            <blockquote className="border-l-4 border-[var(--accent-primary)]/40 bg-[var(--bg-tertiary)]/50 pl-5 pr-4 py-3 mb-4 rounded-r-lg [&_ul]:ml-4 [&_ul]:mb-0 [&_ol]:ml-4 [&_ol]:mb-0 [&_p:last-child]:mb-0">
               <div className="text-[var(--text-secondary)]">{children}</div>
             </blockquote>
           ),
@@ -147,7 +147,7 @@ export function RichTextRenderer({ content, className = '', headings = [] }: Ric
 
           // Images
           img: ({ src, altText, width, height }) => (
-            <figure className="mb-6">
+            <figure className="mb-6 flex flex-col items-center">
               <img
                 src={src}
                 alt={altText || ''}

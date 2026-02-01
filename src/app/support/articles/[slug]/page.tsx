@@ -261,7 +261,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
       if (imageMatch) {
         const [, alt, src] = imageMatch;
         elements.push(
-          <figure key={index} className="my-6">
+          <figure key={index} className="my-6 flex flex-col items-center">
             <img
               src={src}
               alt={alt}
