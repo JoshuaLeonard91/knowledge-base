@@ -17,6 +17,11 @@ import type { TocHeading } from '@/lib/utils/headings';
 function fixBlockquoteNesting(content: any[]): any[] {
   const result = [];
 
+  // Check if a node is an empty paragraph (just whitespace text, no nested elements)
+  const isEmptyParagraph = (node: any) =>
+    node.type === 'paragraph' &&
+    node.children?.every((c: any) => !c.type && (!c.text || c.text.trim() === ''));
+
   for (let i = 0; i < content.length; i++) {
     const node = content[i];
 
@@ -24,14 +29,23 @@ function fixBlockquoteNesting(content: any[]): any[] {
       // Clone the blockquote so we don't mutate the original
       const blockquote = { ...node, children: [...node.children] };
 
-      // Absorb any immediately following list elements
+      // Look ahead: skip empty paragraphs (inserted by Hygraph UI
+      // when user presses Enter to exit blockquote), absorb lists
       let j = i + 1;
-      while (
-        j < content.length &&
-        (content[j].type === 'bulleted-list' || content[j].type === 'numbered-list')
-      ) {
-        blockquote.children.push(content[j]);
-        j++;
+      let foundList = false;
+      while (j < content.length) {
+        const next = content[j];
+        if (next.type === 'bulleted-list' || next.type === 'numbered-list') {
+          blockquote.children.push(next);
+          foundList = true;
+          j++;
+        } else if (isEmptyParagraph(next) && !foundList) {
+          // Only skip empty paragraphs before we hit the first list.
+          // Once we've absorbed a list, stop — don't eat content after it.
+          j++;
+        } else {
+          break;
+        }
       }
 
       result.push(blockquote);
