@@ -42,28 +42,55 @@ const icons = PhosphorIcons as Record<string, any>;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function isComponent(value: any): boolean {
   if (!value) return false;
-  // Regular function/class components
   if (typeof value === 'function') return true;
-  // forwardRef / memo components (objects with $$typeof symbol)
   if (typeof value === 'object' && value.$$typeof) return true;
   return false;
 }
 
 /**
+ * Convert kebab-case to PascalCase.
+ * e.g. "book-open-text" → "BookOpenText", "tree-structure" → "TreeStructure"
+ */
+function kebabToPascal(name: string): string {
+  return name
+    .split('-')
+    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join('');
+}
+
+/**
+ * Try to find an icon component by name, checking multiple formats.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function findIcon(name: string): React.ComponentType<any> | null {
+  // 1. Direct match (PascalCase, e.g. "BookOpenText")
+  if (isComponent(icons[name])) return icons[name];
+
+  // 2. Alias match (e.g. "Zap" → "Lightning")
+  const aliased = aliases[name];
+  if (aliased && isComponent(icons[aliased])) return icons[aliased];
+
+  // 3. Kebab-case conversion (e.g. "book-open-text" → "BookOpenText")
+  if (name.includes('-')) {
+    const pascal = kebabToPascal(name);
+    if (isComponent(icons[pascal])) return icons[pascal];
+    const aliasedPascal = aliases[pascal];
+    if (aliasedPascal && isComponent(icons[aliasedPascal])) return icons[aliasedPascal];
+  }
+
+  return null;
+}
+
+/**
  * Resolve a Phosphor icon component by name (client-side).
+ * Accepts PascalCase ("BookOpenText") or kebab-case ("book-open-text").
  * Returns the matching icon or a fallback.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getIcon(name: string, fallback?: React.ComponentType<any>): React.ComponentType<any> {
-  // Direct match
-  if (name && isComponent(icons[name])) {
-    return icons[name];
+  if (name) {
+    const found = findIcon(name);
+    if (found) return found;
   }
-  // Alias match
-  const aliased = aliases[name];
-  if (aliased && isComponent(icons[aliased])) {
-    return icons[aliased];
-  }
-  // Fallback
   return fallback || PhosphorIcons.FileText;
 }
