@@ -498,7 +498,7 @@ export class HygraphClient {
     console.log('[Hygraph] getArticles called, isConfigured:', this.isConfigured);
     const data = await this.query<{ articles: HygraphArticle[] }>(`
       query GetArticles {
-        articles(first: 100, orderBy: createdAt_DESC) {
+        articles(first: 100, orderBy: createdAt_ASC) {
           slug
           title
           excerpt
@@ -636,7 +636,7 @@ export class HygraphClient {
         articles(
           where: { category: $categorySlug }
           first: 100
-          orderBy: createdAt_DESC
+          orderBy: createdAt_ASC
         ) {
           slug
           title
