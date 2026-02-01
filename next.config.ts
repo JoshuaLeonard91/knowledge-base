@@ -21,6 +21,8 @@ const ContentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // Prevent bundler from processing discord.js (native modules like zlib-sync)
+  serverExternalPackages: ['discord.js', '@discordjs/ws', '@discordjs/rest', 'zlib-sync'],
   // Allow images from Hygraph CDN
   images: {
     remotePatterns: [

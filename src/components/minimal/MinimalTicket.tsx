@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CaretLeft, PaperPlaneTilt, CheckCircle, WarningCircle, SpinnerGap } from '@phosphor-icons/react';
 import { useAuth } from '@/components/auth/AuthProvider';
@@ -18,6 +18,14 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [csrfToken, setCsrfToken] = useState('');
+
+  useEffect(() => {
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => { if (data.csrf) setCsrfToken(data.csrf); })
+      .catch(() => {});
+  }, []);
   const [ticketId, setTicketId] = useState<string | null>(null);
 
   // Validate Discord server ID format
@@ -46,7 +54,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
     try {
       const response = await fetch('/api/ticket', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
         body: JSON.stringify({
           serverId: serverId.trim(),
           categoryId: 'technical',

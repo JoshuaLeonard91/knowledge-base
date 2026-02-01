@@ -41,6 +41,15 @@ export function TicketForm({ categories }: TicketFormProps) {
   const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string; ticketId?: string } | null>(null);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [csrfToken, setCsrfToken] = useState('');
+
+  // Fetch CSRF token on mount
+  useEffect(() => {
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => { if (data.csrf) setCsrfToken(data.csrf); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     const fetchSuggestions = async () => {
@@ -88,7 +97,7 @@ export function TicketForm({ categories }: TicketFormProps) {
     try {
       const res = await fetch('/api/ticket', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
         body: JSON.stringify({
           serverId: serverId.trim(),
           categoryId: selectedCategory,

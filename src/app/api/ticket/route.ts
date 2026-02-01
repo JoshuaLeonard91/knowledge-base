@@ -7,7 +7,7 @@ import {
   validateSeverity,
   generateTicketId,
 } from '@/lib/validation';
-import { jiraServiceDesk } from '@/lib/atlassian/client';
+import { getTicketProvider } from '@/lib/ticketing/adapter';
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -103,14 +103,14 @@ export async function POST(request: NextRequest) {
     }
     const sanitizedSeverity = severityValidation.sanitized || severity;
 
-    // Map severity to Jira priority
+    // Map severity to priority
     const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 'highest'> = {
       low: 'low',
       medium: 'medium',
       high: 'high',
       critical: 'highest',
     };
-    const jiraPriority = severityToPriority[sanitizedSeverity] || 'medium';
+    const priority = severityToPriority[sanitizedSeverity] || 'medium';
 
     // Validate and sanitize description
     const descValidation = validateDescription(description);
@@ -128,46 +128,37 @@ export async function POST(request: NextRequest) {
     const category = getCategoryById(categoryId);
     const categoryName = category?.name || 'Support Request';
 
-    // Build summary
+    // Build summary and labels
     const summary = `[${categoryName}] Support Request`;
-
-    // Build labels
     const labels = ['discord', 'support-portal', `category-${categoryId}`, `severity-${sanitizedSeverity}`];
 
-    // Submit to Jira Service Desk (or mock if not configured)
-    const jiraResult = await jiraServiceDesk.createRequest({
+    // Submit via ticket provider adapter
+    const provider = getTicketProvider();
+    const result = await provider.createTicket({
       summary,
       description: descValidation.sanitized || description,
-      requesterName: user.username,
+      priority,
+      labels,
       discordUserId: user.id,
       discordUsername: user.username,
       discordServerId: sanitizedServerId,
-      priority: jiraPriority,
-      labels,
-    });
+      });
 
     let ticketId: string;
 
-    if (!jiraResult.success) {
-      // If Jira fails, fall back to local ticket generation
+    if (!result.success) {
+      // If provider fails, fall back to local ticket generation
       ticketId = generateTicketId();
-
-      logTicketSubmission({
-        success: true,
-        ticketId,
-        ip,
-        userId: user.id,
-      });
     } else {
-      ticketId = jiraResult.issueKey || generateTicketId();
-
-      logTicketSubmission({
-        success: true,
-        ticketId,
-        ip,
-        userId: user.id,
-      });
+      ticketId = result.ticketId || generateTicketId();
     }
+
+    logTicketSubmission({
+      success: true,
+      ticketId,
+      ip,
+      userId: user.id,
+    });
 
     // Return sanitized response - only ticket reference, no internal data
     return createSuccessResponse({

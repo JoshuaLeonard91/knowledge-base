@@ -378,6 +378,37 @@ class JiraServiceDeskClient {
   }
 
   /**
+   * Add an attachment to an issue
+   */
+  async addAttachment(issueKey: string, file: Buffer, filename: string, mimeType: string): Promise<boolean> {
+    if (!this.isConfigured) {
+      return false;
+    }
+
+    try {
+      const formData = new FormData();
+      const blob = new Blob([new Uint8Array(file)], { type: mimeType });
+      formData.append('file', blob, filename);
+
+      const response = await fetch(
+        `${this.baseUrl}/issue/${issueKey}/attachments`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: this.authHeader,
+            'X-Atlassian-Token': 'no-check',
+          },
+          body: formData,
+        }
+      );
+
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Get available request types for service desk
    */
   async getRequestTypes(): Promise<Array<{ id: string; name: string; description: string }>> {

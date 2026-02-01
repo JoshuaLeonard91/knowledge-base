@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
-import { jiraServiceDesk } from '@/lib/atlassian/client';
+import { getTicketProvider } from '@/lib/ticketing/adapter';
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     // Check authentication
     const authenticated = await isAuthenticated();
@@ -21,22 +21,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get tickets for this user (search by ID and username for backwards compatibility)
-    const tickets = await jiraServiceDesk.getTicketsByDiscordUser(user.id, user.username);
-
-    // Transform to a simpler format
-    const formattedTickets = tickets.map(ticket => ({
-      id: ticket.key,
-      summary: ticket.fields.summary,
-      status: ticket.fields.status?.name || 'Unknown',
-      statusCategory: ticket.fields.status?.statusCategory?.key || 'undefined',
-      created: ticket.fields.created,
-      updated: ticket.fields.updated,
-    }));
+    // Get tickets for this user via provider adapter
+    const provider = getTicketProvider();
+    const tickets = await provider.listTickets(user.id, user.username);
 
     return NextResponse.json({
       success: true,
-      tickets: formattedTickets,
+      tickets,
     });
   } catch {
     // Log internally but don't expose error details to client

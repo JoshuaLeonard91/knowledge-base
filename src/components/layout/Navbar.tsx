@@ -7,55 +7,10 @@ import { useAuth } from '../auth/AuthProvider';
 import { useTenant } from '@/lib/tenant/context';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
 import { UserMenu } from './UserMenu';
-import {
-  House,
-  BookOpenText,
-  PaperPlaneTilt,
-  Briefcase,
-  List,
-  X,
-  Gear,
-  Question,
-  ChatCircle,
-  Envelope,
-  Phone,
-  Users,
-  Star,
-  Heart,
-  Lightning,
-  Shield,
-  Code,
-  Wrench,
-  Article,
-  CurrencyDollar,
-  Tag,
-  type Icon,
-} from '@phosphor-icons/react';
+import { List, X, Phone, House } from '@phosphor-icons/react';
+import { getIcon } from '@/lib/icons';
 import { useState } from 'react';
 import type { HeaderSettings, NavLink } from '@/lib/cms';
-
-// Map icon names to Phosphor icons
-const iconMap: Record<string, Icon> = {
-  House,
-  BookOpenText,
-  PaperPlaneTilt,
-  Briefcase,
-  Gear,
-  Question,
-  ChatCircle,
-  Envelope,
-  Phone,
-  Users,
-  Star,
-  Heart,
-  Lightning,
-  Shield,
-  Code,
-  Wrench,
-  Article,
-  CurrencyDollar,
-  Tag,
-};
 
 interface NavbarProps {
   settings: HeaderSettings;
@@ -77,9 +32,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: N
   const isOnSupportPage = pathname?.startsWith('/support');
 
   // Get icon component from name, fallback to House
-  const getIcon = (iconName: string): Icon => {
-    return iconMap[iconName] || House;
-  };
+  const resolveIcon = (iconName: string) => getIcon(iconName, House);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
@@ -117,7 +70,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: N
               .filter((link) => link.url !== '/support/contact' && link.url !== '/contact')
               .map((link) => {
                 const isActive = pathname === link.url;
-                const IconComponent = getIcon(link.icon);
+                const IconComponent = resolveIcon(link.icon);
                 return (
                   <Link
                     key={link.id}
@@ -187,7 +140,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: N
               .filter((link) => link.url !== '/support/contact' && link.url !== '/contact')
               .map((link) => {
                 const isActive = pathname === link.url;
-                const IconComponent = getIcon(link.icon);
+                const IconComponent = resolveIcon(link.icon);
                 return (
                   <Link
                     key={link.id}

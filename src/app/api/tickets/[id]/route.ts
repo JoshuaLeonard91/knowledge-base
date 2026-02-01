@@ -1,89 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
-import { jiraServiceDesk, JiraIssue } from '@/lib/atlassian/client';
+import { getTicketProvider } from '@/lib/ticketing/adapter';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
-
-// ADF node type for description parsing
-interface AdfNode {
-  type: string;
-  text?: string;
-  content?: AdfNode[];
-}
-
-// Helper to extract text from ADF format
-function extractDescriptionText(issue: JiraIssue): string {
-  let descriptionText = '';
-  const description = issue.fields.description;
-
-  if (typeof description === 'string') {
-    descriptionText = description;
-  } else if (description && typeof description === 'object') {
-    const adfDescription = description as { content?: AdfNode[] };
-    if (adfDescription.content) {
-      const extractText = (content: AdfNode[], isTopLevel = false): string => {
-        return content.map((node) => {
-          if (node.type === 'text') return node.text || '';
-          if (node.type === 'paragraph' && node.content) {
-            return extractText(node.content);
-          }
-          if (node.type === 'hardBreak') return '\n';
-          if (node.content) return extractText(node.content);
-          return '';
-        }).join(isTopLevel ? '\n' : '');
-      };
-      descriptionText = extractText(adfDescription.content, true);
-    }
-  }
-  return descriptionText;
-}
-
-// Helper to sanitize description for client response - removes sensitive metadata
-function sanitizeDescriptionForClient(description: string): string {
-  // Remove the metadata section that contains Discord IDs and other internal info
-  const metadataSeparator = '----';
-  const separatorIndex = description.indexOf(metadataSeparator);
-
-  if (separatorIndex !== -1) {
-    // Return only the user's original description, trimmed
-    return description.substring(0, separatorIndex).trim();
-  }
-
-  // If no separator, remove any Discord ID patterns as a fallback
-  return description
-    .replace(/Discord User ID:\s*\d+/gi, '')
-    .replace(/Discord Username:\s*\S+/gi, '')
-    .replace(/Discord Server ID:\s*\d+/gi, '')
-    .replace(/\*Submitted via Support Portal\*/gi, '')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
-
-/**
- * Verify ticket belongs to user using structured metadata extraction
- *
- * SECURITY: Uses regex to extract the exact Discord User ID from the metadata section,
- * rather than simple string matching which could match IDs appearing elsewhere.
- *
- * Expected format in description:
- * ----
- * Discord User ID: 123456789012345678
- */
-function verifyTicketOwnership(descriptionText: string, user: { id: string; username?: string }): boolean {
-  // Extract Discord User ID from the structured metadata section
-  // Format: "Discord User ID: <snowflake>"
-  const discordIdPattern = /Discord User ID:\s*(\d{17,19})/i;
-  const match = descriptionText.match(discordIdPattern);
-
-  if (match && match[1]) {
-    // Exact match on extracted ID
-    return match[1] === user.id;
-  }
-
-  // Fallback: strict pattern match for ID at word boundary
-  // This prevents matching partial IDs (e.g., user "123" matching "12345")
-  const strictIdPattern = new RegExp(`\\b${user.id}\\b`);
-  return strictIdPattern.test(descriptionText);
-}
 
 export async function GET(
   request: NextRequest,
@@ -109,53 +27,31 @@ export async function GET(
       );
     }
 
-    // Get ticket with comments
-    const { issue, comments } = await jiraServiceDesk.getTicketWithComments(ticketId);
+    // Get ticket via provider (ownership verified internally)
+    const provider = getTicketProvider();
+    const ticket = await provider.getTicket(ticketId, user.id);
 
-    if (!issue) {
+    if (!ticket) {
       return NextResponse.json(
         { success: false, error: 'Ticket not found' },
         { status: 404 }
       );
     }
 
-    // Verify this ticket belongs to the user by checking Discord User ID or username in description
-    const descriptionText = extractDescriptionText(issue);
-    const belongsToUser = verifyTicketOwnership(descriptionText, user);
-
-    if (!belongsToUser) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
-    }
-
-    // Sanitize description to remove internal metadata (Discord IDs, etc.)
-    const sanitizedDescription = sanitizeDescriptionForClient(descriptionText);
-
-    // Sanitize comments to remove any Discord IDs that might be in comment bodies
-    const sanitizedComments = comments.map(comment => ({
-      ...comment,
-      body: sanitizeDescriptionForClient(comment.body),
-      // Don't expose internal Jira author names - show generic labels
-      author: comment.author.toLowerCase().includes('system') ? 'System' : 'Support Team',
-    }));
-
     return NextResponse.json({
       success: true,
       ticket: {
-        id: issue.key,
-        summary: issue.fields.summary,
-        description: sanitizedDescription,
-        status: issue.fields.status?.name || 'Unknown',
-        statusCategory: issue.fields.status?.statusCategory?.key || 'undefined',
-        created: issue.fields.created,
-        updated: issue.fields.updated,
-        comments: sanitizedComments,
+        id: ticket.id,
+        summary: ticket.summary,
+        description: ticket.description,
+        status: ticket.status,
+        statusCategory: ticket.statusCategory,
+        created: ticket.created,
+        updated: ticket.updated,
+        comments: ticket.comments,
       },
     });
   } catch {
-    // Log internally but don't expose error details to client
     return NextResponse.json(
       { success: false, error: 'An error occurred' },
       { status: 500 }
@@ -193,11 +89,22 @@ export async function POST(
       );
     }
 
-    // Get request body
-    const body = await request.json();
-    const { message } = body;
+    // Parse request body — supports both JSON and FormData
+    const contentType = request.headers.get('content-type') || '';
+    let message: string;
+    let files: File[] = [];
 
-    // Validate message exists and is a non-empty string
+    if (contentType.includes('multipart/form-data')) {
+      const formData = await request.formData();
+      message = formData.get('message') as string || '';
+      const fileEntries = formData.getAll('files');
+      files = fileEntries.filter((f): f is File => f instanceof File);
+    } else {
+      const body = await request.json();
+      message = body.message || '';
+    }
+
+    // Validate message
     if (!message || typeof message !== 'string' || message.trim().length < 1) {
       return NextResponse.json(
         { success: false, error: 'Message is required' },
@@ -205,7 +112,6 @@ export async function POST(
       );
     }
 
-    // Enforce maximum comment length (5000 characters)
     const MAX_COMMENT_LENGTH = 5000;
     if (message.length > MAX_COMMENT_LENGTH) {
       return NextResponse.json(
@@ -214,34 +120,45 @@ export async function POST(
       );
     }
 
-    // Get the ticket to verify ownership
-    const issue = await jiraServiceDesk.getIssue(ticketId);
+    // Validate files
+    const MAX_FILES = 5;
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+    const ALLOWED_TYPES = [
+      'image/png', 'image/jpeg', 'image/gif', 'image/webp',
+      'application/pdf', 'text/plain',
+      'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
 
-    if (!issue) {
+    if (files.length > MAX_FILES) {
       return NextResponse.json(
-        { success: false, error: 'Ticket not found' },
-        { status: 404 }
+        { success: false, error: `Maximum ${MAX_FILES} files allowed` },
+        { status: 400 }
       );
     }
 
-    // Verify this ticket belongs to the user
-    const descriptionText = extractDescriptionText(issue);
-    const belongsToUser = verifyTicketOwnership(descriptionText, user);
-
-    if (!belongsToUser) {
-      return NextResponse.json(
-        { success: false, error: 'Access denied' },
-        { status: 403 }
-      );
+    for (const file of files) {
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json(
+          { success: false, error: `File "${file.name}" exceeds 10MB limit` },
+          { status: 400 }
+        );
+      }
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        return NextResponse.json(
+          { success: false, error: `File type "${file.type}" is not allowed` },
+          { status: 400 }
+        );
+      }
     }
 
-    // Add comment with user info
-    let commentText = `${message.trim()}\n\n----\n`;
-    if (user.username) {
-      commentText += `Discord Username: ${user.username}\n`;
-    }
-    commentText += `Discord User ID: ${user.id}`;
-    const success = await jiraServiceDesk.addComment(ticketId, commentText);
+    // Add comment via provider (ownership verified internally)
+    const provider = getTicketProvider();
+    const success = await provider.addComment({
+      ticketId,
+      message: message.trim(),
+      discordUserId: user.id,
+      discordUsername: user.username,
+    });
 
     if (!success) {
       return NextResponse.json(
@@ -250,9 +167,16 @@ export async function POST(
       );
     }
 
+    // Upload attachments if provider supports it
+    if (files.length > 0 && provider.addAttachment) {
+      for (const file of files) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        await provider.addAttachment(ticketId, buffer, file.name, file.type);
+      }
+    }
+
     return NextResponse.json({ success: true });
   } catch {
-    // Log internally but don't expose error details to client
     return NextResponse.json(
       { success: false, error: 'An error occurred' },
       { status: 500 }

@@ -6,26 +6,13 @@ import { useRouter } from 'next/navigation';
 import { useIsMainSite } from '@/lib/tenant/context';
 import type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent } from '@/lib/cms';
 import {
-  ArrowRight, Check, CaretLeft, Sparkle, Star, BookOpenText, CaretRight, CaretDown, CaretUp,
-  // Icon mapping for dynamic icons
-  Wrench, Users, Headset, GearSix, Clock, Shield, Rocket, ChatCircleDots, Handshake,
-  Code, CreditCard, User, Plug, Question, FileText, Lightning, Heart, Globe,
-  CheckCircle, Gear, Phone, EnvelopeSimple, Database, Lock, ChartLine, Target,
-  CurrencyDollar, Tag
+  ArrowRight, Check, CaretLeft, Sparkle, Star, CaretRight, CaretDown, CaretUp,
+  CurrencyDollar, Wrench
 } from '@phosphor-icons/react';
-import { IconProps } from '@phosphor-icons/react';
+import { getIcon as resolveIcon } from '@/lib/icons';
 
-// Map icon names to components
-const iconMap: Record<string, React.ComponentType<IconProps>> = {
-  Wrench, Users, Headset, GearSix, Clock, Shield, Rocket, ChatCircleDots, Handshake,
-  Code, CreditCard, User, Plug, Question, FileText, Lightning, Heart, Globe,
-  CheckCircle, Gear, Phone, EnvelopeSimple, Database, Lock, ChartLine, Target,
-  Check, Star, ArrowRight, BookOpenText, CurrencyDollar, Tag,
-};
-
-// Get icon component by name
-function getIcon(name: string): React.ComponentType<IconProps> {
-  return iconMap[name] || Wrench;
+function getIcon(name: string) {
+  return resolveIcon(name, Wrench);
 }
 
 // Section IDs for navigation

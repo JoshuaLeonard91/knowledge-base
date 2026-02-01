@@ -34,13 +34,15 @@ export default function IntegrationsPage() {
   // Integration statuses
   const [hygraphStatus, setHygraphStatus] = useState<IntegrationStatus | null>(null);
   const [jiraStatus, setJiraStatus] = useState<IntegrationStatus | null>(null);
+  const [zendeskStatus, setZendeskStatus] = useState<IntegrationStatus | null>(null);
 
   // Form states
   const [hygraphForm, setHygraphForm] = useState({ endpoint: '', token: '' });
   const [jiraForm, setJiraForm] = useState({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' });
+  const [zendeskForm, setZendeskForm] = useState({ subdomain: '', email: '', apiToken: '', groupId: '' });
 
   // UI states
-  const [activeForm, setActiveForm] = useState<'hygraph' | 'jira' | null>(null);
+  const [activeForm, setActiveForm] = useState<'hygraph' | 'jira' | 'zendesk' | null>(null);
   const [isValidating, setIsValidating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
@@ -50,9 +52,10 @@ export default function IntegrationsPage() {
   // Fetch all statuses
   const fetchStatuses = async () => {
     try {
-      const [hygraphRes, jiraRes] = await Promise.all([
+      const [hygraphRes, jiraRes, zendeskRes] = await Promise.all([
         fetch('/api/dashboard/integrations/hygraph'),
         fetch('/api/dashboard/integrations/jira'),
+        fetch('/api/dashboard/integrations/zendesk'),
       ]);
 
       if (hygraphRes.status === 401) {
@@ -60,13 +63,15 @@ export default function IntegrationsPage() {
         return;
       }
 
-      const [hygraphData, jiraData] = await Promise.all([
+      const [hygraphData, jiraData, zendeskData] = await Promise.all([
         hygraphRes.json(),
         jiraRes.json(),
+        zendeskRes.json(),
       ]);
 
       setHygraphStatus(hygraphData);
       setJiraStatus(jiraData);
+      setZendeskStatus(zendeskData);
     } catch (err) {
       console.error('Failed to fetch integration statuses');
       setError('Failed to load integration statuses');
@@ -236,8 +241,82 @@ export default function IntegrationsPage() {
     }
   };
 
+  // Validate Zendesk
+  const validateZendesk = async (): Promise<boolean> => {
+    setIsValidating(true);
+    setError(null);
+
+    try {
+      const csrf = await getCsrfToken();
+      const res = await fetch('/api/dashboard/integrations/zendesk/validate', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify(zendeskForm),
+      });
+
+      const data = await res.json();
+
+      if (!data.valid) {
+        setError(data.error || 'Invalid credentials');
+        return false;
+      }
+
+      setSuccess('Connection successful!');
+      return true;
+    } catch {
+      setError('Validation failed');
+      return false;
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  // Save Zendesk
+  const saveZendesk = async () => {
+    setIsSaving(true);
+    setError(null);
+    setSuccess(null);
+
+    try {
+      const isValid = await validateZendesk();
+      if (!isValid) {
+        setIsSaving(false);
+        return;
+      }
+
+      const csrf = await getCsrfToken();
+      const res = await fetch('/api/dashboard/integrations/zendesk', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify(zendeskForm),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setError(data.error || 'Failed to save');
+        return;
+      }
+
+      setSuccess('Zendesk connected successfully!');
+      setActiveForm(null);
+      setZendeskForm({ subdomain: '', email: '', apiToken: '', groupId: '' });
+      fetchStatuses();
+    } catch {
+      setError('Failed to save configuration');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   // Delete integration
-  const deleteIntegration = async (type: 'hygraph' | 'jira') => {
+  const deleteIntegration = async (type: 'hygraph' | 'jira' | 'zendesk') => {
     setIsDeleting(type);
     setError(null);
 
@@ -257,7 +336,8 @@ export default function IntegrationsPage() {
         return;
       }
 
-      setSuccess(`${type === 'hygraph' ? 'Hygraph' : 'Jira'} disconnected`);
+      const names: Record<string, string> = { hygraph: 'Hygraph', jira: 'Jira', zendesk: 'Zendesk' };
+      setSuccess(`${names[type]} disconnected`);
       fetchStatuses();
     } catch (err) {
       setError('Failed to disconnect');
@@ -533,6 +613,129 @@ export default function IntegrationsPage() {
                   </button>
                   <button
                     onClick={() => { setActiveForm(null); setJiraForm({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' }); setError(null); }}
+                    className="px-4 py-2 text-white/60 hover:text-white text-sm transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Zendesk Card */}
+          <div className="bg-[#16161f] rounded-2xl border border-white/10 overflow-hidden">
+            <div className="p-6 flex items-start justify-between">
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 bg-emerald-500/10 rounded-xl flex items-center justify-center">
+                  <svg className="w-6 h-6 text-emerald-400" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M15.385 2L9.767 8.89h5.618L15.385 2zM8.615 2v6.89L3 15.11h5.615V22l5.618-6.89H8.615L8.615 2zM15.385 8.89L21 15.11h-5.615V22l-5.618-6.89h5.618V8.89z" />
+                  </svg>
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold">Zendesk</h3>
+                  <p className="text-sm text-white/60">Ticket management via Zendesk Support</p>
+                </div>
+              </div>
+              <span className={`px-3 py-1 text-sm rounded-full ${
+                zendeskStatus?.configured
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-yellow-500/20 text-yellow-400'
+              }`}>
+                {zendeskStatus?.configured ? 'Connected' : 'Not Connected'}
+              </span>
+            </div>
+
+            {/* Connected State */}
+            {zendeskStatus?.configured && activeForm !== 'zendesk' && (
+              <div className="px-6 pb-6">
+                <p className="text-sm text-white/60 mb-4">
+                  Connected on {zendeskStatus.connectedAt ? new Date(zendeskStatus.connectedAt).toLocaleDateString() : 'Unknown'}
+                </p>
+                <button
+                  onClick={() => deleteIntegration('zendesk')}
+                  disabled={isDeleting === 'zendesk'}
+                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {isDeleting === 'zendesk' ? 'Disconnecting...' : 'Disconnect'}
+                </button>
+              </div>
+            )}
+
+            {/* Setup Form */}
+            {!zendeskStatus?.configured && activeForm !== 'zendesk' && (
+              <div className="px-6 pb-6">
+                <button
+                  onClick={() => { setActiveForm('zendesk'); setError(null); setSuccess(null); }}
+                  className="px-4 py-2 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-400 rounded-lg text-sm font-medium transition"
+                >
+                  Connect Zendesk
+                </button>
+              </div>
+            )}
+
+            {activeForm === 'zendesk' && (
+              <div className="px-6 pb-6 space-y-4">
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">Subdomain</label>
+                  <div className="flex items-center gap-0">
+                    <input
+                      type="text"
+                      value={zendeskForm.subdomain}
+                      onChange={(e) => setZendeskForm({ ...zendeskForm, subdomain: e.target.value })}
+                      placeholder="yourcompany"
+                      className="flex-1 px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-l-lg text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/50"
+                    />
+                    <span className="px-3 py-3 bg-[#0a0a0f] border border-l-0 border-white/10 rounded-r-lg text-white/40 text-sm">.zendesk.com</span>
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">Agent Email</label>
+                  <input
+                    type="email"
+                    value={zendeskForm.email}
+                    onChange={(e) => setZendeskForm({ ...zendeskForm, email: e.target.value })}
+                    placeholder="agent@yourcompany.com"
+                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">API Token</label>
+                  <input
+                    type="password"
+                    value={zendeskForm.apiToken}
+                    onChange={(e) => setZendeskForm({ ...zendeskForm, apiToken: e.target.value })}
+                    placeholder="Your Zendesk API token"
+                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/50"
+                  />
+                  <p className="text-xs text-white/40 mt-1">Admin &rarr; Channels &rarr; API &rarr; Zendesk API token</p>
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">Group ID (optional)</label>
+                  <input
+                    type="text"
+                    value={zendeskForm.groupId}
+                    onChange={(e) => setZendeskForm({ ...zendeskForm, groupId: e.target.value })}
+                    placeholder="Default group for new tickets"
+                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-emerald-500/50"
+                  />
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={validateZendesk}
+                    disabled={isValidating || !zendeskForm.subdomain || !zendeskForm.email || !zendeskForm.apiToken}
+                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  >
+                    {isValidating ? 'Testing...' : 'Test Connection'}
+                  </button>
+                  <button
+                    onClick={saveZendesk}
+                    disabled={isSaving || !zendeskForm.subdomain || !zendeskForm.email || !zendeskForm.apiToken}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  >
+                    {isSaving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => { setActiveForm(null); setZendeskForm({ subdomain: '', email: '', apiToken: '', groupId: '' }); setError(null); }}
                     className="px-4 py-2 text-white/60 hover:text-white text-sm transition"
                   >
                     Cancel

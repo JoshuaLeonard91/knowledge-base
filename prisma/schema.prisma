@@ -90,13 +90,18 @@ model Tenant {
   ownerId   String?
   owner     User?    @relation(fields: [ownerId], references: [id])
 
+  // Ticketing provider preference
+  ticketProvider TicketProviderType?
+
   // Relations
-  hygraphConfig  TenantHygraphConfig?
-  jiraConfig     TenantJiraConfig?
-  branding       TenantBranding?
-  features       TenantFeatures?
-  webhookConfig  TenantWebhookConfig?
-  users          TenantUser[]
+  hygraphConfig    TenantHygraphConfig?
+  jiraConfig       TenantJiraConfig?
+  zendeskConfig    TenantZendeskConfig?
+  discordBotConfig TenantDiscordBotConfig?
+  branding         TenantBranding?
+  features         TenantFeatures?
+  webhookConfig    TenantWebhookConfig?
+  users            TenantUser[]
 
   @@index([slug])
   @@index([status])
@@ -115,6 +120,11 @@ enum TenantPlan {
   FREE
   PRO
   ENTERPRISE
+}
+
+enum TicketProviderType {
+  JIRA
+  ZENDESK
 }
 
 // ==========================================
@@ -152,6 +162,40 @@ model TenantJiraConfig {
   serviceDeskId   String?
   requestTypeId   String?
   projectKey      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// ZENDESK CONFIG (Per Tenant)
+// ==========================================
+
+model TenantZendeskConfig {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  connected       Boolean  @default(false)
+  subdomain       String?  // e.g., "acmecorp" → acmecorp.zendesk.com
+  email           String?  // Encrypted — agent email for API auth
+  apiToken        String?  // Encrypted — Zendesk API token
+  groupId         String?  // Default group for new tickets
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==========================================
+// DISCORD BOT CONFIG (Per Tenant)
+// ==========================================
+
+model TenantDiscordBotConfig {
+  tenantId  String   @id
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  botToken  String   // Encrypted — tenant-provided bot token
+  guildId   String   // Discord server ID (snowflake)
+  enabled   Boolean  @default(true)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -230,6 +274,9 @@ model TenantUser {
 
   // Status
   status          TenantUserStatus @default(ACTIVE)
+
+  // Discord bot DM opt-in
+  discordNotifications Boolean @default(false)
 
   // Relations
   subscription    TenantSubscription?

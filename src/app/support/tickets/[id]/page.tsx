@@ -6,8 +6,9 @@ import { DiscordLoginButton } from '@/components/auth/DiscordLoginButton';
 import Link from 'next/link';
 import {
   SpinnerGap, CaretLeft, Clock, CheckCircle, Circle,
-  ShieldCheck, ChatCircle, User, PaperPlaneTilt, WarningCircle,
-  CalendarBlank, ArrowsClockwise, Hash, Tag, Hourglass, XCircle
+  ShieldCheck, User, PaperPlaneTilt, WarningCircle,
+  CalendarBlank, ArrowsClockwise, Hash, Tag, Hourglass, XCircle,
+  Paperclip, X, FileText, Image as ImageIcon
 } from '@phosphor-icons/react';
 
 interface Comment {
@@ -15,6 +16,7 @@ interface Comment {
   author: string;
   body: string;
   created: string;
+  isStaff: boolean;
 }
 
 interface TicketDetail {
@@ -139,6 +141,16 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const [replyMessage, setReplyMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [replyError, setReplyError] = useState<string | null>(null);
+  const [csrfToken, setCsrfToken] = useState('');
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/auth/session', { cache: 'no-store' })
+      .then(res => res.json())
+      .then(data => { if (data.csrf) setCsrfToken(data.csrf); })
+      .catch(() => {});
+  }, []);
 
   const fetchTicket = async () => {
     try {
@@ -156,6 +168,49 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const MAX_FILES = 5;
+  const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+  const ALLOWED_EXTENSIONS = '.png,.jpg,.jpeg,.gif,.webp,.pdf,.txt,.doc,.docx';
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes < 1024) return `${bytes} B`;
+    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  };
+
+  const handleAddFiles = (newFiles: FileList | File[]) => {
+    const fileArray = Array.from(newFiles);
+    const validFiles: File[] = [];
+
+    for (const file of fileArray) {
+      if (attachedFiles.length + validFiles.length >= MAX_FILES) {
+        setReplyError(`Maximum ${MAX_FILES} files allowed`);
+        break;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setReplyError(`"${file.name}" exceeds 10MB limit`);
+        continue;
+      }
+      validFiles.push(file);
+    }
+
+    if (validFiles.length > 0) {
+      setAttachedFiles(prev => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragging(false);
+    if (e.dataTransfer.files.length > 0) {
+      handleAddFiles(e.dataTransfer.files);
+    }
+  };
+
   const handleSubmitReply = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!replyMessage.trim() || isSubmitting) return;
@@ -164,15 +219,32 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
     setReplyError(null);
 
     try {
-      const res = await fetch(`/api/tickets/${ticketId}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: replyMessage.trim() }),
-      });
+      let res: Response;
+
+      if (attachedFiles.length > 0) {
+        const formData = new FormData();
+        formData.append('message', replyMessage.trim());
+        for (const file of attachedFiles) {
+          formData.append('files', file);
+        }
+        res = await fetch(`/api/tickets/${ticketId}`, {
+          method: 'POST',
+          headers: { 'X-CSRF-Token': csrfToken },
+          body: formData,
+        });
+      } else {
+        res = await fetch(`/api/tickets/${ticketId}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+          body: JSON.stringify({ message: replyMessage.trim() }),
+        });
+      }
+
       const data = await res.json();
 
       if (data.success) {
         setReplyMessage('');
+        setAttachedFiles([]);
         await fetchTicket();
       } else {
         setReplyError(data.error || 'Failed to send reply');
@@ -273,137 +345,195 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
         {/* Main grid layout */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Left column - Main content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Ticket header card */}
-            <div className="p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
-              <div className="flex items-start justify-between gap-4 mb-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
-                      {ticket.id}
-                    </span>
-                  </div>
-                  <h1 className="text-xl font-bold text-[var(--text-primary)]">{ticket.summary}</h1>
+          <div className="lg:col-span-2 space-y-0">
+            {/* Ticket header */}
+            <div className="p-6 rounded-t-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">
+              <div className="flex items-center gap-3 flex-wrap mb-3">
+                <span className="text-xs font-mono px-2 py-1 rounded bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
+                  {ticket.id}
+                </span>
+                <div className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium ${statusConfig.bgColor} ${statusConfig.color}`}>
+                  <StatusIcon size={14} weight="fill" />
+                  {statusConfig.label}
                 </div>
-                {/* Mobile status badge */}
-                <div className={`lg:hidden flex items-center gap-2 px-3 py-1.5 rounded-full border ${statusConfig.bgColor}`}>
-                  <StatusIcon size={16} weight="fill" className={statusConfig.color} />
-                  <span className={`text-sm font-medium ${statusConfig.color}`}>{ticket.status}</span>
-                </div>
+                {ticket.priority && (
+                  <span className={`text-xs font-medium ${priorityConfig.color}`}>
+                    {priorityConfig.label} Priority
+                  </span>
+                )}
               </div>
+              <h1 className="text-xl font-bold text-[var(--text-primary)]">{ticket.summary}</h1>
             </div>
 
-            {/* Original message */}
-            <div className="rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] overflow-hidden">
-              <div className="px-6 py-4 border-b border-[var(--border-primary)] bg-[var(--bg-tertiary)]/50">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-[var(--accent-primary)]/10 flex items-center justify-center">
-                    <User size={20} weight="bold" className="text-[var(--accent-primary)]" />
+            {/* Conversation timeline — single continuous thread */}
+            <div className="rounded-b-xl bg-[var(--bg-secondary)] border border-t-0 border-[var(--border-primary)] overflow-hidden">
+              {/* Original request — first entry in the timeline */}
+              <div className="p-6 bg-[var(--accent-primary)]/10">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-9 h-9 rounded-full bg-[var(--accent-primary)]/15 ring-2 ring-[var(--accent-primary)]/30 flex items-center justify-center">
+                    <User size={18} weight="bold" className="text-[var(--accent-primary)]" />
                   </div>
-                  <div>
-                    <p className="text-sm font-medium text-[var(--text-primary)]">You</p>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-sm font-semibold text-[var(--text-primary)]">You</p>
+                      <span className="text-xs px-1.5 py-0.5 rounded bg-[var(--accent-primary)]/10 text-[var(--accent-primary)] font-medium">Author</span>
+                    </div>
                     <p className="text-xs text-[var(--text-muted)]">{formatDate(ticket.created)}</p>
                   </div>
-                  <span className="ml-auto text-xs px-2 py-1 rounded-full bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]">
-                    Original Request
-                  </span>
                 </div>
-              </div>
-              <div className="p-6">
-                <p className="text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed">
+                <p className="text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed ml-12">
                   {extractUserDescription(ticket.description)}
                 </p>
               </div>
-            </div>
 
-            {/* Comments/Responses section */}
-            <div className="rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] overflow-hidden">
-              <div className="px-6 py-4 border-b border-[var(--border-primary)] bg-[var(--bg-tertiary)]/50">
-                <h2 className="flex items-center gap-2 text-base font-semibold text-[var(--text-primary)]">
-                  <ChatCircle size={20} weight="duotone" className="text-[var(--accent-primary)]" />
-                  Activity
-                  {ticket.comments.length > 0 && (
-                    <span className="text-xs font-normal px-2 py-0.5 rounded-full bg-[var(--bg-tertiary)] text-[var(--text-muted)]">
-                      {ticket.comments.length} {ticket.comments.length === 1 ? 'response' : 'responses'}
-                    </span>
-                  )}
-                </h2>
-              </div>
-
+              {/* Thread entries */}
               {ticket.comments.length === 0 ? (
-                <div className="p-8 text-center">
-                  <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--bg-tertiary)] flex items-center justify-center">
-                    <Hourglass size={24} weight="duotone" className="text-[var(--text-muted)]" />
-                  </div>
-                  <p className="text-[var(--text-muted)]">No responses yet</p>
-                  <p className="text-sm text-[var(--text-muted)] mt-1">We&apos;ll get back to you soon!</p>
+                <div className="px-6 py-8 text-center border-t border-[var(--border-primary)]">
+                  <Hourglass size={24} weight="duotone" className="text-[var(--text-muted)] mx-auto mb-2" />
+                  <p className="text-sm text-[var(--text-muted)]">Awaiting response from support</p>
                 </div>
               ) : (
-                <div className="divide-y divide-[var(--border-primary)]">
-                  {ticket.comments.map((comment) => (
-                    <div key={comment.id} className="p-6">
+                ticket.comments.map((comment) => {
+                  const isStaff = comment.isStaff;
+                  return (
+                    <div
+                      key={comment.id}
+                      className={`p-6 border-t border-[var(--border-primary)] ${isStaff ? 'bg-[var(--accent-secondary)]/[0.03]' : 'bg-[var(--accent-primary)]/10'}`}
+                    >
                       <div className="flex items-center gap-3 mb-4">
-                        <div className="w-10 h-10 rounded-full bg-[var(--accent-secondary)]/10 flex items-center justify-center">
-                          <User size={20} weight="bold" className="text-[var(--accent-secondary)]" />
+                        <div className={`w-9 h-9 rounded-full flex items-center justify-center ring-2 ${isStaff ? 'bg-[var(--accent-secondary)]/15 ring-[var(--accent-secondary)]/30' : 'bg-[var(--accent-primary)]/15 ring-[var(--accent-primary)]/30'}`}>
+                          <User size={18} weight="bold" className={isStaff ? 'text-[var(--accent-secondary)]' : 'text-[var(--accent-primary)]'} />
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-[var(--text-primary)]">{comment.author}</p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-semibold text-[var(--text-primary)]">{comment.author}</p>
+                            <span className={`text-xs px-1.5 py-0.5 rounded font-medium ${isStaff ? 'bg-[var(--accent-secondary)]/10 text-[var(--accent-secondary)]' : 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'}`}>
+                              {isStaff ? 'Support' : 'You'}
+                            </span>
+                          </div>
                           <p className="text-xs text-[var(--text-muted)]">{formatDate(comment.created)}</p>
                         </div>
-                        <span className="ml-auto text-xs px-2 py-1 rounded-full bg-[var(--accent-secondary)]/10 text-[var(--accent-secondary)]">
-                          Support Team
-                        </span>
+                        <span className="text-xs text-[var(--text-muted)]">{formatRelativeTime(comment.created)}</span>
                       </div>
-                      <p className="text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed pl-[52px]">
+                      <p className="text-[var(--text-secondary)] whitespace-pre-wrap leading-relaxed ml-12">
                         {comment.body}
                       </p>
                     </div>
-                  ))}
-                </div>
+                  );
+                })
               )}
-            </div>
 
-            {/* Reply form */}
-            <div className="rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] overflow-hidden">
-              <div className="px-6 py-4 border-b border-[var(--border-primary)] bg-[var(--bg-tertiary)]/50">
-                <h2 className="text-base font-semibold text-[var(--text-primary)]">Reply</h2>
-              </div>
-              <form onSubmit={handleSubmitReply} className="p-6">
-                <textarea
-                  value={replyMessage}
-                  onChange={(e) => setReplyMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  rows={4}
-                  className="w-full px-4 py-3 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all resize-none"
-                />
-
-                {replyError && (
-                  <div className="flex items-center gap-2 mt-3 p-3 rounded-lg bg-[var(--accent-danger)]/10 text-[var(--accent-danger)]">
-                    <WarningCircle size={18} weight="bold" />
-                    <p className="text-sm">{replyError}</p>
+              {/* Response form — anchored at bottom of thread */}
+              <div className="border-t border-[var(--border-primary)] bg-[var(--bg-tertiary)]/30">
+                <form onSubmit={handleSubmitReply} className="p-6 space-y-4">
+                  <div className="flex items-center gap-3 mb-1">
+                    <div className="w-9 h-9 rounded-full bg-[var(--accent-primary)]/15 ring-2 ring-[var(--accent-primary)]/30 flex items-center justify-center">
+                      <User size={18} weight="bold" className="text-[var(--accent-primary)]" />
+                    </div>
+                    <p className="text-sm font-semibold text-[var(--text-primary)]">Write a response</p>
                   </div>
-                )}
 
-                <div className="flex justify-end mt-4">
-                  <button
-                    type="submit"
-                    disabled={isSubmitting || !replyMessage.trim()}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-lg bg-[var(--accent-primary)] text-white font-medium hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  {/* Textarea with drop zone */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+                    onDragLeave={() => setIsDragging(false)}
+                    onDrop={handleDrop}
+                    className={`relative ml-12 rounded-lg border transition-all ${isDragging ? 'border-[var(--accent-primary)] bg-[var(--accent-primary)]/5' : 'border-[var(--border-primary)] bg-[var(--bg-secondary)]'}`}
                   >
-                    {isSubmitting ? (
-                      <>
-                        <SpinnerGap size={18} weight="bold" className="animate-spin" />
-                        Sending...
-                      </>
-                    ) : (
-                      <>
-                        <PaperPlaneTilt size={18} weight="bold" />
-                        Send Reply
-                      </>
+                    <textarea
+                      value={replyMessage}
+                      onChange={(e) => setReplyMessage(e.target.value)}
+                      placeholder="Write your response..."
+                      rows={4}
+                      maxLength={5000}
+                      className="w-full px-4 py-3 bg-transparent text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none resize-none"
+                    />
+                    {isDragging && (
+                      <div className="absolute inset-0 flex items-center justify-center rounded-lg bg-[var(--accent-primary)]/10 border-2 border-dashed border-[var(--accent-primary)]">
+                        <p className="text-sm font-medium text-[var(--accent-primary)]">Drop files here</p>
+                      </div>
                     )}
-                  </button>
-                </div>
-              </form>
+                  </div>
+
+                  {/* Attached files */}
+                  {attachedFiles.length > 0 && (
+                    <div className="flex flex-wrap gap-2 ml-12">
+                      {attachedFiles.map((file, index) => {
+                        const isImage = file.type.startsWith('image/');
+                        return (
+                          <div
+                            key={`${file.name}-${index}`}
+                            className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] text-sm"
+                          >
+                            {isImage ? (
+                              <ImageIcon size={16} weight="duotone" className="text-[var(--accent-primary)] flex-shrink-0" />
+                            ) : (
+                              <FileText size={16} weight="duotone" className="text-[var(--accent-primary)] flex-shrink-0" />
+                            )}
+                            <span className="text-[var(--text-secondary)] max-w-[150px] truncate">{file.name}</span>
+                            <span className="text-xs text-[var(--text-muted)]">{formatFileSize(file.size)}</span>
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveFile(index)}
+                              className="p-0.5 rounded hover:bg-[var(--accent-danger)]/10 text-[var(--text-muted)] hover:text-[var(--accent-danger)] transition-colors"
+                            >
+                              <X size={14} weight="bold" />
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Error */}
+                  {replyError && (
+                    <div className="flex items-center gap-2 p-3 ml-12 rounded-lg bg-[var(--accent-danger)]/10 text-[var(--accent-danger)]">
+                      <WarningCircle size={18} weight="bold" />
+                      <p className="text-sm">{replyError}</p>
+                    </div>
+                  )}
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between ml-12">
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] cursor-pointer transition-colors">
+                        <Paperclip size={14} weight="bold" />
+                        <span>Attach</span>
+                        <input
+                          type="file"
+                          multiple
+                          accept={ALLOWED_EXTENSIONS}
+                          className="hidden"
+                          onChange={(e) => {
+                            if (e.target.files) handleAddFiles(e.target.files);
+                            e.target.value = '';
+                          }}
+                        />
+                      </label>
+                      <span className="text-xs text-[var(--text-muted)]">
+                        {replyMessage.length}/5000
+                      </span>
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isSubmitting || !replyMessage.trim()}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg bg-[var(--accent-primary)] text-white text-sm font-medium hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isSubmitting ? (
+                        <>
+                          <SpinnerGap size={16} weight="bold" className="animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <PaperPlaneTilt size={16} weight="bold" />
+                          Submit Response
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </form>
+              </div>
             </div>
           </div>
 

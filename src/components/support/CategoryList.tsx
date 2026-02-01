@@ -1,22 +1,8 @@
 import Link from 'next/link';
 import { ArticleCategory } from '@/types';
-import {
-  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
-  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
-  RocketLaunch, Question, Wrench, CaretRight, BookOpenText, GraduationCap, Code, Megaphone,
-  CreditCard, User, Plug, Article, Info, Envelope, Briefcase, House, CurrencyDollar
-} from '@phosphor-icons/react/dist/ssr';
+import { CaretRight, BookOpenText } from '@phosphor-icons/react/dist/ssr';
+import { getIconSSR } from '@/lib/icons-ssr';
 import { getCategoryColors } from '@/lib/category-colors';
-
-// Keys must match the icon name stored in Hygraph (Phosphor icon names)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const iconMap: Record<string, React.ComponentType<any>> = {
-  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
-  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
-  RocketLaunch, Question, Wrench, BookOpenText, GraduationCap, Code, Megaphone, CreditCard,
-  User, Plug, Article, Info, Envelope, Briefcase, House, CurrencyDollar,
-  Rocket: RocketLaunch, BookOpen: BookOpenText,
-};
 
 interface CategoryListProps {
   categories: ArticleCategory[];
@@ -27,7 +13,7 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
   return (
     <div className="grid gap-4 md:grid-cols-3">
       {categories.map((category) => {
-        const Icon = iconMap[category.icon] || BookOpenText;
+        const Icon = getIconSSR(category.icon, BookOpenText);
         const colors = getCategoryColors(category.id, category.color);
         const count = articleCounts[category.id] || 0;
 
