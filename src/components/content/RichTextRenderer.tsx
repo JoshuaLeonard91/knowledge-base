@@ -1,11 +1,48 @@
 'use client';
 
-import { useRef } from 'react';
+import { useRef, useMemo } from 'react';
 import { RichText } from '@graphcms/rich-text-react-renderer';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 import Link from 'next/link';
 import { HeaderLink } from '@/app/support/articles/[slug]/HeaderLink';
 import type { TocHeading } from '@/lib/utils/headings';
+
+/**
+ * Pre-process Hygraph AST to fix blockquote nesting.
+ * Hygraph flattens lists that follow a blockquote as siblings instead of
+ * nesting them inside the blockquote. This merges orphaned lists back into
+ * their preceding blockquote.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function fixBlockquoteNesting(content: any[]): any[] {
+  const result = [];
+
+  for (let i = 0; i < content.length; i++) {
+    const node = content[i];
+
+    if (node.type === 'block-quote') {
+      // Clone the blockquote so we don't mutate the original
+      const blockquote = { ...node, children: [...node.children] };
+
+      // Absorb any immediately following list elements
+      let j = i + 1;
+      while (
+        j < content.length &&
+        (content[j].type === 'bulleted-list' || content[j].type === 'numbered-list')
+      ) {
+        blockquote.children.push(content[j]);
+        j++;
+      }
+
+      result.push(blockquote);
+      i = j - 1; // skip absorbed nodes
+    } else {
+      result.push(node);
+    }
+  }
+
+  return result;
+}
 
 interface RichTextRendererProps {
   content: RichTextContent;
@@ -14,6 +51,18 @@ interface RichTextRendererProps {
 }
 
 export function RichTextRenderer({ content, className = '', headings = [] }: RichTextRendererProps) {
+  // Fix Hygraph AST: merge orphaned lists into preceding blockquotes
+  const fixedContent = useMemo(() => {
+    if (Array.isArray(content)) {
+      return fixBlockquoteNesting(content);
+    }
+    // Handle { children: [...] } wrapper format
+    if (content && typeof content === 'object' && 'children' in content && Array.isArray((content as { children: unknown[] }).children)) {
+      return { ...content, children: fixBlockquoteNesting((content as { children: unknown[] }).children) };
+    }
+    return content;
+  }, [content]);
+
   // Use a ref to track which heading index we're on during rendering
   const headingIndexRef = useRef(0);
   // Reset counter on each render
@@ -49,7 +98,7 @@ export function RichTextRenderer({ content, className = '', headings = [] }: Ric
   return (
     <div className={`rich-text-content ${className}`}>
       <RichText
-        content={content}
+        content={fixedContent as RichTextContent}
         renderers={{
           // Headings with anchor IDs and copy-link buttons
           h1: ({ children }) => renderHeading(
@@ -102,8 +151,9 @@ export function RichTextRenderer({ content, className = '', headings = [] }: Ric
           ),
 
           // Block quote - generic styling for any quoted content
+          // Lists are merged into blockquotes via fixBlockquoteNesting()
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-[var(--accent-primary)]/40 bg-[var(--bg-tertiary)]/50 pl-5 pr-4 py-3 mb-4 rounded-r-lg [&_ul]:list-inside [&_ul]:ml-0 [&_ul]:mb-0 [&_ol]:list-inside [&_ol]:ml-0 [&_ol]:mb-0 [&_p:last-child]:mb-0">
+            <blockquote className="border-l-4 border-[var(--accent-primary)]/40 bg-[var(--bg-tertiary)]/50 pl-5 pr-4 py-3 mb-4 rounded-r-lg [&_ul]:ml-4 [&_ul]:mb-0 [&_ul]:space-y-1 [&_ol]:ml-4 [&_ol]:mb-0 [&_ol]:space-y-1 [&_p:last-child]:mb-0">
               <div className="text-[var(--text-secondary)]">{children}</div>
             </blockquote>
           ),
