@@ -3,15 +3,21 @@ import { Article } from '@/types';
 import {
   Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
   Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
-  RocketLaunch, Question, Wrench, Clock, CaretRight, BookOpenText, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article as ArticleIcon
+  RocketLaunch, Question, Wrench, Clock, CaretRight, BookOpenText, GraduationCap, Code, Megaphone,
+  CreditCard, User, Plug, Article as ArticleIcon, Info, Envelope, Briefcase, House, CurrencyDollar
 } from '@phosphor-icons/react/dist/ssr';
 import { getCategoryColors } from '@/lib/category-colors';
 
+// Keys must match the icon name stored in Hygraph (Phosphor icon names)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
-  Zap: Lightning, Shield, Terminal, FileText, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash, Key, Database,
-  Crown, AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack, Settings: Gear, Calendar, Bell, Lock, Layout,
-  Rocket: RocketLaunch, HelpCircle: Question, Wrench, BookOpen: BookOpenText, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article: ArticleIcon
+  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
+  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
+  RocketLaunch, Question, Wrench, BookOpenText, GraduationCap, Code, Megaphone, CreditCard,
+  User, Plug, Article: ArticleIcon, Info, Envelope, Briefcase, House, CurrencyDollar,
+  Zap: Lightning, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash,
+  AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack,
+  Settings: Gear, Rocket: RocketLaunch, HelpCircle: Question, BookOpen: BookOpenText,
 };
 
 interface ArticleCardProps {

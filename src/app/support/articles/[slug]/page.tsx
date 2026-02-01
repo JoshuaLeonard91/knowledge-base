@@ -14,18 +14,26 @@ import {
   CaretLeft, Clock, BookOpenText, Tag,
   Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
   Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
-  RocketLaunch, Question, Wrench, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article as ArticleIcon
+  RocketLaunch, Question, Wrench, GraduationCap, Code, Megaphone, CreditCard, User, Plug,
+  Article as ArticleIcon, Info, Envelope, Briefcase, House, CurrencyDollar
 } from '@phosphor-icons/react/dist/ssr';
 
 // Force dynamic rendering - fetches fresh data on every request
 // Required for multi-tenant setup where content changes without rebuilds
 export const dynamic = 'force-dynamic';
 
+// Keys must match the icon name stored in Hygraph (Phosphor icon names)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
-  Zap: Lightning, Shield, Terminal, FileText, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash, Key, Database,
-  Crown, AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack, Settings: Gear, Calendar, Bell, Lock, Layout,
-  Rocket: RocketLaunch, HelpCircle: Question, Wrench, BookOpen: BookOpenText, GraduationCap, Code, Megaphone, CreditCard, User, Plug, Article: ArticleIcon
+  // Phosphor names (what Hygraph stores)
+  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
+  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
+  RocketLaunch, Question, Wrench, BookOpenText, GraduationCap, Code, Megaphone, CreditCard,
+  User, Plug, Article: ArticleIcon, Info, Envelope, Briefcase, House, CurrencyDollar,
+  // Legacy aliases (Lucide-style names that may exist in older CMS entries)
+  Zap: Lightning, Filter: Funnel, Share2: ShareNetwork, WifiOff: WifiSlash,
+  AlertTriangle: Warning, Search: MagnifyingGlass, RefreshCw: ArrowsClockwise, Layers: Stack,
+  Settings: Gear, Rocket: RocketLaunch, HelpCircle: Question, BookOpen: BookOpenText,
 };
 
 interface ArticlePageProps {

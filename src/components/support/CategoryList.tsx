@@ -1,24 +1,21 @@
 import Link from 'next/link';
 import { ArticleCategory } from '@/types';
-import { RocketLaunch, Question, Wrench, CaretRight, BookOpenText, GraduationCap, Code, FileText, Megaphone, Bell, Shield, CreditCard, User, Plug, Article } from '@phosphor-icons/react/dist/ssr';
+import {
+  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
+  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
+  RocketLaunch, Question, Wrench, CaretRight, BookOpenText, GraduationCap, Code, Megaphone,
+  CreditCard, User, Plug, Article, Info, Envelope, Briefcase, House, CurrencyDollar
+} from '@phosphor-icons/react/dist/ssr';
 import { getCategoryColors } from '@/lib/category-colors';
 
+// Keys must match the icon name stored in Hygraph (Phosphor icon names)
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const iconMap: Record<string, React.ComponentType<any>> = {
-  Rocket: RocketLaunch,
-  Question,
-  Wrench,
-  BookOpen: BookOpenText,
-  GraduationCap,
-  Code,
-  FileText,
-  Megaphone,
-  Bell,
-  Shield,
-  CreditCard,
-  User,
-  Plug,
-  Article,
+  Lightning, Shield, Terminal, FileText, Funnel, ShareNetwork, WifiSlash, Key, Database,
+  Crown, Warning, MagnifyingGlass, ArrowsClockwise, Stack, Gear, Calendar, Bell, Lock, Layout,
+  RocketLaunch, Question, Wrench, BookOpenText, GraduationCap, Code, Megaphone, CreditCard,
+  User, Plug, Article, Info, Envelope, Briefcase, House, CurrencyDollar,
+  Rocket: RocketLaunch, BookOpen: BookOpenText,
 };
 
 interface CategoryListProps {
