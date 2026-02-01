@@ -103,7 +103,7 @@ export function RichTextRenderer({ content, className = '', headings = [] }: Ric
 
           // Block quote - generic styling for any quoted content
           blockquote: ({ children }) => (
-            <blockquote className="border-l-4 border-[var(--accent-primary)]/40 bg-[var(--bg-tertiary)]/50 pl-5 pr-4 py-3 mb-4 rounded-r-lg [&_ul]:ml-4 [&_ul]:mb-0 [&_ol]:ml-4 [&_ol]:mb-0 [&_p:last-child]:mb-0">
+            <blockquote className="border-l-4 border-[var(--accent-primary)]/40 bg-[var(--bg-tertiary)]/50 pl-5 pr-4 py-3 mb-4 rounded-r-lg [&_ul]:list-inside [&_ul]:ml-0 [&_ul]:mb-0 [&_ol]:list-inside [&_ol]:ml-0 [&_ol]:mb-0 [&_p:last-child]:mb-0">
               <div className="text-[var(--text-secondary)]">{children}</div>
             </blockquote>
           ),
