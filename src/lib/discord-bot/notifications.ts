@@ -26,6 +26,7 @@ import {
   refreshTicketDM,
   resolveTenantSlug,
 } from './helpers';
+import { MAIN_DOMAIN_BOT_ID } from './constants';
 
 // ==========================================
 // TYPES
@@ -221,9 +222,10 @@ export async function sendTicketUpdateDM(
     }
 
     // No tracker — only send a new DM if user has opted in to notifications
+    const isMainDomain = notification.tenantId === MAIN_DOMAIN_BOT_ID;
     const tenantUser = await prisma.tenantUser.findFirst({
       where: {
-        tenant: { id: notification.tenantId },
+        ...(isMainDomain ? { tenantId: null } : { tenant: { id: notification.tenantId } }),
         discordId: notification.discordUserId,
         discordNotifications: true,
       },

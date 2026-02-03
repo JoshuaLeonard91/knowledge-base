@@ -8,7 +8,7 @@ import { TicketCategory } from '@/lib/cms';
 import {
   SpinnerGap, PaperPlaneTilt, CheckCircle, WarningCircle, ShieldCheck,
   Lightbulb, X, FileText,
-  Info, Warning, Fire, SealWarning, CaretDown
+  Info, Warning, Fire, SealWarning, CaretDown, DiscordLogo
 } from '@phosphor-icons/react';
 import Link from 'next/link';
 
@@ -41,6 +41,7 @@ export function TicketForm({ categories }: TicketFormProps) {
   const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string; ticketId?: string } | null>(null);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
+  const [discordNotify, setDiscordNotify] = useState(true);
   const [csrfToken, setCsrfToken] = useState('');
 
   // Fetch CSRF token on mount
@@ -103,6 +104,7 @@ export function TicketForm({ categories }: TicketFormProps) {
           categoryId: selectedCategory,
           severity: selectedSeverity,
           description,
+          discordNotify,
         }),
       });
 
@@ -321,6 +323,27 @@ export function TicketForm({ categories }: TicketFormProps) {
           </div>
         </div>
       )}
+
+      {/* Discord DM Notifications */}
+      <label className="flex items-start gap-3 p-4 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={discordNotify}
+          onChange={(e) => setDiscordNotify(e.target.checked)}
+          className="mt-0.5 h-4 w-4 rounded border-[var(--border-primary)] accent-[var(--accent-primary)]"
+        />
+        <div className="flex-1">
+          <div className="flex items-center gap-2">
+            <DiscordLogo size={16} weight="duotone" className="text-[#5865F2]" />
+            <span className="text-sm font-medium text-[var(--text-primary)]">
+              Receive ticket updates via Discord DM
+            </span>
+          </div>
+          <p className="text-xs text-[var(--text-muted)] mt-1">
+            Get notified in your Discord DMs when our team replies to this ticket.
+          </p>
+        </div>
+      </label>
 
       {/* Submit */}
       <button

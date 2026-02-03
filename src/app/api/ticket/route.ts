@@ -8,6 +8,7 @@ import {
   generateTicketId,
 } from '@/lib/validation';
 import { getTicketProvider } from '@/lib/ticketing/adapter';
+import { prisma } from '@/lib/db/client';
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     // Parse request body
     const body = await request.json();
-    const { serverId, categoryId, severity, description } = body;
+    const { serverId, categoryId, severity, description, discordNotify } = body;
 
     // Validate Discord server ID format (snowflake)
     const serverValidation = validateDiscordServerId(serverId);
@@ -151,6 +152,31 @@ export async function POST(request: NextRequest) {
       ticketId = generateTicketId();
     } else {
       ticketId = result.ticketId || generateTicketId();
+    }
+
+    // Update Discord DM notification preference
+    if (typeof discordNotify === 'boolean') {
+      try {
+        const existingUser = await prisma.tenantUser.findFirst({
+          where: { tenantId: null, discordId: user.id },
+        });
+        if (existingUser) {
+          await prisma.tenantUser.update({
+            where: { id: existingUser.id },
+            data: { discordNotifications: discordNotify },
+          });
+        } else {
+          await prisma.tenantUser.create({
+            data: {
+              discordId: user.id,
+              discordUsername: user.username,
+              discordNotifications: discordNotify,
+            },
+          });
+        }
+      } catch (err) {
+        console.error('[Ticket] Failed to update notification preference:', err);
+      }
     }
 
     logTicketSubmission({
