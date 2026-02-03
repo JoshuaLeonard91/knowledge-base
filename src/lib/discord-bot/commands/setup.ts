@@ -583,5 +583,15 @@ export async function handleSetupConfirmButton(
     console.error('[Setup] Error confirming setup:', error);
     const key = stateKey(botId, interaction.user.id);
     wizardState.delete(key);
+    try {
+      const errorMsg = 'An error occurred during setup. Make sure the bot has **Manage Channels** permission and try `/setup` again.';
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: errorMsg });
+      } else {
+        await interaction.reply({ content: errorMsg, flags: MessageFlags.Ephemeral });
+      }
+    } catch {
+      // Can't respond at all
+    }
   }
 }
