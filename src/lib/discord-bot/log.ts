@@ -89,3 +89,40 @@ export async function logTicketComment(params: {
     console.error('[Log] Failed to log ticket comment:', error);
   }
 }
+
+// ==========================================
+// LOG: TICKET CLAIMED
+// ==========================================
+
+export async function logTicketClaimed(params: {
+  botId: string;
+  ticketId: string;
+  claimedByUsername: string;
+  claimedByUserId: string;
+  assignedInJira: boolean;
+}): Promise<void> {
+  try {
+    const setup = await getBotSetup(params.botId);
+    if (!setup?.logChannelId) return;
+
+    const client = botManager.getBot(params.botId);
+    if (!client) return;
+
+    const channel = await client.channels.fetch(setup.logChannelId);
+    if (!channel || !channel.isTextBased()) return;
+
+    const embed = new EmbedBuilder()
+      .setColor(0xe67e22) // orange
+      .setTitle('Ticket Claimed')
+      .addFields(
+        { name: 'Ticket', value: params.ticketId, inline: true },
+        { name: 'Claimed by', value: `${params.claimedByUsername} (<@${params.claimedByUserId}>)`, inline: true },
+        { name: 'Assigned in Jira', value: params.assignedInJira ? 'Yes' : 'No', inline: true },
+      )
+      .setTimestamp();
+
+    await (channel as { send: Function }).send({ embeds: [embed] });
+  } catch (error) {
+    console.error('[Log] Failed to log ticket claimed:', error);
+  }
+}

@@ -33,6 +33,13 @@ interface DiscordBotStatus {
   connectedAt: string | null;
 }
 
+interface StaffMappingItem {
+  id: string;
+  discordUserId: string;
+  jiraAccountId: string;
+  displayName: string | null;
+}
+
 export default function IntegrationsPage() {
   const router = useRouter();
   const { siteName } = usePlatform();
@@ -49,6 +56,10 @@ export default function IntegrationsPage() {
   const [hygraphForm, setHygraphForm] = useState({ endpoint: '', token: '' });
   const [jiraForm, setJiraForm] = useState({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' });
   const [discordBotForm, setDiscordBotForm] = useState({ botToken: '', guildId: '' });
+  const [staffMappings, setStaffMappings] = useState<StaffMappingItem[]>([]);
+  const [staffForm, setStaffForm] = useState({ displayName: '', discordUserId: '', jiraAccountId: '' });
+  const [isSavingStaff, setIsSavingStaff] = useState(false);
+  const [isDeletingStaff, setIsDeletingStaff] = useState<string | null>(null);
 
   // UI states
   const [activeForm, setActiveForm] = useState<'hygraph' | 'jira' | 'discord-bot' | null>(null);
@@ -319,6 +330,86 @@ export default function IntegrationsPage() {
       setIsDeleting(null);
     }
   };
+
+  // Fetch staff mappings
+  const fetchStaffMappings = async () => {
+    try {
+      const res = await fetch('/api/dashboard/integrations/discord-bot/staff');
+      if (res.ok) {
+        const data = await res.json();
+        setStaffMappings(data.mappings || []);
+      }
+    } catch {
+      // Silently fail — staff mappings are optional
+    }
+  };
+
+  // Add staff mapping
+  const addStaffMapping = async () => {
+    setIsSavingStaff(true);
+    setError(null);
+
+    try {
+      const csrf = await getCsrfToken();
+      const res = await fetch('/api/dashboard/integrations/discord-bot/staff', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrf,
+        },
+        body: JSON.stringify(staffForm),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setError(data.error || 'Failed to add staff mapping');
+        return;
+      }
+
+      setStaffForm({ displayName: '', discordUserId: '', jiraAccountId: '' });
+      fetchStaffMappings();
+      setSuccess('Staff mapping added');
+    } catch {
+      setError('Failed to add staff mapping');
+    } finally {
+      setIsSavingStaff(false);
+    }
+  };
+
+  // Delete staff mapping
+  const deleteStaffMapping = async (mappingId: string) => {
+    setIsDeletingStaff(mappingId);
+    setError(null);
+
+    try {
+      const csrf = await getCsrfToken();
+      const res = await fetch(`/api/dashboard/integrations/discord-bot/staff?id=${mappingId}`, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': csrf },
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setError(data.error || 'Failed to remove staff mapping');
+        return;
+      }
+
+      fetchStaffMappings();
+    } catch {
+      setError('Failed to remove staff mapping');
+    } finally {
+      setIsDeletingStaff(null);
+    }
+  };
+
+  // Fetch staff mappings when both discord + jira are connected
+  useEffect(() => {
+    if (discordBotStatus?.configured && jiraStatus?.configured) {
+      fetchStaffMappings();
+    }
+  }, [discordBotStatus?.configured, jiraStatus?.configured]);
 
   if (isLoading) {
     return (
@@ -657,6 +748,72 @@ export default function IntegrationsPage() {
                   className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition"
                 >
                   Connect Discord Bot
+                </button>
+              </div>
+            )}
+
+            {/* Staff Mappings — visible when Discord Bot + Jira both connected */}
+            {discordBotStatus?.configured && jiraStatus?.configured && activeForm !== 'discord-bot' && (
+              <div className="px-6 pb-6 border-t border-white/5 pt-4">
+                <h4 className="text-sm font-semibold text-white/80 mb-3">Staff Mappings</h4>
+                <p className="text-xs text-white/40 mb-4">
+                  Map Discord users to Jira accounts so they can use <code className="text-indigo-400">/claim</code> to assign tickets.
+                </p>
+
+                {/* Existing mappings */}
+                {staffMappings.length > 0 && (
+                  <div className="space-y-2 mb-4">
+                    {staffMappings.map((m) => (
+                      <div key={m.id} className="flex items-center justify-between bg-[#0a0a0f] rounded-lg px-3 py-2">
+                        <div className="flex items-center gap-3 text-sm">
+                          <span className="text-white/70">{m.displayName || 'Unnamed'}</span>
+                          <span className="text-white/30">|</span>
+                          <span className="font-mono text-xs text-white/50">{m.discordUserId}</span>
+                          <span className="text-white/30">→</span>
+                          <span className="font-mono text-xs text-white/50">{m.jiraAccountId}</span>
+                        </div>
+                        <button
+                          onClick={() => deleteStaffMapping(m.id)}
+                          disabled={isDeletingStaff === m.id}
+                          className="text-red-400/60 hover:text-red-400 text-xs transition disabled:opacity-50"
+                        >
+                          {isDeletingStaff === m.id ? '...' : 'Remove'}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new mapping form */}
+                <div className="grid grid-cols-3 gap-2">
+                  <input
+                    type="text"
+                    value={staffForm.displayName}
+                    onChange={(e) => setStaffForm({ ...staffForm, displayName: e.target.value })}
+                    placeholder="Display name"
+                    className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
+                  />
+                  <input
+                    type="text"
+                    value={staffForm.discordUserId}
+                    onChange={(e) => setStaffForm({ ...staffForm, discordUserId: e.target.value })}
+                    placeholder="Discord User ID"
+                    className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
+                  />
+                  <input
+                    type="text"
+                    value={staffForm.jiraAccountId}
+                    onChange={(e) => setStaffForm({ ...staffForm, jiraAccountId: e.target.value })}
+                    placeholder="Jira Account ID"
+                    className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+                <button
+                  onClick={addStaffMapping}
+                  disabled={isSavingStaff || !staffForm.discordUserId || !staffForm.jiraAccountId}
+                  className="mt-2 px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {isSavingStaff ? 'Adding...' : 'Add Staff'}
                 </button>
               </div>
             )}

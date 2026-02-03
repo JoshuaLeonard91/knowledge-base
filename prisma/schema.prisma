@@ -203,6 +203,24 @@ model DiscordBotSetup {
 }
 
 // ==========================================
+// STAFF MAPPING (Discord ↔ Jira Account)
+// ==========================================
+
+model StaffMapping {
+  id            String   @id @default(cuid())
+  botId         String   // Bot identifier (tenantId or '__main__')
+  discordUserId String
+  jiraAccountId String
+  displayName   String?  // Friendly label, e.g. "John (Mod)"
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([botId, discordUserId])
+  @@index([botId])
+}
+
+// ==========================================
 // TICKET DM TRACKER (Editable DM Messages)
 // ==========================================
 

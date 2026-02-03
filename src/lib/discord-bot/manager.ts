@@ -44,6 +44,7 @@ import {
   handlePanelCommand,
   handlePanelEditModal,
 } from './commands/panel-config';
+import { handleClaimCommand } from './commands/claim';
 import { handleButtonInteraction } from './interactions/reply';
 
 import { MAIN_DOMAIN_BOT_ID } from './constants';
@@ -81,7 +82,15 @@ const panelCommand = new SlashCommandBuilder()
     .setName('refresh')
     .setDescription('Re-post the panel with current config'));
 
-const commands = [ticketCommand.toJSON(), setupCommand.toJSON(), panelCommand.toJSON()];
+const claimCommand = new SlashCommandBuilder()
+  .setName('claim')
+  .setDescription('Claim a support ticket')
+  .addStringOption(opt => opt
+    .setName('ticket')
+    .setDescription('Ticket ID (e.g. SUPPORT-142)')
+    .setRequired(true));
+
+const commands = [ticketCommand.toJSON(), setupCommand.toJSON(), panelCommand.toJSON(), claimCommand.toJSON()];
 
 // ==========================================
 // BOT MANAGER
@@ -253,6 +262,8 @@ class BotManager {
         await handleSetupCommand(interaction, tenantId);
       } else if (interaction.commandName === 'panel') {
         await handlePanelCommand(interaction, tenantId);
+      } else if (interaction.commandName === 'claim') {
+        await handleClaimCommand(interaction, tenantId);
       }
     }
     // === Channel Select Menus ===

@@ -195,4 +195,8 @@ export class JiraTicketProvider implements TicketProvider {
   async addAttachment(ticketId: string, file: Buffer, filename: string, mimeType: string): Promise<boolean> {
     return jiraServiceDesk.addAttachment(ticketId, file, filename, mimeType);
   }
+
+  async assignTicket(ticketId: string, jiraAccountId: string): Promise<boolean> {
+    return jiraServiceDesk.assignIssue(ticketId, jiraAccountId);
+  }
 }

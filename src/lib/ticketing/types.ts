@@ -108,6 +108,9 @@ export interface TicketProvider {
 
   /** Upload an attachment to a ticket (optional — not all providers support this) */
   addAttachment?(ticketId: string, file: Buffer, filename: string, mimeType: string): Promise<boolean>;
+
+  /** Assign a ticket to a user (optional — requires Jira account ID mapping) */
+  assignTicket?(ticketId: string, jiraAccountId: string): Promise<boolean>;
 }
 
 // ==========================================

@@ -308,6 +308,34 @@ class JiraServiceDeskClient {
   }
 
   /**
+   * Assign an issue to a Jira user by account ID
+   */
+  async assignIssue(issueKey: string, accountId: string): Promise<boolean> {
+    if (!this.isConfigured) {
+      return false;
+    }
+
+    try {
+      const response = await fetch(
+        `${this.baseUrl}/issue/${issueKey}/assignee`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: this.authHeader,
+          },
+          body: JSON.stringify({ accountId }),
+        }
+      );
+
+      return response.ok; // 204 No Content on success
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Get issue by key
    */
   async getIssue(issueKey: string): Promise<JiraIssue | null> {
