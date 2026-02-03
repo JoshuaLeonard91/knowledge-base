@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db/client';
 import { sendTicketUpdateDM } from '@/lib/discord-bot/notifications';
+import { logTicketComment } from '@/lib/discord-bot/log';
 
 /**
  * Verify Jira webhook signature (HMAC-SHA256)
@@ -152,6 +153,15 @@ export async function POST(request: NextRequest) {
       commentAuthor,
       discordUserId,
     });
+
+    // Fire-and-forget: log to admin log channel
+    logTicketComment({
+      botId: tenantId,
+      ticketId,
+      commentAuthor,
+      commentPreview: commentBody.substring(0, 200),
+      isStaff: true,
+    }).catch(err => console.error('[Jira Webhook] Log channel failed:', err));
 
     // Update last webhook timestamp
     await prisma.tenantWebhookConfig.update({

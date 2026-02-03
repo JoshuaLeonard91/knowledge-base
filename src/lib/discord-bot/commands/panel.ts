@@ -1,27 +1,24 @@
 /**
- * /ticket Command — Components V2 Interactive Flow
+ * Persistent Ticket Panel
  *
- * Uses Discord's Components V2 system (ContainerBuilder, TextDisplayBuilder,
- * SeparatorBuilder) for a polished card-style UI with accent colors and
- * markdown headers.
+ * A non-ephemeral V2 container posted in the ticket channel after /setup.
+ * Shows category dropdown + severity buttons + "Create Ticket" button.
  *
- * Flow:
- * 1. /ticket → Container panel: category dropdown + severity buttons + Next
- * 2. Click Next → Modal with Title + Description
- * 3. Submit modal → Create ticket → Confirmation container → Auto-dismiss
+ * The message is shared by all users. Interactions are tracked per-user
+ * in memory (panelUserState). The persistent message itself never changes.
  *
- * State is passed between steps via customId strings:
- *   ticket_category:{tenantId}                         → select menu
- *   ticket_severity:{tenantId}:{severity}              → severity buttons
- *   ticket_next:{tenantId}                             → next button
- *   ticket_modal:{tenantId}:{categoryId}:{severity}    → modal
+ * Custom IDs:
+ *   panel_category:{botId}                      → select menu
+ *   panel_severity:{botId}:{severity}           → severity buttons
+ *   panel_create:{botId}                        → create ticket button
+ *   panel_modal:{botId}:{categoryId}:{severity} → modal submit
  */
 
 import {
-  type ChatInputCommandInteraction,
   type StringSelectMenuInteraction,
   type ButtonInteraction,
   type ModalSubmitInteraction,
+  type TextChannel,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   ActionRowBuilder,
@@ -39,6 +36,7 @@ import {
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { getTicketCategories, getTicketCategoriesForTenant } from '@/lib/cms';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
+import { botManager } from '../manager';
 import { sendTicketCreationDM } from '../notifications';
 import { logTicketCreated } from '../log';
 import { resolveTenantSlug } from '../helpers';
@@ -47,38 +45,59 @@ import { resolveTenantSlug } from '../helpers';
 // HELPERS
 // ==========================================
 
-function isMainDomain(tenantId: string): boolean {
-  return tenantId === MAIN_DOMAIN_BOT_ID;
+function isMainDomain(botId: string): boolean {
+  return botId === MAIN_DOMAIN_BOT_ID;
 }
 
-async function resolveCategories(tenantId: string) {
-  return isMainDomain(tenantId)
+async function resolveCategories(botId: string) {
+  return isMainDomain(botId)
     ? getTicketCategories()
-    : getTicketCategoriesForTenant(tenantId);
+    : getTicketCategoriesForTenant(botId);
 }
 
-async function resolveProvider(tenantId: string) {
-  if (isMainDomain(tenantId)) {
+async function resolveProvider(botId: string) {
+  if (isMainDomain(botId)) {
     const provider = getTicketProvider();
     return provider.isAvailable() ? provider : null;
   }
-  return getTicketProviderForTenant(tenantId);
+  return getTicketProviderForTenant(botId);
 }
 
-// Per-user state for the ticket form (category + severity selection)
-const userState = new Map<string, { category: string; categoryName: string; severity: string }>();
+// ==========================================
+// USER STATE
+// ==========================================
 
-// Category name cache (avoid re-fetching in modal handler)
+interface PanelUserState {
+  category: string;
+  categoryName: string;
+  severity: string;
+  createdAt: number;
+}
+
+const panelUserState = new Map<string, PanelUserState>();
+
+function panelKey(botId: string, userId: string): string {
+  return `${botId}:${userId}`;
+}
+
+// Clean stale entries every 5 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, state] of panelUserState) {
+    if (now - state.createdAt > 15 * 60 * 1000) {
+      panelUserState.delete(key);
+    }
+  }
+}, 5 * 60 * 1000);
+
+// Category name cache
 const categoryNameCache = new Map<string, string>();
 
-// Accent colors by severity
+// ==========================================
+// ACCENT COLORS & EMOJIS
+// ==========================================
+
 const BLURPLE = 0x5865f2;
-const severityAccentColors: Record<string, number> = {
-  low: 0x57f287,      // green
-  medium: 0xfee75c,   // yellow
-  high: 0xe67e22,     // orange
-  critical: 0xed4245, // red
-};
 
 const severityEmojis: Record<string, string> = {
   low: '\u{1F7E2}',
@@ -87,79 +106,81 @@ const severityEmojis: Record<string, string> = {
   critical: '\u{1F534}',
 };
 
+const severityAccentColors: Record<string, number> = {
+  low: 0x57f287,
+  medium: 0xfee75c,
+  high: 0xe67e22,
+  critical: 0xed4245,
+};
+
+const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 'highest'> = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'highest',
+};
+
 // ==========================================
-// BUILD PANEL CONTAINER
+// POST PERSISTENT PANEL
 // ==========================================
 
-function buildTicketPanel(
-  tenantId: string,
-  categories: Array<{ id: string; name: string }>,
-  state: { category: string; categoryName: string; severity: string }
-): ContainerBuilder {
-  const bothSelected = state.category !== '' && state.severity !== '';
-  const accentColor = state.severity ? (severityAccentColors[state.severity] || BLURPLE) : BLURPLE;
+/**
+ * Post the persistent ticket panel in a channel.
+ * Returns the message ID for storage in DiscordBotSetup.
+ */
+export async function postPersistentPanel(
+  botId: string,
+  channelId: string
+): Promise<string> {
+  const client = botManager.getBot(botId);
+  if (!client) throw new Error('Bot not available');
 
-  // Status text
-  const statusParts: string[] = [];
-  if (state.categoryName) {
-    statusParts.push(`**Category:** ${state.categoryName}`);
-  }
-  if (state.severity) {
-    const label = state.severity.charAt(0).toUpperCase() + state.severity.slice(1);
-    statusParts.push(`**Severity:** ${label}`);
+  const channel = await client.channels.fetch(channelId);
+  if (!channel || !channel.isTextBased()) {
+    throw new Error('Channel not found or not a text channel');
   }
 
-  const hint = bothSelected
-    ? 'Click **Next** to describe your issue.'
-    : 'Select a category and severity, then click **Next**.';
+  const categories = await resolveCategories(botId);
 
-  // Category dropdown
+  // Cache category names
+  for (const cat of categories) {
+    categoryNameCache.set(cat.id, cat.name);
+  }
+
+  // Build the persistent panel
   const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId(`ticket_category:${tenantId}`)
+    .setCustomId(`panel_category:${botId}`)
     .setPlaceholder('Select a category...')
     .addOptions(
       categories.slice(0, 25).map((cat) =>
         new StringSelectMenuOptionBuilder()
           .setLabel(cat.name)
           .setValue(cat.id)
-          .setDefault(cat.id === state.category)
       )
     );
 
-  // Severity buttons
-  const severityButtons = (['low', 'medium', 'high', 'critical'] as const).map((sev) => {
-    const selected = state.severity === sev;
-    return new ButtonBuilder()
-      .setCustomId(`ticket_severity:${tenantId}:${sev}`)
+  const severityButtons = (['low', 'medium', 'high', 'critical'] as const).map((sev) =>
+    new ButtonBuilder()
+      .setCustomId(`panel_severity:${botId}:${sev}`)
       .setLabel(sev.charAt(0).toUpperCase() + sev.slice(1))
-      .setStyle(selected ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setEmoji(severityEmojis[sev]);
-  });
+      .setStyle(ButtonStyle.Secondary)
+      .setEmoji(severityEmojis[sev])
+  );
 
-  // Next button
-  const nextButton = new ButtonBuilder()
-    .setCustomId(`ticket_next:${tenantId}`)
-    .setLabel('Next')
-    .setStyle(ButtonStyle.Success)
-    .setDisabled(!bothSelected);
+  const createButton = new ButtonBuilder()
+    .setCustomId(`panel_create:${botId}`)
+    .setLabel('Create Ticket')
+    .setStyle(ButtonStyle.Success);
 
-  // Build container
   const container = new ContainerBuilder()
-    .setAccentColor(accentColor)
+    .setAccentColor(BLURPLE)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('# Create a Support Ticket')
-    );
-
-  // Show current selections if any
-  if (statusParts.length > 0) {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(statusParts.join('\n'))
-    );
-  }
-
-  container
+      new TextDisplayBuilder().setContent('# Support Tickets')
+    )
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`-# ${hint}`)
+      new TextDisplayBuilder().setContent(
+        'Select a category and severity, then click **Create Ticket**.'
+      )
     )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
@@ -174,137 +195,98 @@ function buildTicketPanel(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     )
     .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(nextButton)
+      new ActionRowBuilder<ButtonBuilder>().addComponents(createButton)
     );
 
-  return container;
+  const msg = await (channel as TextChannel).send({
+    components: [container],
+    flags: MessageFlags.IsComponentsV2,
+  });
+
+  return msg.id;
 }
 
 // ==========================================
-// STEP 1: /ticket → Show combined panel
+// CATEGORY SELECT
 // ==========================================
 
-export async function handleTicketCommand(
-  interaction: ChatInputCommandInteraction,
-  tenantId: string
-): Promise<void> {
-  try {
-    const categories = await resolveCategories(tenantId);
-
-    if (!categories || categories.length === 0) {
-      await interaction.reply({
-        content: 'No ticket categories are configured. Ask the server admin to set up categories.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    // Cache category names
-    for (const cat of categories) {
-      categoryNameCache.set(cat.id, cat.name);
-    }
-
-    // Initialize user state
-    const state = { category: '', categoryName: '', severity: '' };
-    userState.set(interaction.user.id, state);
-
-    const container = buildTicketPanel(tenantId, categories, state);
-
-    await interaction.reply({
-      components: [container],
-      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-    });
-  } catch (error) {
-    console.error('[TicketCommand] Error showing panel:', error);
-    await interaction.reply({
-      content: 'An error occurred. Please try again later.',
-      flags: MessageFlags.Ephemeral,
-    });
-  }
-}
-
-// ==========================================
-// Category selected → Update panel
-// ==========================================
-
-export async function handleTicketCategorySelect(
+export async function handlePanelCategorySelect(
   interaction: StringSelectMenuInteraction,
-  tenantId: string
+  botId: string
 ): Promise<void> {
   try {
     const categoryId = interaction.values[0];
     const categoryName = categoryNameCache.get(categoryId) || categoryId;
 
-    // Update user state
-    const state = userState.get(interaction.user.id) || { category: '', categoryName: '', severity: '' };
-    state.category = categoryId;
-    state.categoryName = categoryName;
-    userState.set(interaction.user.id, state);
-
-    const categories = await resolveCategories(tenantId);
-    const container = buildTicketPanel(tenantId, categories, state);
-
-    await interaction.update({
-      components: [container],
+    const key = panelKey(botId, interaction.user.id);
+    const existing = panelUserState.get(key);
+    panelUserState.set(key, {
+      category: categoryId,
+      categoryName,
+      severity: existing?.severity || '',
+      createdAt: existing?.createdAt || Date.now(),
     });
+
+    // Don't update the persistent message — just acknowledge silently
+    await interaction.deferUpdate();
   } catch (error) {
-    console.error('[TicketCommand] Error handling category select:', error);
+    console.error('[Panel] Error handling category select:', error);
   }
 }
 
 // ==========================================
-// Severity selected → Update panel
+// SEVERITY BUTTON
 // ==========================================
 
-export async function handleTicketSeverityButton(
+export async function handlePanelSeverityButton(
   interaction: ButtonInteraction
 ): Promise<void> {
   try {
     const parts = interaction.customId.split(':');
     if (parts.length !== 3) return;
 
-    const [, tenantId, severity] = parts;
+    const [, botId, severity] = parts;
 
-    // Update user state
-    const state = userState.get(interaction.user.id) || { category: '', categoryName: '', severity: '' };
-    state.severity = severity;
-    userState.set(interaction.user.id, state);
-
-    const categories = await resolveCategories(tenantId);
-    const container = buildTicketPanel(tenantId, categories, state);
-
-    await interaction.update({
-      components: [container],
+    const key = panelKey(botId, interaction.user.id);
+    const existing = panelUserState.get(key);
+    panelUserState.set(key, {
+      category: existing?.category || '',
+      categoryName: existing?.categoryName || '',
+      severity,
+      createdAt: existing?.createdAt || Date.now(),
     });
+
+    await interaction.deferUpdate();
   } catch (error) {
-    console.error('[TicketCommand] Error handling severity:', error);
+    console.error('[Panel] Error handling severity button:', error);
   }
 }
 
 // ==========================================
-// Next button → Open modal
+// CREATE TICKET BUTTON → MODAL
 // ==========================================
 
-export async function handleTicketNextButton(
+export async function handlePanelCreateButton(
   interaction: ButtonInteraction
 ): Promise<void> {
   try {
     const parts = interaction.customId.split(':');
     if (parts.length !== 2) return;
 
-    const [, tenantId] = parts;
-    const state = userState.get(interaction.user.id);
+    const [, botId] = parts;
+    const key = panelKey(botId, interaction.user.id);
+    const state = panelUserState.get(key);
 
     if (!state || !state.category || !state.severity) {
       await interaction.reply({
-        content: 'Please select both a category and severity first.',
+        content: 'Please select a category and severity first, then click **Create Ticket**.',
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
     const modal = new ModalBuilder()
-      .setCustomId(`ticket_modal:${tenantId}:${state.category}:${state.severity}`)
+      .setCustomId(`panel_modal:${botId}:${state.category}:${state.severity}`)
       .setTitle('Describe Your Issue');
 
     const titleInput = new TextInputBuilder()
@@ -333,28 +315,21 @@ export async function handleTicketNextButton(
     // showModal MUST be the first response
     await interaction.showModal(modal);
   } catch (error) {
-    console.error('[TicketCommand] Error showing modal:', error);
+    console.error('[Panel] Error showing modal:', error);
   }
 }
 
 // ==========================================
-// Modal submitted → Create ticket
+// MODAL SUBMIT → CREATE TICKET
 // ==========================================
 
-const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 'highest'> = {
-  low: 'low',
-  medium: 'medium',
-  high: 'high',
-  critical: 'highest',
-};
-
-export async function handleTicketModal(
+export async function handlePanelModal(
   interaction: ModalSubmitInteraction
 ): Promise<void> {
   const parts = interaction.customId.split(':');
   if (parts.length !== 4) return;
 
-  const [, tenantId, categoryId, severity] = parts;
+  const [, botId, categoryId, severity] = parts;
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
@@ -362,10 +337,10 @@ export async function handleTicketModal(
     const title = interaction.fields.getTextInputValue('ticket_title');
     const description = interaction.fields.getTextInputValue('ticket_description');
 
-    const provider = await resolveProvider(tenantId);
+    const provider = await resolveProvider(botId);
     if (!provider) {
       await interaction.editReply({
-        content: 'Ticketing is not configured for this server. Ask the server admin to set up a ticket provider.',
+        content: 'Ticketing is not configured for this server.',
       });
       return;
     }
@@ -394,15 +369,16 @@ export async function handleTicketModal(
 
     if (!result.success) {
       await interaction.editReply({
-        content: 'Failed to create ticket. Please try again later or use the support portal.',
+        content: 'Failed to create ticket. Please try again later.',
       });
       return;
     }
 
     // Clean up user state
-    userState.delete(interaction.user.id);
+    const key = panelKey(botId, interaction.user.id);
+    panelUserState.delete(key);
 
-    // Build confirmation container
+    // Build confirmation
     const accentColor = severityAccentColors[severity] || BLURPLE;
     const truncatedDesc = description.length > 1024
       ? description.substring(0, 1021) + '...'
@@ -442,9 +418,9 @@ export async function handleTicketModal(
     });
 
     // Fire-and-forget: DM + log
-    const slug = await resolveTenantSlug(tenantId);
+    const slug = await resolveTenantSlug(botId);
     sendTicketCreationDM({
-      botId: tenantId,
+      botId,
       tenantSlug: slug,
       ticketId: result.ticketId!,
       category: categoryName,
@@ -453,30 +429,30 @@ export async function handleTicketModal(
       title,
       description,
       discordUserId: interaction.user.id,
-    }).catch(err => console.error('[TicketCommand] DM failed:', err));
+    }).catch(err => console.error('[Panel] DM failed:', err));
 
     logTicketCreated({
-      botId: tenantId,
+      botId,
       ticketId: result.ticketId!,
       summary,
       category: categoryName,
       severity,
       discordUserId: interaction.user.id,
       discordUsername: interaction.user.username,
-    }).catch(err => console.error('[TicketCommand] Log failed:', err));
+    }).catch(err => console.error('[Panel] Log failed:', err));
 
     // Auto-dismiss after 15 seconds
     setTimeout(async () => {
       try {
         await interaction.deleteReply();
       } catch {
-        // Already dismissed or expired
+        // Already dismissed
       }
     }, 15_000);
   } catch (error) {
-    console.error('[TicketCommand] Error creating ticket:', error);
+    console.error('[Panel] Error creating ticket:', error);
     await interaction.editReply({
-      content: 'An error occurred while creating your ticket. Please try again later.',
+      content: 'An error occurred while creating your ticket.',
     });
   }
 }

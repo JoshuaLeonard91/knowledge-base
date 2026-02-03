@@ -26,6 +26,20 @@ import {
   handleTicketNextButton,
   handleTicketModal,
 } from './commands/ticket';
+import {
+  handleSetupCommand,
+  handleSetupTicketChannelSelect,
+  handleSetupLogChannelSelect,
+  handleSetupSkipLogButton,
+  handleSetupDmToggle,
+  handleSetupConfirmButton,
+} from './commands/setup';
+import {
+  handlePanelCategorySelect,
+  handlePanelSeverityButton,
+  handlePanelCreateButton,
+  handlePanelModal,
+} from './commands/panel';
 import { handleButtonInteraction } from './interactions/reply';
 
 import { MAIN_DOMAIN_BOT_ID } from './constants';
@@ -49,7 +63,11 @@ const ticketCommand = new SlashCommandBuilder()
   .setName('ticket')
   .setDescription('Create a support ticket');
 
-const commands = [ticketCommand.toJSON()];
+const setupCommand = new SlashCommandBuilder()
+  .setName('setup')
+  .setDescription('Configure the support bot for this server (owner only)');
+
+const commands = [ticketCommand.toJSON(), setupCommand.toJSON()];
 
 // ==========================================
 // BOT MANAGER
@@ -121,7 +139,7 @@ class BotManager {
     await this.disconnectBot(tenantId);
 
     const client = new Client({
-      intents: [GatewayIntentBits.Guilds],
+      intents: [GatewayIntentBits.Guilds, GatewayIntentBits.DirectMessages],
     });
 
     const tenantBot: TenantBot = {
@@ -207,28 +225,61 @@ class BotManager {
     interaction: Interaction,
     tenantId: string
   ): Promise<void> {
+    // === Slash Commands ===
     if (interaction.isChatInputCommand()) {
       if (interaction.commandName === 'ticket') {
         await handleTicketCommand(interaction, tenantId);
+      } else if (interaction.commandName === 'setup') {
+        await handleSetupCommand(interaction, tenantId);
       }
-    } else if (interaction.isStringSelectMenu()) {
-      if (interaction.customId.startsWith('ticket_category:')) {
+    }
+    // === Channel Select Menus ===
+    else if (interaction.isChannelSelectMenu()) {
+      const cid = interaction.customId;
+      if (cid.startsWith('setup_ticketch:')) {
+        await handleSetupTicketChannelSelect(interaction, tenantId);
+      } else if (cid.startsWith('setup_logch:')) {
+        await handleSetupLogChannelSelect(interaction, tenantId);
+      }
+    }
+    // === String Select Menus ===
+    else if (interaction.isStringSelectMenu()) {
+      const cid = interaction.customId;
+      if (cid.startsWith('ticket_category:')) {
         await handleTicketCategorySelect(interaction, tenantId);
+      } else if (cid.startsWith('panel_category:')) {
+        await handlePanelCategorySelect(interaction, tenantId);
       }
-    } else if (interaction.isButton()) {
-      if (interaction.customId.startsWith('ticket_severity:')) {
+    }
+    // === Buttons ===
+    else if (interaction.isButton()) {
+      const cid = interaction.customId;
+      if (cid.startsWith('ticket_severity:')) {
         await handleTicketSeverityButton(interaction);
-      } else if (interaction.customId.startsWith('ticket_next:')) {
+      } else if (cid.startsWith('ticket_next:')) {
         await handleTicketNextButton(interaction);
-      } else {
-        // Reply buttons from DM notifications
+      } else if (cid.startsWith('panel_severity:')) {
+        await handlePanelSeverityButton(interaction);
+      } else if (cid.startsWith('panel_create:')) {
+        await handlePanelCreateButton(interaction);
+      } else if (cid.startsWith('setup_skiplog:')) {
+        await handleSetupSkipLogButton(interaction, tenantId);
+      } else if (cid.startsWith('setup_dmcreate:') || cid.startsWith('setup_dmupdate:')) {
+        await handleSetupDmToggle(interaction, tenantId);
+      } else if (cid.startsWith('setup_confirm:')) {
+        await handleSetupConfirmButton(interaction, tenantId);
+      } else if (cid.startsWith('reply:')) {
         await handleButtonInteraction(interaction, tenantId);
       }
-    } else if (interaction.isModalSubmit()) {
-      if (interaction.customId.startsWith('ticket_modal:')) {
+    }
+    // === Modals ===
+    else if (interaction.isModalSubmit()) {
+      const cid = interaction.customId;
+      if (cid.startsWith('ticket_modal:')) {
         await handleTicketModal(interaction);
-      } else {
-        // Reply modals from DM notifications
+      } else if (cid.startsWith('panel_modal:')) {
+        await handlePanelModal(interaction);
+      } else if (cid.startsWith('reply-modal:')) {
         await handleButtonInteraction(interaction, tenantId);
       }
     }

@@ -1,18 +1,35 @@
 /**
  * Discord Bot DM Notifications
  *
- * Sends ticket update DM embeds to users who opted in.
- * Called by webhook handlers when agents reply in Jira/Zendesk.
+ * Two notification types:
+ * 1. sendTicketCreationDM — DMs user after ticket creation with V2 container
+ * 2. sendTicketUpdateDM — Edits existing DM to append new replies (or sends new DM)
+ *
+ * Both respect DiscordBotSetup preferences (dmOnCreate, dmOnUpdate).
+ * DM message IDs are tracked in TicketDMTracker for edit-in-place behavior.
  */
 
 import {
-  EmbedBuilder,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  MessageFlags,
 } from 'discord.js';
 import { botManager } from './manager';
 import { prisma } from '@/lib/db/client';
+import {
+  getBotSetup,
+  refreshTicketDM,
+  resolveTenantSlug,
+} from './helpers';
+
+// ==========================================
+// TYPES
+// ==========================================
 
 interface TicketNotification {
   tenantId: string;
@@ -26,13 +43,151 @@ interface TicketNotification {
   discordUserId: string;
 }
 
+interface TicketCreationDMParams {
+  botId: string;
+  tenantSlug: string;
+  ticketId: string;
+  category: string;
+  severity: string;
+  status: string;
+  title: string;
+  description: string;
+  discordUserId: string;
+}
+
+// ==========================================
+// ACCENT COLORS
+// ==========================================
+
+const BLURPLE = 0x5865f2;
+const severityAccentColors: Record<string, number> = {
+  low: 0x57f287,
+  medium: 0xfee75c,
+  high: 0xe67e22,
+  critical: 0xed4245,
+};
+
+// ==========================================
+// CREATION DM
+// ==========================================
+
 /**
- * Send a DM embed to a user about a ticket update
+ * Send a DM to the user after ticket creation with a V2 container.
+ * Creates a TicketDMTracker record for future edit-in-place updates.
+ */
+export async function sendTicketCreationDM(
+  params: TicketCreationDMParams
+): Promise<boolean> {
+  try {
+    // Check setup preferences
+    const setup = await getBotSetup(params.botId);
+    if (setup && !setup.dmOnCreate) return false;
+
+    const client = botManager.getBot(params.botId);
+    if (!client) {
+      console.warn(`[Notifications] No bot available for ${params.botId}`);
+      return false;
+    }
+
+    const user = await client.users.fetch(params.discordUserId);
+    if (!user) return false;
+
+    const portalUrl = `https://${params.tenantSlug}.helpportal.app/support/tickets/${params.ticketId}`;
+    const accentColor = severityAccentColors[params.severity] || BLURPLE;
+    const severityLabel = params.severity.charAt(0).toUpperCase() + params.severity.slice(1);
+    const truncatedDesc = params.description.length > 1500
+      ? params.description.substring(0, 1497) + '...'
+      : params.description;
+
+    const container = new ContainerBuilder()
+      .setAccentColor(accentColor)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`# Ticket Created \u2014 ${params.ticketId}`)
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `**Category:** ${params.category}  \u00b7  **Severity:** ${severityLabel}  \u00b7  **Status:** ${params.status}`
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### ${params.title}\n${truncatedDesc}`)
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('-# Reply to this ticket using the button below.')
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`reply:${params.botId}:${params.ticketId}`)
+            .setLabel('Reply')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setLabel('View on Portal')
+            .setStyle(ButtonStyle.Link)
+            .setURL(portalUrl)
+        )
+      );
+
+    const sent = await user.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
+
+    // Track the DM for future edits
+    await prisma.ticketDMTracker.upsert({
+      where: {
+        tenantId_ticketId_discordUserId: {
+          tenantId: params.botId,
+          ticketId: params.ticketId,
+          discordUserId: params.discordUserId,
+        },
+      },
+      create: {
+        tenantId: params.botId,
+        ticketId: params.ticketId,
+        discordUserId: params.discordUserId,
+        dmMessageId: sent.id,
+        dmChannelId: sent.channelId,
+      },
+      update: {
+        dmMessageId: sent.id,
+        dmChannelId: sent.channelId,
+      },
+    });
+
+    return true;
+  } catch (error) {
+    console.error('[Notifications] Failed to send creation DM:', error);
+    return false;
+  }
+}
+
+// ==========================================
+// UPDATE DM (Edit-in-place)
+// ==========================================
+
+/**
+ * Send or edit a DM about a ticket update (new comment from support).
+ * If a TicketDMTracker exists, edits the existing message.
+ * Otherwise sends a new DM and creates a tracker.
  */
 export async function sendTicketUpdateDM(
   notification: TicketNotification
 ): Promise<boolean> {
   try {
+    // Check setup preferences
+    const setup = await getBotSetup(notification.tenantId);
+    if (setup && !setup.dmOnUpdate) return false;
+
     // Check if user has opted in to notifications
     const tenantUser = await prisma.tenantUser.findFirst({
       where: {
@@ -42,58 +197,96 @@ export async function sendTicketUpdateDM(
       },
     });
 
-    if (!tenantUser) {
-      return false; // User hasn't opted in
+    if (!tenantUser) return false;
+
+    // Check if we have an existing DM to edit
+    const tracker = await prisma.ticketDMTracker.findUnique({
+      where: {
+        tenantId_ticketId_discordUserId: {
+          tenantId: notification.tenantId,
+          ticketId: notification.ticketId,
+          discordUserId: notification.discordUserId,
+        },
+      },
+    });
+
+    if (tracker) {
+      // Edit the existing DM with full conversation
+      await refreshTicketDM(
+        notification.tenantId,
+        notification.ticketId,
+        notification.discordUserId
+      );
+      return true;
     }
 
-    // Get the bot client for this tenant
+    // No tracker — send a new DM with just this update
     const client = botManager.getBot(notification.tenantId);
     if (!client) {
-      console.warn(
-        `[Notifications] No bot available for tenant ${notification.tenantId}`
-      );
+      console.warn(`[Notifications] No bot available for ${notification.tenantId}`);
       return false;
     }
 
-    // Fetch the Discord user
     const user = await client.users.fetch(notification.discordUserId);
     if (!user) return false;
 
-    // Build embed
-    const embed = new EmbedBuilder()
-      .setTitle('Ticket Update')
-      .setDescription(
-        [
-          `**${notification.ticketId}** · ${notification.tenantName}`,
-          `Status: ${notification.status}`,
-          '',
-          `New reply from ${notification.commentAuthor}:`,
-          `> ${truncate(notification.commentBody, 200)}`,
-        ].join('\n')
+    const slug = await resolveTenantSlug(notification.tenantId);
+    const portalUrl = `https://${slug}.helpportal.app/support/tickets/${notification.ticketId}`;
+
+    const container = new ContainerBuilder()
+      .setAccentColor(BLURPLE)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`# ${notification.ticketId}`)
       )
-      .setColor(0x5865f2) // Discord blurple
-      .setTimestamp();
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**Status:** ${notification.status}`)
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `**${notification.commentAuthor}**\n> ${truncate(notification.commentBody, 1500)}`
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent('-# Reply using the button below.')
+      )
+      .addActionRowComponents(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`reply:${notification.tenantId}:${notification.ticketId}`)
+            .setLabel('Reply')
+            .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setLabel('View on Portal')
+            .setStyle(ButtonStyle.Link)
+            .setURL(portalUrl)
+        )
+      );
 
-    // Build action row with buttons
-    const portalUrl = `https://${notification.tenantSlug}.helpportal.app/support/tickets/${notification.ticketId}`;
+    const sent = await user.send({
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    });
 
-    const row = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setLabel('View on Portal')
-        .setStyle(ButtonStyle.Link)
-        .setURL(portalUrl),
-      new ButtonBuilder()
-        .setCustomId(`reply:${notification.tenantId}:${notification.ticketId}`)
-        .setLabel('Reply')
-        .setStyle(ButtonStyle.Primary)
-    );
-
-    // Send DM
-    await user.send({ embeds: [embed], components: [row] });
+    // Create tracker for future edits
+    await prisma.ticketDMTracker.create({
+      data: {
+        tenantId: notification.tenantId,
+        ticketId: notification.ticketId,
+        discordUserId: notification.discordUserId,
+        dmMessageId: sent.id,
+        dmChannelId: sent.channelId,
+      },
+    });
 
     return true;
   } catch (error) {
-    console.error('[Notifications] Failed to send DM:', error);
+    console.error('[Notifications] Failed to send update DM:', error);
     return false;
   }
 }

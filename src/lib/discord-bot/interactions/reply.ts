@@ -17,7 +17,9 @@ import {
   TextInputStyle,
   ActionRowBuilder,
 } from 'discord.js';
-import { getTicketProviderForTenant } from '@/lib/ticketing/adapter';
+import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
+import { refreshTicketDM } from '../helpers';
+import { MAIN_DOMAIN_BOT_ID } from '../constants';
 
 /**
  * Handle button clicks and modal submissions
@@ -95,7 +97,11 @@ async function handleReplyModal(
       return;
     }
 
-    const provider = await getTicketProviderForTenant(tenantId);
+    // Resolve provider: main domain uses env vars, tenants use DB
+    const provider = tenantId === MAIN_DOMAIN_BOT_ID
+      ? (getTicketProvider().isAvailable() ? getTicketProvider() : null)
+      : await getTicketProviderForTenant(tenantId);
+
     if (!provider) {
       await interaction.editReply({
         content: 'Ticketing is not available. Please use the support portal.',
@@ -121,6 +127,10 @@ async function handleReplyModal(
     await interaction.editReply({
       content: `Reply added to ticket **${ticketId}**.`,
     });
+
+    // Fire-and-forget: refresh the DM with the new reply
+    refreshTicketDM(tenantId, ticketId, interaction.user.id)
+      .catch(err => console.error('[ReplyModal] DM refresh failed:', err));
   } catch (error) {
     console.error('[ReplyModal] Error:', error);
     await interaction.editReply({
