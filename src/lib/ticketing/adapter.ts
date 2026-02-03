@@ -14,6 +14,7 @@ import { JiraTicketProvider } from './providers/jira';
 import { JiraServiceDeskClient } from '@/lib/atlassian/client';
 import { decryptFromString } from '@/lib/security/crypto';
 import { prisma } from '@/lib/db/client';
+import { getTenantFromRequest } from '@/lib/tenant/resolver';
 
 // Default provider (uses env vars — for main domain)
 const defaultProvider = new JiraTicketProvider();
@@ -90,6 +91,38 @@ export async function getTicketProviderForTenant(
     console.error(`[Adapter] Failed to create provider for tenant ${tenantId}:`, error);
     return null;
   }
+}
+
+/**
+ * Resolve the correct ticket provider from the current request context.
+ * Uses tenant subdomain (via middleware header) to determine which
+ * Jira workspace to use. Never falls back from tenant to main domain.
+ */
+export async function resolveProviderFromRequest(): Promise<{
+  provider: TicketProvider | null;
+  tenantId: string | null;
+  error?: string;
+}> {
+  const tenant = await getTenantFromRequest();
+
+  if (tenant) {
+    const provider = await getTicketProviderForTenant(tenant.id);
+    if (!provider) {
+      return {
+        provider: null,
+        tenantId: tenant.id,
+        error: 'Ticketing is not configured for this workspace.',
+      };
+    }
+    return { provider, tenantId: tenant.id };
+  }
+
+  // Main domain
+  const provider = getTicketProvider();
+  return {
+    provider: provider.isAvailable() ? provider : null,
+    tenantId: null,
+  };
 }
 
 // Re-export types for convenience

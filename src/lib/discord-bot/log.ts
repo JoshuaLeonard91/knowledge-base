@@ -179,15 +179,34 @@ function buildTicketCreatedContainer(params: {
     new TextDisplayBuilder().setContent(`-# Created <t:${timestamp}:R>`)
   );
 
-  // Assign button
-  const buttonLabel = params.assignedTo ? 'Reassign to me' : 'Assign to me';
-  container.addActionRowComponents(
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
+  // Action buttons: Assign + Resolve/Reopen
+  const assignLabel = params.assignedTo ? 'Reassign to me' : 'Assign to me';
+  const buttons: ButtonBuilder[] = [
+    new ButtonBuilder()
+      .setCustomId(`assign_ticket:${params.botId}:${params.ticketId}`)
+      .setLabel(assignLabel)
+      .setStyle(params.assignedTo ? ButtonStyle.Secondary : ButtonStyle.Primary),
+  ];
+
+  const isDone = params.status.toLowerCase() === 'resolved' || params.status.toLowerCase() === 'closed' || params.status.toLowerCase() === 'done';
+  if (isDone) {
+    buttons.push(
       new ButtonBuilder()
-        .setCustomId(`assign_ticket:${params.botId}:${params.ticketId}`)
-        .setLabel(buttonLabel)
-        .setStyle(params.assignedTo ? ButtonStyle.Secondary : ButtonStyle.Primary)
-    )
+        .setCustomId(`reopen_staff:${params.botId}:${params.ticketId}`)
+        .setLabel('Reopen')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  } else {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`resolve_ticket:${params.botId}:${params.ticketId}`)
+        .setLabel('Resolve')
+        .setStyle(ButtonStyle.Success)
+    );
+  }
+
+  container.addActionRowComponents(
+    new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)
   );
 
   return container;
@@ -440,13 +459,17 @@ function buildAssignedContainer(params: {
     new TextDisplayBuilder().setContent(`-# Assigned <t:${timestamp}:R>`)
   );
 
-  // Reassign button
+  // Action buttons: Reassign + Resolve
   container.addActionRowComponents(
     new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder()
         .setCustomId(`assign_ticket:${params.botId}:${params.ticketId}`)
         .setLabel('Reassign to me')
-        .setStyle(ButtonStyle.Secondary)
+        .setStyle(ButtonStyle.Secondary),
+      new ButtonBuilder()
+        .setCustomId(`resolve_ticket:${params.botId}:${params.ticketId}`)
+        .setLabel('Resolve')
+        .setStyle(ButtonStyle.Success)
     )
   );
 
@@ -508,5 +531,215 @@ export async function logTicketComment(params: {
     });
   } catch (error) {
     console.error('[Log] Failed to log ticket comment:', error);
+  }
+}
+
+// ==========================================
+// HANDLE "RESOLVE" BUTTON (Staff)
+// ==========================================
+
+export async function handleResolveButton(
+  interaction: ButtonInteraction,
+  botId: string
+): Promise<void> {
+  const parts = interaction.customId.split(':');
+  if (parts.length < 3) return;
+  const ticketId = parts.slice(2).join(':');
+
+  try {
+    // Staff-only gate
+    const staffMapping = await prisma.staffMapping.findUnique({
+      where: {
+        botId_discordUserId: {
+          botId,
+          discordUserId: interaction.user.id,
+        },
+      },
+    });
+
+    if (!staffMapping) {
+      await interaction.reply({
+        content: 'You are not registered as staff.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    await interaction.deferUpdate();
+
+    const provider = botId === MAIN_DOMAIN_BOT_ID
+      ? (() => { const p = getTicketProvider(); return p.isAvailable() ? p : null; })()
+      : await getTicketProviderForTenant(botId);
+
+    if (!provider || !provider.transitionTicket) return;
+
+    await provider.transitionTicket(ticketId, 'Done');
+
+    // Rebuild the log message with updated status
+    const message = interaction.message;
+    if (message) {
+      const originalTexts = extractTextFromMessage(message);
+      const heading = originalTexts[0] || `# ${ticketId}`;
+      const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
+      const sevCatLine = originalTexts.find(t => t.includes('**Category:**')) || '';
+      const sevCatOnly = sevCatLine.split('\n').filter(l => l.includes('**Severity:**') || l.includes('**Category:**')).join('\n');
+
+      // Find assignee from original text
+      const assigneeMatch = metaText.match(/\*\*Assigned to:\*\* (.+?) \(<@(\d+)>\)/);
+      const assignedMeta = assigneeMatch ? `\n**Assigned to:** ${assigneeMatch[1]} (<@${assigneeMatch[2]}>)` : '';
+
+      const container = new ContainerBuilder()
+        .setAccentColor(0x57f287) // green for resolved
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\u2705 **Resolved**\n${sevCatOnly}`))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+          metaText.split('\n').filter(l => l.includes('**Created by:**') || l.includes('**Server:**')).join('\n') +
+          assignedMeta +
+          `\n**Resolved by:** ${interaction.user.username} (<@${interaction.user.id}>)`
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Resolved <t:${Math.floor(Date.now() / 1000)}:R>`))
+        .addActionRowComponents(
+          new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`assign_ticket:${botId}:${ticketId}`)
+              .setLabel('Reassign to me')
+              .setStyle(ButtonStyle.Secondary),
+            new ButtonBuilder()
+              .setCustomId(`reopen_staff:${botId}:${ticketId}`)
+              .setLabel('Reopen')
+              .setStyle(ButtonStyle.Secondary)
+          )
+        );
+
+      await interaction.editReply({ components: [container] });
+
+      // Refresh the ticket creator's DM
+      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+      if (creatorId) {
+        refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
+          console.error('[Log] Failed to refresh creator DM after resolve:', err)
+        );
+      }
+    }
+  } catch (error) {
+    console.error('[Log] Resolve button error:', error);
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: 'An error occurred while resolving the ticket.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    } catch { /* Already replied */ }
+  }
+}
+
+// ==========================================
+// HANDLE "REOPEN" BUTTON (Staff)
+// ==========================================
+
+export async function handleReopenStaffButton(
+  interaction: ButtonInteraction,
+  botId: string
+): Promise<void> {
+  const parts = interaction.customId.split(':');
+  if (parts.length < 3) return;
+  const ticketId = parts.slice(2).join(':');
+
+  try {
+    // Staff-only gate
+    const staffMapping = await prisma.staffMapping.findUnique({
+      where: {
+        botId_discordUserId: {
+          botId,
+          discordUserId: interaction.user.id,
+        },
+      },
+    });
+
+    if (!staffMapping) {
+      await interaction.reply({
+        content: 'You are not registered as staff.',
+        flags: MessageFlags.Ephemeral,
+      });
+      return;
+    }
+
+    await interaction.deferUpdate();
+
+    const provider = botId === MAIN_DOMAIN_BOT_ID
+      ? (() => { const p = getTicketProvider(); return p.isAvailable() ? p : null; })()
+      : await getTicketProviderForTenant(botId);
+
+    if (!provider || !provider.transitionTicket) return;
+
+    await provider.transitionTicket(ticketId, 'To Do');
+
+    // Rebuild the log message — show as Open again
+    const message = interaction.message;
+    if (message) {
+      const originalTexts = extractTextFromMessage(message);
+      const heading = originalTexts[0] || `# ${ticketId}`;
+      const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
+      const sevCatLine = originalTexts.find(t => t.includes('**Category:**')) || '';
+      const sevCatOnly = sevCatLine.split('\n').filter(l => l.includes('**Severity:**') || l.includes('**Category:**')).join('\n');
+
+      // Detect severity for accent color
+      let accentColor = 0x5865f2;
+      if (sevCatLine.includes('Critical')) accentColor = 0xed4245;
+      else if (sevCatLine.includes('High')) accentColor = 0xe67e22;
+      else if (sevCatLine.includes('Medium')) accentColor = 0xfee75c;
+      else if (sevCatLine.includes('Low')) accentColor = 0x57f287;
+
+      const container = new ContainerBuilder()
+        .setAccentColor(accentColor)
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\u{1F7E2} **Open**\n${sevCatOnly}`))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
+          metaText.split('\n').filter(l =>
+            l.includes('**Created by:**') || l.includes('**Server:**')
+          ).join('\n') +
+          `\n**Reopened by:** ${interaction.user.username} (<@${interaction.user.id}>)`
+        ))
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Reopened <t:${Math.floor(Date.now() / 1000)}:R>`))
+        .addActionRowComponents(
+          new ActionRowBuilder<ButtonBuilder>().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`assign_ticket:${botId}:${ticketId}`)
+              .setLabel('Assign to me')
+              .setStyle(ButtonStyle.Primary),
+            new ButtonBuilder()
+              .setCustomId(`resolve_ticket:${botId}:${ticketId}`)
+              .setLabel('Resolve')
+              .setStyle(ButtonStyle.Success)
+          )
+        );
+
+      await interaction.editReply({ components: [container] });
+
+      // Refresh the ticket creator's DM
+      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+      if (creatorId) {
+        refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
+          console.error('[Log] Failed to refresh creator DM after reopen:', err)
+        );
+      }
+    }
+  } catch (error) {
+    console.error('[Log] Reopen staff button error:', error);
+    try {
+      if (!interaction.replied && !interaction.deferred) {
+        await interaction.reply({
+          content: 'An error occurred while reopening the ticket.',
+          flags: MessageFlags.Ephemeral,
+        });
+      }
+    } catch { /* Already replied */ }
   }
 }

@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
-import { getTicketProvider } from '@/lib/ticketing/adapter';
+import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
 
 export async function GET() {
   try {
@@ -21,8 +21,15 @@ export async function GET() {
       );
     }
 
-    // Get tickets for this user via provider adapter
-    const provider = getTicketProvider();
+    // Get tickets for this user via tenant-aware provider
+    const { provider, error: providerError } = await resolveProviderFromRequest();
+    if (!provider) {
+      return NextResponse.json(
+        { success: false, error: providerError || 'Ticketing is not configured.' },
+        { status: 503 }
+      );
+    }
+
     const tickets = await provider.listTickets(user.id, user.username);
 
     return NextResponse.json({

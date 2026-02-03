@@ -16,6 +16,7 @@ import {
 } from 'discord.js';
 import { prisma } from '@/lib/db/client';
 import { botManager } from './manager';
+import type { ButtonInteraction } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import type { TicketComment } from '@/lib/ticketing/types';
 import { MAIN_DOMAIN_BOT_ID } from './constants';
@@ -130,6 +131,7 @@ export function buildTicketDMContainer(params: {
   ticketId: string;
   summary: string;
   status: string;
+  statusCategory?: string;
   priority?: string;
   severity?: string;
   conversationMarkdown: string;
@@ -142,6 +144,7 @@ export function buildTicketDMContainer(params: {
 
   const statusEmoji = getStatusEmoji(params.status);
   const priorityPart = params.priority ? `  \u00b7  **Priority:** ${params.priority}` : '';
+  const isDone = params.statusCategory === 'done';
 
   const container = new ContainerBuilder()
     .setAccentColor(accentColor)
@@ -169,19 +172,42 @@ export function buildTicketDMContainer(params: {
       new TextDisplayBuilder().setContent(
         `-# Last updated <t:${Math.floor(Date.now() / 1000)}:R>`
       )
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(
-        new ButtonBuilder()
-          .setCustomId(`reply:${params.botId}:${params.ticketId}`)
-          .setLabel('Reply')
-          .setStyle(ButtonStyle.Primary),
-        new ButtonBuilder()
-          .setLabel('View on Portal')
-          .setStyle(ButtonStyle.Link)
-          .setURL(params.portalUrl)
-      )
     );
+
+  // Action buttons — Reply + Close/Reopen + View on Portal
+  const buttons: ButtonBuilder[] = [
+    new ButtonBuilder()
+      .setCustomId(`reply:${params.botId}:${params.ticketId}`)
+      .setLabel('Reply')
+      .setStyle(ButtonStyle.Primary),
+  ];
+
+  if (isDone) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`reopen_ticket:${params.botId}:${params.ticketId}`)
+        .setLabel('Reopen')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  } else {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`close_ticket:${params.botId}:${params.ticketId}`)
+        .setLabel('Close Ticket')
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+
+  buttons.push(
+    new ButtonBuilder()
+      .setLabel('View on Portal')
+      .setStyle(ButtonStyle.Link)
+      .setURL(params.portalUrl)
+  );
+
+  container.addActionRowComponents(
+    new ActionRowBuilder<ButtonBuilder>().addComponents(...buttons)
+  );
 
   return container;
 }
@@ -232,6 +258,7 @@ export async function refreshTicketDM(
       ticketId,
       summary: ticket.summary,
       status: ticket.status,
+      statusCategory: ticket.statusCategory,
       priority: ticket.priority,
       severity: priorityToSeverity(ticket.priority),
       conversationMarkdown,
@@ -270,5 +297,85 @@ export async function refreshTicketDM(
     }
   } catch (error) {
     console.error('[Helpers] refreshTicketDM error:', error);
+  }
+}
+
+// ==========================================
+// CLOSE / REOPEN TICKET BUTTON HANDLERS
+// ==========================================
+
+/**
+ * Handle "Close Ticket" button in DM.
+ * Transitions ticket to Done, then refreshes the DM.
+ */
+export async function handleCloseTicketButton(
+  interaction: ButtonInteraction,
+  botId: string
+): Promise<void> {
+  const parts = interaction.customId.split(':');
+  if (parts.length < 3) return;
+  const ticketId = parts.slice(2).join(':');
+
+  try {
+    await interaction.deferUpdate();
+
+    const provider = botId === MAIN_DOMAIN_BOT_ID
+      ? getTicketProvider()
+      : await getTicketProviderForTenant(botId);
+    if (!provider) {
+      return;
+    }
+
+    // Verify ownership
+    const ticket = await provider.getTicket(ticketId, interaction.user.id);
+    if (!ticket) return;
+
+    // Transition to Done
+    if (provider.transitionTicket) {
+      await provider.transitionTicket(ticketId, 'Done');
+    }
+
+    // Refresh the DM to show updated status
+    await refreshTicketDM(botId, ticketId, interaction.user.id);
+  } catch (error) {
+    console.error('[Helpers] Close ticket button error:', error);
+  }
+}
+
+/**
+ * Handle "Reopen" button in DM.
+ * Transitions ticket back to To Do, then refreshes the DM.
+ */
+export async function handleReopenTicketButton(
+  interaction: ButtonInteraction,
+  botId: string
+): Promise<void> {
+  const parts = interaction.customId.split(':');
+  if (parts.length < 3) return;
+  const ticketId = parts.slice(2).join(':');
+
+  try {
+    await interaction.deferUpdate();
+
+    const provider = botId === MAIN_DOMAIN_BOT_ID
+      ? getTicketProvider()
+      : await getTicketProviderForTenant(botId);
+    if (!provider) {
+      return;
+    }
+
+    // Verify ownership
+    const ticket = await provider.getTicket(ticketId, interaction.user.id);
+    if (!ticket) return;
+
+    // Transition back to To Do
+    if (provider.transitionTicket) {
+      await provider.transitionTicket(ticketId, 'To Do');
+    }
+
+    // Refresh the DM to show updated status
+    await refreshTicketDM(botId, ticketId, interaction.user.id);
+  } catch (error) {
+    console.error('[Helpers] Reopen ticket button error:', error);
   }
 }

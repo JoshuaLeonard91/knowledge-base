@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
-import { getTicketProvider } from '@/lib/ticketing/adapter';
+import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 
 export async function GET(
@@ -27,8 +27,16 @@ export async function GET(
       );
     }
 
+    // Tenant-aware provider
+    const { provider, error: providerError } = await resolveProviderFromRequest();
+    if (!provider) {
+      return NextResponse.json(
+        { success: false, error: providerError || 'Ticketing is not configured.' },
+        { status: 503 }
+      );
+    }
+
     // Get ticket via provider (ownership verified internally)
-    const provider = getTicketProvider();
     const ticket = await provider.getTicket(ticketId, user.id);
 
     if (!ticket) {
@@ -151,8 +159,16 @@ export async function POST(
       }
     }
 
+    // Tenant-aware provider
+    const { provider } = await resolveProviderFromRequest();
+    if (!provider) {
+      return NextResponse.json(
+        { success: false, error: 'Ticketing is not configured.' },
+        { status: 503 }
+      );
+    }
+
     // Add comment via provider (ownership verified internally)
-    const provider = getTicketProvider();
     const success = await provider.addComment({
       ticketId,
       message: message.trim(),
@@ -176,6 +192,106 @@ export async function POST(
     }
 
     return NextResponse.json({ success: true });
+  } catch {
+    return NextResponse.json(
+      { success: false, error: 'An error occurred' },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: ticketId } = await params;
+
+    // Check authentication
+    const authenticated = await isAuthenticated();
+    if (!authenticated) {
+      return NextResponse.json(
+        { success: false, error: 'Not authenticated' },
+        { status: 401 }
+      );
+    }
+
+    // Validate CSRF token
+    const csrfResult = await validateCsrfRequest(request);
+    if (!csrfResult.valid) {
+      return csrfErrorResponse();
+    }
+
+    const user = await getSession();
+    if (!user) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 401 }
+      );
+    }
+
+    const body = await request.json();
+    const { action } = body;
+
+    if (!action || !['close', 'reopen'].includes(action)) {
+      return NextResponse.json(
+        { success: false, error: 'Invalid action. Use "close" or "reopen".' },
+        { status: 400 }
+      );
+    }
+
+    // Tenant-aware provider
+    const { provider } = await resolveProviderFromRequest();
+    if (!provider) {
+      return NextResponse.json(
+        { success: false, error: 'Ticketing is not configured.' },
+        { status: 503 }
+      );
+    }
+
+    // Verify ownership by attempting to get the ticket
+    const ticket = await provider.getTicket(ticketId, user.id);
+    if (!ticket) {
+      return NextResponse.json(
+        { success: false, error: 'Ticket not found' },
+        { status: 404 }
+      );
+    }
+
+    // Transition the ticket
+    if (!provider.transitionTicket) {
+      return NextResponse.json(
+        { success: false, error: 'Status transitions are not supported.' },
+        { status: 501 }
+      );
+    }
+
+    const targetStatus = action === 'close' ? 'Done' : 'To Do';
+    const transitioned = await provider.transitionTicket(ticketId, targetStatus);
+
+    if (!transitioned) {
+      return NextResponse.json(
+        { success: false, error: 'Failed to update ticket status.' },
+        { status: 500 }
+      );
+    }
+
+    // Re-fetch updated ticket
+    const updated = await provider.getTicket(ticketId, user.id);
+
+    return NextResponse.json({
+      success: true,
+      ticket: updated ? {
+        id: updated.id,
+        summary: updated.summary,
+        description: updated.description,
+        status: updated.status,
+        statusCategory: updated.statusCategory,
+        created: updated.created,
+        updated: updated.updated,
+        comments: updated.comments,
+      } : null,
+    });
   } catch {
     return NextResponse.json(
       { success: false, error: 'An error occurred' },

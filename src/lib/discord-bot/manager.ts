@@ -44,7 +44,8 @@ import {
   handlePanelCommand,
   handlePanelEditModal,
 } from './commands/panel-config';
-import { handleAssignButton } from './log';
+import { handleAssignButton, handleResolveButton, handleReopenStaffButton } from './log';
+import { handleCloseTicketButton, handleReopenTicketButton } from './helpers';
 import { handleButtonInteraction } from './interactions/reply';
 
 import { MAIN_DOMAIN_BOT_ID } from './constants';
@@ -291,6 +292,14 @@ class BotManager {
         await handleSetupConfirmButton(interaction, tenantId);
       } else if (cid.startsWith('assign_ticket:')) {
         await handleAssignButton(interaction, tenantId);
+      } else if (cid.startsWith('close_ticket:')) {
+        await handleCloseTicketButton(interaction, tenantId);
+      } else if (cid.startsWith('reopen_ticket:')) {
+        await handleReopenTicketButton(interaction, tenantId);
+      } else if (cid.startsWith('resolve_ticket:')) {
+        await handleResolveButton(interaction, tenantId);
+      } else if (cid.startsWith('reopen_staff:')) {
+        await handleReopenStaffButton(interaction, tenantId);
       } else if (cid.startsWith('reply:')) {
         await handleButtonInteraction(interaction, tenantId);
       }

@@ -144,6 +144,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
   const [csrfToken, setCsrfToken] = useState('');
   const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   useEffect(() => {
     fetch('/api/auth/session', { cache: 'no-store' })
@@ -253,6 +254,28 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
       setReplyError('Failed to send reply');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleStatusAction = async (action: 'close' | 'reopen') => {
+    if (isTransitioning) return;
+    setIsTransitioning(true);
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+        body: JSON.stringify({ action }),
+      });
+      const data = await res.json();
+      if (data.success && data.ticket) {
+        setTicket(data.ticket);
+      } else {
+        await fetchTicket();
+      }
+    } catch {
+      await fetchTicket();
+    } finally {
+      setIsTransitioning(false);
     }
   };
 
@@ -559,6 +582,37 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
                     </div>
                   </div>
                 )}
+
+                {/* Close / Reopen button */}
+                <div className="mt-3">
+                  {ticket.statusCategory === 'done' ? (
+                    <button
+                      onClick={() => handleStatusAction('reopen')}
+                      disabled={isTransitioning}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 text-sm font-medium hover:bg-blue-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isTransitioning ? (
+                        <SpinnerGap size={16} weight="bold" className="animate-spin" />
+                      ) : (
+                        <ArrowsClockwise size={16} weight="bold" />
+                      )}
+                      Reopen Ticket
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => handleStatusAction('close')}
+                      disabled={isTransitioning}
+                      className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-sm font-medium hover:bg-emerald-500/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                      {isTransitioning ? (
+                        <SpinnerGap size={16} weight="bold" className="animate-spin" />
+                      ) : (
+                        <CheckCircle size={16} weight="bold" />
+                      )}
+                      Close Ticket
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
 

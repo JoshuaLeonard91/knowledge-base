@@ -1,4 +1,4 @@
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { ticketCategories, getCategoryById } from '@/lib/data/servers';
 import {
@@ -7,7 +7,7 @@ import {
   validateSeverity,
   generateTicketId,
 } from '@/lib/validation';
-import { getTicketProvider } from '@/lib/ticketing/adapter';
+import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
 import { prisma } from '@/lib/db/client';
 import {
   createSuccessResponse,
@@ -133,8 +133,14 @@ export async function POST(request: NextRequest) {
     const summary = `[${categoryName}] Support Request`;
     const labels = ['discord', 'support-portal', `category-${categoryId}`, `severity-${sanitizedSeverity}`];
 
-    // Submit via ticket provider adapter
-    const provider = getTicketProvider();
+    // Submit via ticket provider adapter (tenant-aware)
+    const { provider, error: providerError } = await resolveProviderFromRequest();
+    if (!provider) {
+      return NextResponse.json(
+        { success: false, error: providerError || 'Ticketing is not configured.' },
+        { status: 503 }
+      );
+    }
     const result = await provider.createTicket({
       summary,
       description: descValidation.sanitized || description,
