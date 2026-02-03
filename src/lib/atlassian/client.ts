@@ -402,19 +402,25 @@ export class JiraServiceDeskClient {
     try {
       // Get available transitions for the issue
       const result = await this.fetch<{
-        transitions: Array<{ id: string; name: string; to: { name: string } }>;
+        transitions: Array<{ id: string; name: string; to: { name: string; statusCategory?: { name: string } } }>;
       }>(`${this.baseUrl}/issue/${issueKey}/transitions`);
 
       if (!result.data?.transitions) return false;
 
       // Find a transition whose target status matches (case-insensitive)
+      // Match against: transition name, target status name, or target status category name
       const target = targetStatusName.toLowerCase();
       const transition = result.data.transitions.find(
-        t => t.to.name.toLowerCase() === target || t.name.toLowerCase() === target
+        t => t.to.name.toLowerCase() === target
+          || t.name.toLowerCase() === target
+          || t.to.statusCategory?.name.toLowerCase() === target
       );
 
       if (!transition) {
-        // No matching transition — issue may already be in the target status
+        console.warn(
+          `[Jira] No transition found for ${issueKey} to "${targetStatusName}". Available:`,
+          result.data.transitions.map(t => `${t.name} → ${t.to.name} (${t.to.statusCategory?.name || '?'})`).join(', ')
+        );
         return false;
       }
 

@@ -137,10 +137,26 @@ function buildTicketCreatedContainer(params: {
   const sevEmoji = getSeverityEmoji(params.severity);
 
   const container = new ContainerBuilder()
-    .setAccentColor(accentColor)
-    .addTextDisplayComponents(
+    .setAccentColor(accentColor);
+
+  // Top: user avatar + ticket heading (Section + Thumbnail)
+  if (params.avatarUrl) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`# ${params.ticketId}\n${params.summary}`)
+        )
+        .setThumbnailAccessory(
+          new ThumbnailBuilder().setURL(params.avatarUrl)
+        )
+    );
+  } else {
+    container.addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# ${params.ticketId}\n${params.summary}`)
-    )
+    );
+  }
+
+  container
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
     )
@@ -153,7 +169,7 @@ function buildTicketCreatedContainer(params: {
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     );
 
-  // Metadata block with user avatar thumbnail
+  // Metadata block
   const metaLines = [`**Created by:** <@${params.discordUserId}>`];
   if (params.guildName) {
     metaLines.push(`**Server:** ${params.guildName}`);
@@ -162,21 +178,9 @@ function buildTicketCreatedContainer(params: {
     metaLines.push(`**Assigned to:** <@${params.assignedTo.userId}>`);
   }
 
-  if (params.avatarUrl) {
-    container.addSectionComponents(
-      new SectionBuilder()
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(metaLines.join('\n'))
-        )
-        .setThumbnailAccessory(
-          new ThumbnailBuilder().setURL(params.avatarUrl)
-        )
-    );
-  } else {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(metaLines.join('\n'))
-    );
-  }
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(metaLines.join('\n'))
+  );
 
   container.addSeparatorComponents(
     new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
@@ -347,6 +351,9 @@ export async function handleAssignButton(
         refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
           console.error('[Log] Failed to refresh creator DM after assignment:', err)
         );
+        sendStatusNotification(botId, ticketId, creatorId, 'assigned', interaction.user.username).catch((err) =>
+          console.error('[Log] Failed to send assign notification:', err)
+        );
       }
     }
   } catch (error) {
@@ -366,32 +373,36 @@ export async function handleAssignButton(
 
 /**
  * Extract text display content from a V2 message for reconstruction.
- * Returns an array of text content strings from the message components.
+ * Recursively walks all component nesting (Container > Section > TextDisplay, etc.)
  */
 function extractTextFromMessage(message: { components: unknown[] }): string[] {
   const texts: string[] = [];
+
+  function walk(node: unknown) {
+    if (!node || typeof node !== 'object') return;
+    const obj = node as Record<string, unknown>;
+
+    // Extract text content from data.content (TextDisplay components)
+    if ('data' in obj) {
+      const data = obj.data as Record<string, unknown>;
+      if (data && typeof data.content === 'string') {
+        texts.push(data.content);
+      }
+    }
+
+    // Recurse into nested components arrays
+    if ('components' in obj && Array.isArray(obj.components)) {
+      for (const child of obj.components) {
+        walk(child);
+      }
+    }
+
+    // Section accessory (Thumbnail) — skip, but Section text is in components
+  }
+
   try {
     for (const row of message.components) {
-      const r = row as Record<string, unknown>;
-      if (r && typeof r === 'object' && 'data' in r) {
-        const data = r.data as Record<string, unknown>;
-        // TextDisplay components have content directly in data
-        if (data && typeof data.content === 'string') {
-          texts.push(data.content);
-        }
-      }
-      // Also check nested components (ActionRow wraps child components)
-      if (r && typeof r === 'object' && 'components' in r && Array.isArray(r.components)) {
-        for (const comp of r.components) {
-          const c = comp as Record<string, unknown>;
-          if (c && typeof c === 'object' && 'data' in c) {
-            const cData = c.data as Record<string, unknown>;
-            if (cData && typeof cData.content === 'string') {
-              texts.push(cData.content);
-            }
-          }
-        }
-      }
+      walk(row);
     }
   } catch {
     // Fallback: return empty
@@ -451,27 +462,29 @@ function buildAssignedContainer(params: {
   }
 
   const container = new ContainerBuilder()
-    .setAccentColor(accentColor)
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(updatedInfoLine || '\u{1F7E1} **In Progress**'))
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
+    .setAccentColor(accentColor);
 
+  // Top: avatar thumbnail + ticket heading
   if (params.avatarUrl) {
     container.addSectionComponents(
       new SectionBuilder()
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(metaLines.join('\n'))
+          new TextDisplayBuilder().setContent(heading)
         )
         .setThumbnailAccessory(
           new ThumbnailBuilder().setURL(params.avatarUrl)
         )
     );
   } else {
-    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')));
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(heading));
   }
 
-  container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+  container
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(updatedInfoLine || '\u{1F7E1} **In Progress**'))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Assigned <t:${Math.floor(Date.now() / 1000)}:R>`))
     .addActionRowComponents(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -595,6 +608,16 @@ export async function handleResolveButton(
       const heading = originalTexts[0] || `# ${ticketId}`;
       const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
       const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
+      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+
+      // Fetch creator avatar for thumbnail
+      let avatarUrl: string | undefined;
+      if (creatorId) {
+        try {
+          const creatorUser = await interaction.client.users.fetch(creatorId);
+          avatarUrl = creatorUser.displayAvatarURL({ size: 64 });
+        } catch { /* proceed without avatar */ }
+      }
 
       // Replace status in info line
       const resolvedInfoLine = infoLine.replace(/[^\s]+ \*\*[\w\s]+\*\*/, '\u2705 **Resolved**');
@@ -606,8 +629,20 @@ export async function handleResolveButton(
       metaLines.push(`**Resolved by:** <@${interaction.user.id}>`);
 
       const container = new ContainerBuilder()
-        .setAccentColor(0x57f287) // green for resolved
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+        .setAccentColor(0x57f287); // green for resolved
+
+      // Top: avatar thumbnail + heading
+      if (avatarUrl) {
+        container.addSectionComponents(
+          new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+            .setThumbnailAccessory(new ThumbnailBuilder().setURL(avatarUrl))
+        );
+      } else {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(heading));
+      }
+
+      container
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedInfoLine || '\u2705 **Resolved**'))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
@@ -629,11 +664,13 @@ export async function handleResolveButton(
 
       await interaction.editReply({ components: [container] });
 
-      // Refresh the ticket creator's DM
-      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+      // Refresh the ticket creator's DM + send notification
       if (creatorId) {
         refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
           console.error('[Log] Failed to refresh creator DM after resolve:', err)
+        );
+        sendStatusNotification(botId, ticketId, creatorId, 'resolved').catch((err) =>
+          console.error('[Log] Failed to send resolve notification:', err)
         );
       }
     }
@@ -698,6 +735,16 @@ export async function handleReopenStaffButton(
       const heading = originalTexts[0] || `# ${ticketId}`;
       const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
       const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
+      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+
+      // Fetch creator avatar for thumbnail
+      let avatarUrl: string | undefined;
+      if (creatorId) {
+        try {
+          const creatorUser = await interaction.client.users.fetch(creatorId);
+          avatarUrl = creatorUser.displayAvatarURL({ size: 64 });
+        } catch { /* proceed without avatar */ }
+      }
 
       // Detect severity for accent color
       let accentColor = 0x5865f2;
@@ -716,8 +763,20 @@ export async function handleReopenStaffButton(
       metaLines.push(`**Reopened by:** <@${interaction.user.id}>`);
 
       const container = new ContainerBuilder()
-        .setAccentColor(accentColor)
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+        .setAccentColor(accentColor);
+
+      // Top: avatar thumbnail + heading
+      if (avatarUrl) {
+        container.addSectionComponents(
+          new SectionBuilder()
+            .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+            .setThumbnailAccessory(new ThumbnailBuilder().setURL(avatarUrl))
+        );
+      } else {
+        container.addTextDisplayComponents(new TextDisplayBuilder().setContent(heading));
+      }
+
+      container
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(reopenedInfoLine || '\u{1F7E2} **Open**'))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
@@ -739,11 +798,13 @@ export async function handleReopenStaffButton(
 
       await interaction.editReply({ components: [container] });
 
-      // Refresh the ticket creator's DM
-      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+      // Refresh the ticket creator's DM + send notification
       if (creatorId) {
         refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
           console.error('[Log] Failed to refresh creator DM after reopen:', err)
+        );
+        sendStatusNotification(botId, ticketId, creatorId, 'reopened').catch((err) =>
+          console.error('[Log] Failed to send reopen notification:', err)
         );
       }
     }
@@ -758,4 +819,43 @@ export async function handleReopenStaffButton(
       }
     } catch { /* Already replied */ }
   }
+}
+
+// ==========================================
+// STATUS CHANGE NOTIFICATION DM
+// ==========================================
+
+/**
+ * Send a brief new DM to the ticket creator when a status change happens.
+ * Discord doesn't notify users on message edits, so this ensures they see the update.
+ * The message auto-deletes after 30 seconds.
+ */
+async function sendStatusNotification(
+  botId: string,
+  ticketId: string,
+  discordUserId: string,
+  action: 'assigned' | 'resolved' | 'reopened',
+  staffName?: string
+): Promise<void> {
+  const setup = await getBotSetup(botId);
+  if (setup && !setup.dmOnUpdate) return;
+
+  const client = botManager.getBot(botId);
+  if (!client) return;
+
+  const user = await client.users.fetch(discordUserId);
+  if (!user) return;
+
+  const messages: Record<string, string> = {
+    assigned: `Your ticket **${ticketId}** has been assigned to **${staffName || 'a staff member'}** and is now **In Progress**.`,
+    resolved: `Your ticket **${ticketId}** has been marked as **Resolved**.`,
+    reopened: `Your ticket **${ticketId}** has been **Reopened**.`,
+  };
+
+  const sent = await user.send({ content: messages[action] });
+
+  // Auto-delete after 30 seconds — the real info is in the edited DM
+  setTimeout(async () => {
+    try { await sent.delete(); } catch { /* Already deleted */ }
+  }, 30_000);
 }
