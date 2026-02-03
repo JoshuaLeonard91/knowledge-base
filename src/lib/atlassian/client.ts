@@ -372,6 +372,55 @@ class JiraServiceDeskClient {
   }
 
   /**
+   * Transition an issue to a target status by name (e.g., "In Progress").
+   * Fetches available transitions, finds one matching the target, and applies it.
+   * Returns true if the transition succeeded or the issue is already in that status.
+   */
+  async transitionIssue(issueKey: string, targetStatusName: string): Promise<boolean> {
+    if (!this.isConfigured) return false;
+
+    try {
+      // Get available transitions for the issue
+      const result = await this.fetch<{
+        transitions: Array<{ id: string; name: string; to: { name: string } }>;
+      }>(`${this.baseUrl}/issue/${issueKey}/transitions`);
+
+      if (!result.data?.transitions) return false;
+
+      // Find a transition whose target status matches (case-insensitive)
+      const target = targetStatusName.toLowerCase();
+      const transition = result.data.transitions.find(
+        t => t.to.name.toLowerCase() === target || t.name.toLowerCase() === target
+      );
+
+      if (!transition) {
+        // No matching transition — issue may already be in the target status
+        return false;
+      }
+
+      // Execute the transition
+      const response = await fetch(
+        `${this.baseUrl}/issue/${issueKey}/transitions`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Accept: 'application/json',
+            Authorization: this.authHeader,
+          },
+          body: JSON.stringify({
+            transition: { id: transition.id },
+          }),
+        }
+      );
+
+      return response.ok; // 204 No Content on success
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Get issue by key
    */
   async getIssue(issueKey: string): Promise<JiraIssue | null> {

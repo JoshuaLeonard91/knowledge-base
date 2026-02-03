@@ -247,7 +247,7 @@ export async function handleAssignButton(
       ? (() => { const p = getTicketProvider(); return p.isAvailable() ? p : null; })()
       : await getTicketProviderForTenant(botId);
 
-    // Add comment + assign in Jira
+    // Add comment + assign + transition in Jira
     let assignedInJira = false;
     if (provider) {
       const commentText = `Claimed by ${interaction.user.username} via Discord`;
@@ -260,6 +260,11 @@ export async function handleAssignButton(
 
       if (provider.assignTicket) {
         assignedInJira = await provider.assignTicket(ticketId, staffMapping.jiraAccountId);
+      }
+
+      // Transition to "In Progress"
+      if (provider.transitionTicket) {
+        await provider.transitionTicket(ticketId, 'In Progress');
       }
     }
 

@@ -199,4 +199,8 @@ export class JiraTicketProvider implements TicketProvider {
   async assignTicket(ticketId: string, jiraAccountId: string): Promise<boolean> {
     return jiraServiceDesk.assignIssue(ticketId, jiraAccountId);
   }
+
+  async transitionTicket(ticketId: string, targetStatus: string): Promise<boolean> {
+    return jiraServiceDesk.transitionIssue(ticketId, targetStatus);
+  }
 }

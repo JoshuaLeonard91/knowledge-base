@@ -111,6 +111,9 @@ export interface TicketProvider {
 
   /** Assign a ticket to a user (optional — requires Jira account ID mapping) */
   assignTicket?(ticketId: string, jiraAccountId: string): Promise<boolean>;
+
+  /** Transition a ticket to a target status (e.g., "In Progress") */
+  transitionTicket?(ticketId: string, targetStatus: string): Promise<boolean>;
 }
 
 // ==========================================
