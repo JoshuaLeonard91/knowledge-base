@@ -109,10 +109,13 @@ export async function POST(request: NextRequest) {
     const status = issue.fields?.status?.name || 'Unknown';
 
     // Extract Discord user ID from ticket description metadata
-    const description =
-      typeof issue.fields?.description === 'string'
-        ? issue.fields.description
-        : '';
+    // Description may be a plain string or ADF (Atlassian Document Format) object
+    let description = '';
+    if (typeof issue.fields?.description === 'string') {
+      description = issue.fields.description;
+    } else if (issue.fields?.description?.content) {
+      description = extractAdfText(issue.fields.description.content);
+    }
     const discordIdMatch = description.match(/Discord User ID:\s*(\d{17,19})/i);
 
     if (!discordIdMatch) {
@@ -196,17 +199,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-/** Extract plain text from Jira ADF content nodes */
+/** Extract plain text from Jira ADF content nodes (recursive) */
 function extractAdfText(
-  content: Array<{ type: string; text?: string; content?: Array<{ type: string; text?: string; content?: unknown[] }> }>
+  content: Array<{ type: string; text?: string; content?: unknown[] }>
 ): string {
   return content
     .map((node) => {
       if (node.type === 'text') return node.text || '';
-      if (node.type === 'paragraph' && node.content) {
+      if (node.type === 'hardBreak') return '\n';
+      if (node.content) {
         return extractAdfText(node.content as typeof content);
       }
-      if (node.type === 'hardBreak') return '\n';
       return '';
     })
     .join('');

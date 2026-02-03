@@ -70,9 +70,8 @@ export function formatConversationHistory(
 
   const formatted = comments.map((c) => {
     const author = c.isStaff ? '**Support Team**' : '**You**';
-    const timestamp = Math.floor(new Date(c.created).getTime() / 1000);
     const body = c.body.replace(/\n/g, '\n> ');
-    return `${author} \u00b7 <t:${timestamp}:R>\n> ${body}`;
+    return `${author}\n> ${body}`;
   });
 
   let result = formatted.join('\n\n');
