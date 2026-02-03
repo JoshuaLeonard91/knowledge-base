@@ -38,6 +38,23 @@ export async function handleClaimCommand(
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
+    // Staff-only gate: must have a StaffMapping to use /claim
+    const staffMapping = await prisma.staffMapping.findUnique({
+      where: {
+        botId_discordUserId: {
+          botId,
+          discordUserId: interaction.user.id,
+        },
+      },
+    });
+
+    if (!staffMapping) {
+      await interaction.editReply({
+        content: 'You are not registered as staff. Ask your admin to add you in the dashboard.',
+      });
+      return;
+    }
+
     const provider = await resolveProvider(botId);
     if (!provider) {
       await interaction.editReply({
@@ -62,18 +79,9 @@ export async function handleClaimCommand(
       return;
     }
 
-    // Check for staff mapping → assign in Jira
+    // Assign in Jira
     let assignedInJira = false;
-    const staffMapping = await prisma.staffMapping.findUnique({
-      where: {
-        botId_discordUserId: {
-          botId,
-          discordUserId: interaction.user.id,
-        },
-      },
-    });
-
-    if (staffMapping && provider.assignTicket) {
+    if (provider.assignTicket) {
       assignedInJira = await provider.assignTicket(ticketId, staffMapping.jiraAccountId);
     }
 
@@ -81,8 +89,6 @@ export async function handleClaimCommand(
     let reply = `Ticket **${ticketId}** claimed.`;
     if (assignedInJira) {
       reply += ' Assigned to you in Jira.';
-    } else if (!staffMapping) {
-      reply += '\n-# No Jira account linked — ask your admin to add a staff mapping in the dashboard.';
     } else {
       reply += '\n-# Jira assignment failed — check your Jira account ID in the dashboard.';
     }

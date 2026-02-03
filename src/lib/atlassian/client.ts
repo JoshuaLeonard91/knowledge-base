@@ -308,6 +308,42 @@ class JiraServiceDeskClient {
   }
 
   /**
+   * Get a Jira user by account ID.
+   * Returns null if the user doesn't exist or is deactivated.
+   */
+  async getUser(accountId: string): Promise<{ accountId: string; displayName: string; active: boolean } | null> {
+    if (!this.isConfigured) return null;
+
+    const result = await this.fetch<{ accountId: string; displayName: string; active: boolean }>(
+      `${this.baseUrl}/user?accountId=${encodeURIComponent(accountId)}`
+    );
+
+    return result.data;
+  }
+
+  /**
+   * Check if a user is assignable in a Jira project.
+   * Uses the assignable user search endpoint.
+   */
+  async isUserAssignableInProject(accountId: string, projectKey: string): Promise<boolean> {
+    if (!this.isConfigured) return false;
+
+    // Fetch the user first to get their displayName for the query
+    const user = await this.getUser(accountId);
+    if (!user) return false;
+
+    // Search assignable users in the project, filtering by the user's display name
+    const result = await this.fetch<Array<{ accountId: string }>>(
+      `${this.baseUrl}/user/assignable/search?project=${encodeURIComponent(projectKey)}&query=${encodeURIComponent(user.displayName)}&maxResults=50`
+    );
+
+    if (!result.data) return false;
+
+    // Check if the target accountId is in the results
+    return result.data.some(u => u.accountId === accountId);
+  }
+
+  /**
    * Assign an issue to a Jira user by account ID
    */
   async assignIssue(issueKey: string, accountId: string): Promise<boolean> {

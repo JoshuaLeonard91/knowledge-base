@@ -11,6 +11,7 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
+import { jiraServiceDesk } from '@/lib/atlassian/client';
 
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
@@ -117,6 +118,41 @@ export async function POST(request: NextRequest) {
     if (!jiraAccountId || typeof jiraAccountId !== 'string') {
       return NextResponse.json(
         { error: 'Jira Account ID is required' },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
+    // Validate the Jira account exists and is active
+    const jiraUser = await jiraServiceDesk.getUser(jiraAccountId.trim());
+    if (!jiraUser) {
+      return NextResponse.json(
+        { error: 'Jira account not found. Check the account ID.' },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
+    if (!jiraUser.active) {
+      return NextResponse.json(
+        { error: 'Jira account is deactivated.' },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
+    // Validate the user has access to the Jira project
+    const projectKey = process.env.JIRA_PROJECT_KEY || 'SUPPORT';
+    const jiraConfig = await prisma.tenantJiraConfig.findUnique({
+      where: { tenantId: result.tenant.id },
+    });
+    const effectiveProjectKey = jiraConfig?.projectKey || projectKey;
+
+    const isAssignable = await jiraServiceDesk.isUserAssignableInProject(
+      jiraAccountId.trim(),
+      effectiveProjectKey
+    );
+
+    if (!isAssignable) {
+      return NextResponse.json(
+        { error: `Jira user "${jiraUser.displayName}" does not have access to project ${effectiveProjectKey}.` },
         { status: 400, headers: securityHeaders }
       );
     }
