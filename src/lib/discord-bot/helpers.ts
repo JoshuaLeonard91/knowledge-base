@@ -230,6 +230,8 @@ export async function refreshTicketDM(
   discordUserId: string
 ): Promise<void> {
   try {
+    console.log(`[Helpers] refreshTicketDM called: bot=${botId}, ticket=${ticketId}, user=${discordUserId}`);
+
     const tracker = await prisma.ticketDMTracker.findUnique({
       where: {
         tenantId_ticketId_discordUserId: {
@@ -240,19 +242,32 @@ export async function refreshTicketDM(
       },
     });
 
-    if (!tracker) return;
+    if (!tracker) {
+      console.log('[Helpers] refreshTicketDM: no tracker found, returning');
+      return;
+    }
 
     const client = botManager.getBot(botId);
-    if (!client) return;
+    if (!client) {
+      console.log(`[Helpers] refreshTicketDM: no bot client for ${botId}`);
+      return;
+    }
 
     // Get ticket with comments
     const provider = botId === MAIN_DOMAIN_BOT_ID
       ? getTicketProvider()
       : await getTicketProviderForTenant(botId);
-    if (!provider) return;
+    if (!provider) {
+      console.log('[Helpers] refreshTicketDM: no provider available');
+      return;
+    }
 
     const ticket = await provider.getTicket(ticketId, discordUserId);
-    if (!ticket) return;
+    if (!ticket) {
+      console.log(`[Helpers] refreshTicketDM: getTicket returned null (ownership check failed?)`);
+      return;
+    }
+    console.log(`[Helpers] refreshTicketDM: ticket found, status=${ticket.status}, comments=${ticket.comments.length}`);
 
     const slug = await resolveTenantSlug(botId);
     const portalUrl = `https://${slug}.helpportal.app/support/tickets/${ticketId}`;
@@ -279,7 +294,9 @@ export async function refreshTicketDM(
         components: [container],
         flags: MessageFlags.IsComponentsV2,
       });
-    } catch {
+      console.log(`[Helpers] refreshTicketDM: edited existing DM (msgId=${tracker.dmMessageId})`);
+    } catch (editErr) {
+      console.warn('[Helpers] refreshTicketDM: edit failed, sending replacement DM:', (editErr as Error).message);
       // Message was deleted or inaccessible — send a new one
       try {
         const user = await client.users.fetch(discordUserId);
@@ -295,6 +312,7 @@ export async function refreshTicketDM(
             dmChannelId: sent.channelId,
           },
         });
+        console.log(`[Helpers] refreshTicketDM: sent replacement DM (msgId=${sent.id})`);
       } catch (sendErr) {
         console.error('[Helpers] Failed to send replacement DM:', sendErr);
       }

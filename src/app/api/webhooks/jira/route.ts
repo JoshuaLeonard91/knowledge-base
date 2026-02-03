@@ -145,6 +145,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Send DM notification
+    console.log(`[Jira Webhook] Processing comment for ticket=${ticketId}, discordUser=${discordUserId}, author=${commentAuthor}`);
     await sendTicketUpdateDM({
       tenantId,
       tenantSlug: tenant.slug,

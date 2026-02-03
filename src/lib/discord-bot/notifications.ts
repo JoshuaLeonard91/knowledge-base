@@ -189,9 +189,15 @@ export async function sendTicketUpdateDM(
   notification: TicketNotification
 ): Promise<boolean> {
   try {
+    console.log(`[Notifications] sendTicketUpdateDM called: tenant=${notification.tenantId}, ticket=${notification.ticketId}, user=${notification.discordUserId}`);
+
     // Check setup preferences
     const setup = await getBotSetup(notification.tenantId);
-    if (setup && !setup.dmOnUpdate) return false;
+    if (setup && !setup.dmOnUpdate) {
+      console.log('[Notifications] Skipped: dmOnUpdate is disabled');
+      return false;
+    }
+    console.log(`[Notifications] Setup: ${setup ? `found (dmOnUpdate=${setup.dmOnUpdate})` : 'not found (proceeding)'}`);
 
     // Check if we have an existing DM to edit — if so, always update it
     // (the tracker proves we already sent this user a DM for this ticket)
@@ -206,6 +212,7 @@ export async function sendTicketUpdateDM(
     });
 
     if (tracker) {
+      console.log(`[Notifications] Tracker found (msgId=${tracker.dmMessageId}), refreshing DM...`);
       // Edit the existing DM with full conversation
       await refreshTicketDM(
         notification.tenantId,
@@ -214,6 +221,8 @@ export async function sendTicketUpdateDM(
       );
       return true;
     }
+
+    console.log('[Notifications] No tracker found, checking tenantUser opt-in...');
 
     // No tracker — only send a new DM if user has opted in to notifications
     const isMainDomain = notification.tenantId === MAIN_DOMAIN_BOT_ID;
