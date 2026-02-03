@@ -437,7 +437,7 @@ export async function handleSetupConfirmButton(
     const client = botManager.getBot(botId);
     if (!client?.user) {
       await interaction.editReply({
-        content: 'Bot is not ready. Please try again.',
+        components: [buildErrorContainer('Bot is not ready. Please try again.')],
       });
       wizardState.delete(key);
       return;
@@ -468,7 +468,7 @@ export async function handleSetupConfirmButton(
     } catch (error) {
       console.error('[Setup] Failed to create ticket channel:', error);
       await interaction.editReply({
-        content: 'Failed to create the ticket channel. Make sure the bot has **Manage Channels** permission.',
+        components: [buildErrorContainer('Failed to create the ticket channel. Make sure the bot has **Manage Channels** permission.')],
       });
       wizardState.delete(key);
       return;
@@ -539,7 +539,7 @@ export async function handleSetupConfirmButton(
     } catch (error) {
       console.error('[Setup] Failed to post panel:', error);
       await interaction.editReply({
-        content: 'Channels created but failed to post the ticket panel. Run `/panel refresh` to try again.',
+        components: [buildErrorContainer('Channels created but failed to post the ticket panel. Run `/panel refresh` to try again.')],
       });
       wizardState.delete(key);
       return;
@@ -584,14 +584,35 @@ export async function handleSetupConfirmButton(
     const key = stateKey(botId, interaction.user.id);
     wizardState.delete(key);
     try {
-      const errorMsg = 'An error occurred during setup. Make sure the bot has **Manage Channels** permission and try `/setup` again.';
+      const errorContainer = buildErrorContainer('An error occurred during setup. Make sure the bot has **Manage Channels** permission and try `/setup` again.');
       if (interaction.deferred || interaction.replied) {
-        await interaction.editReply({ content: errorMsg });
+        await interaction.editReply({ components: [errorContainer] });
       } else {
-        await interaction.reply({ content: errorMsg, flags: MessageFlags.Ephemeral });
+        await interaction.reply({
+          components: [errorContainer],
+          flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+        });
       }
     } catch {
       // Can't respond at all
     }
   }
+}
+
+// ==========================================
+// ERROR CONTAINER HELPER
+// ==========================================
+
+function buildErrorContainer(message: string): ContainerBuilder {
+  return new ContainerBuilder()
+    .setAccentColor(0xed4245)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# Setup Failed')
+    )
+    .addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(message)
+    );
 }
