@@ -21,6 +21,7 @@ import { botManager } from './manager';
 import { getBotSetup } from './helpers';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { MAIN_DOMAIN_BOT_ID } from './constants';
+import { refreshTicketDM } from './helpers';
 
 // ==========================================
 // EMOJI MAPS
@@ -231,9 +232,8 @@ export async function handleAssignButton(
     if (existing && existing.userId !== interaction.user.id) {
       const elapsed = Date.now() - existing.assignedAt;
       if (elapsed < REASSIGN_COOLDOWN_MS) {
-        const availableAt = Math.floor((existing.assignedAt + REASSIGN_COOLDOWN_MS) / 1000);
         await interaction.reply({
-          content: `Already assigned to **${existing.username}**. Reassignment available <t:${availableAt}:R>.`,
+          content: `This ticket is already assigned to **${existing.username}**. Please try again later.`,
           flags: MessageFlags.Ephemeral,
         });
         return;
@@ -300,6 +300,14 @@ export async function handleAssignButton(
       await interaction.editReply({
         components: [container],
       });
+
+      // Refresh the ticket creator's DM to show "In Progress" + assignee
+      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+      if (creatorId) {
+        refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
+          console.error('[Log] Failed to refresh creator DM after assignment:', err)
+        );
+      }
     }
   } catch (error) {
     console.error('[Log] Assign button error:', error);
@@ -349,6 +357,17 @@ function extractTextFromMessage(message: { components: unknown[] }): string[] {
     // Fallback: return empty
   }
   return texts;
+}
+
+/**
+ * Extract the ticket creator's Discord user ID from the metadata text.
+ * Looks for the pattern `<@123456789>` in the "Created by" line.
+ */
+function extractDiscordUserIdFromTexts(texts: string[]): string | null {
+  const createdByText = texts.find(t => t.includes('**Created by:**'));
+  if (!createdByText) return null;
+  const match = createdByText.match(/<@(\d{17,19})>/);
+  return match ? match[1] : null;
 }
 
 /**
