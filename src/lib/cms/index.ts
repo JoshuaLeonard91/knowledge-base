@@ -19,6 +19,8 @@ import * as localData from '@/lib/data/articles';
 import * as hygraph from '@/lib/hygraph';
 import { HygraphClient, createHygraphClient } from '@/lib/hygraph';
 import { getTenantFromRequest } from '@/lib/tenant';
+import { prisma } from '@/lib/db/client';
+import { decryptFromString } from '@/lib/security/crypto';
 
 // Re-export types from central types file
 export type { ContactChannel, ResponseTimeItem, ContactPageSettings, ContactPageData } from '@/types';
@@ -685,6 +687,45 @@ export async function getTicketCategories(): Promise<TicketCategory[]> {
   if (await isTenantContext()) return [];
 
   // Return defaults for local provider
+  return [
+    { id: 'technical', name: 'Technical Problem', icon: 'Wrench', order: 1 },
+    { id: 'setup', name: 'Setup & Configuration', icon: 'Gear', order: 2 },
+    { id: 'not-working', name: 'Feature Not Working', icon: 'WarningCircle', order: 3 },
+    { id: 'permissions', name: 'Permission Issue', icon: 'Lock', order: 4 },
+    { id: 'billing', name: 'Billing & Account', icon: 'CreditCard', order: 5 },
+    { id: 'feedback', name: 'Feedback & Suggestions', icon: 'ChatCircle', order: 6 },
+    { id: 'other', name: 'Other', icon: 'Question', order: 7 },
+  ];
+}
+
+/**
+ * Get ticket categories for a specific tenant by ID.
+ * Used by the Discord bot where there is no HTTP request context.
+ * Looks up the tenant's Hygraph config from DB, decrypts, and queries.
+ * Falls back to default categories if tenant has no Hygraph config.
+ */
+export async function getTicketCategoriesForTenant(tenantId: string): Promise<TicketCategory[]> {
+  try {
+    const config = await prisma.tenantHygraphConfig.findUnique({
+      where: { tenantId },
+    });
+
+    if (config) {
+      const endpoint = decryptFromString(config.endpoint);
+      const token = decryptFromString(config.token);
+      const client = createHygraphClient(endpoint, token);
+      return client.getTicketCategories();
+    }
+  } catch (error) {
+    console.error(`[CMS] Failed to get ticket categories for tenant ${tenantId}:`, error);
+  }
+
+  // No tenant Hygraph config — try default client (env vars)
+  if (hygraph.isAvailable()) {
+    return hygraph.hygraph.getTicketCategories();
+  }
+
+  // Absolute fallback
   return [
     { id: 'technical', name: 'Technical Problem', icon: 'Wrench', order: 1 },
     { id: 'setup', name: 'Setup & Configuration', icon: 'Gear', order: 2 },

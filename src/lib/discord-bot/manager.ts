@@ -19,7 +19,12 @@ import {
 } from 'discord.js';
 import { prisma } from '@/lib/db/client';
 import { decryptFromString } from '@/lib/security/crypto';
-import { handleTicketCommand } from './commands/ticket';
+import {
+  handleTicketCommand,
+  handleTicketCategorySelect,
+  handleTicketSeverityButton,
+  handleTicketModal,
+} from './commands/ticket';
 import { handleButtonInteraction } from './interactions/reply';
 
 // ==========================================
@@ -39,37 +44,7 @@ interface TenantBot {
 
 const ticketCommand = new SlashCommandBuilder()
   .setName('ticket')
-  .setDescription('Create a support ticket')
-  .addStringOption((option) =>
-    option
-      .setName('category')
-      .setDescription('Ticket category')
-      .setRequired(true)
-      .addChoices(
-        { name: 'General Support', value: 'general' },
-        { name: 'Billing', value: 'billing' },
-        { name: 'Bug Report', value: 'bug' },
-        { name: 'Feature Request', value: 'feature' }
-      )
-  )
-  .addStringOption((option) =>
-    option
-      .setName('description')
-      .setDescription('Describe your issue')
-      .setRequired(true)
-  )
-  .addStringOption((option) =>
-    option
-      .setName('severity')
-      .setDescription('How severe is this issue?')
-      .setRequired(false)
-      .addChoices(
-        { name: 'Low', value: 'low' },
-        { name: 'Medium', value: 'medium' },
-        { name: 'High', value: 'high' },
-        { name: 'Critical', value: 'critical' }
-      )
-  );
+  .setDescription('Create a support ticket');
 
 const commands = [ticketCommand.toJSON()];
 
@@ -218,8 +193,24 @@ class BotManager {
       if (interaction.commandName === 'ticket') {
         await handleTicketCommand(interaction, tenantId);
       }
-    } else if (interaction.isButton() || interaction.isModalSubmit()) {
-      await handleButtonInteraction(interaction, tenantId);
+    } else if (interaction.isStringSelectMenu()) {
+      if (interaction.customId.startsWith('ticket_category:')) {
+        await handleTicketCategorySelect(interaction, tenantId);
+      }
+    } else if (interaction.isButton()) {
+      if (interaction.customId.startsWith('ticket_severity:')) {
+        await handleTicketSeverityButton(interaction);
+      } else {
+        // Reply buttons from DM notifications
+        await handleButtonInteraction(interaction, tenantId);
+      }
+    } else if (interaction.isModalSubmit()) {
+      if (interaction.customId.startsWith('ticket_modal:')) {
+        await handleTicketModal(interaction);
+      } else {
+        // Reply modals from DM notifications
+        await handleButtonInteraction(interaction, tenantId);
+      }
     }
   }
 

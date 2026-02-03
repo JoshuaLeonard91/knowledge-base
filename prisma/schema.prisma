@@ -96,7 +96,6 @@ model Tenant {
   // Relations
   hygraphConfig    TenantHygraphConfig?
   jiraConfig       TenantJiraConfig?
-  zendeskConfig    TenantZendeskConfig?
   discordBotConfig TenantDiscordBotConfig?
   branding         TenantBranding?
   features         TenantFeatures?
@@ -124,7 +123,6 @@ enum TenantPlan {
 
 enum TicketProviderType {
   JIRA
-  ZENDESK
 }
 
 // ==========================================
@@ -162,24 +160,6 @@ model TenantJiraConfig {
   serviceDeskId   String?
   requestTypeId   String?
   projectKey      String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-// ==========================================
-// ZENDESK CONFIG (Per Tenant)
-// ==========================================
-
-model TenantZendeskConfig {
-  tenantId  String   @id
-  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-
-  connected       Boolean  @default(false)
-  subdomain       String?  // e.g., "acmecorp" → acmecorp.zendesk.com
-  email           String?  // Encrypted — agent email for API auth
-  apiToken        String?  // Encrypted — Zendesk API token
-  groupId         String?  // Default group for new tickets
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

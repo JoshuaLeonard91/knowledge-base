@@ -70,3 +70,5 @@ user\ stories\ -\ user\ stories\ (specific).pdf
 # Prisma local files
 prisma/seed-donuts.ts
 prisma/reset-donuts-color.ts
+prisma/migrations/20260202_remove_zendesk/migration.sql
+prisma/schema.prisma
