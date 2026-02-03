@@ -18,7 +18,7 @@ import { prisma } from '@/lib/db/client';
 import { botManager } from './manager';
 import type { ButtonInteraction } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
-import type { TicketComment } from '@/lib/ticketing/types';
+import type { TicketComment, TicketAttachment } from '@/lib/ticketing/types';
 import { MAIN_DOMAIN_BOT_ID } from './constants';
 
 // ==========================================
@@ -65,6 +65,7 @@ export async function getBotSetup(botId: string) {
  */
 export function formatConversationHistory(
   comments: TicketComment[],
+  portalUrl?: string,
   maxLength = 3500
 ): string {
   if (comments.length === 0) return '*No messages yet.*';
@@ -72,7 +73,22 @@ export function formatConversationHistory(
   const formatted = comments.map((c) => {
     const author = c.isStaff ? '**Support Team**' : '**You**';
     const body = c.body.replace(/\n/g, '\n> ');
-    return `${author}\n> ${body}`;
+    let text = `${author}\n> ${body}`;
+
+    // Show attachment info for oversized files (small ones will be embedded as Discord files)
+    if (c.attachments?.length) {
+      const oversized = c.attachments.filter(a => a.size > 25 * 1024 * 1024);
+      if (oversized.length > 0) {
+        const links = oversized.map(a =>
+          portalUrl
+            ? `> \u{1F4CE} [${a.filename}](${portalUrl})`
+            : `> \u{1F4CE} ${a.filename} (see portal)`
+        );
+        text += '\n' + links.join('\n');
+      }
+    }
+
+    return text;
   });
 
   let result = formatted.join('\n\n');
@@ -271,7 +287,7 @@ export async function refreshTicketDM(
 
     const slug = await resolveTenantSlug(botId);
     const portalUrl = `https://${slug}.helpportal.app/support/tickets/${ticketId}`;
-    const conversationMarkdown = formatConversationHistory(ticket.comments);
+    const conversationMarkdown = formatConversationHistory(ticket.comments, portalUrl);
 
     const container = buildTicketDMContainer({
       ticketId,
@@ -285,25 +301,35 @@ export async function refreshTicketDM(
       createdAt: ticket.created,
     });
 
+    // Collect embeddable attachments from the latest staff comment (≤25MB, max 10)
+    const discordFiles = await collectEmbeddableAttachments(ticket.comments, provider);
+
+    const messagePayload: {
+      components: [typeof container];
+      flags: typeof MessageFlags.IsComponentsV2;
+      files?: Array<{ attachment: Buffer; name: string }>;
+    } = {
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
+    };
+
+    if (discordFiles.length > 0) {
+      messagePayload.files = discordFiles;
+    }
+
     try {
       // Try editing the existing DM
       const user = await client.users.fetch(discordUserId);
       const dmChannel = await user.createDM();
       const message = await dmChannel.messages.fetch(tracker.dmMessageId);
-      await message.edit({
-        components: [container],
-        flags: MessageFlags.IsComponentsV2,
-      });
-      console.log(`[Helpers] refreshTicketDM: edited existing DM (msgId=${tracker.dmMessageId})`);
+      await message.edit(messagePayload);
+      console.log(`[Helpers] refreshTicketDM: edited existing DM (msgId=${tracker.dmMessageId}, files=${discordFiles.length})`);
     } catch (editErr) {
       console.warn('[Helpers] refreshTicketDM: edit failed, sending replacement DM:', (editErr as Error).message);
       // Message was deleted or inaccessible — send a new one
       try {
         const user = await client.users.fetch(discordUserId);
-        const sent = await user.send({
-          components: [container],
-          flags: MessageFlags.IsComponentsV2,
-        });
+        const sent = await user.send(messagePayload);
 
         await prisma.ticketDMTracker.update({
           where: { id: tracker.id },
@@ -320,6 +346,50 @@ export async function refreshTicketDM(
   } catch (error) {
     console.error('[Helpers] refreshTicketDM error:', error);
   }
+}
+
+// ==========================================
+// ATTACHMENT EMBEDDING
+// ==========================================
+
+const MAX_DISCORD_FILE_SIZE = 25 * 1024 * 1024; // 25MB
+const MAX_DISCORD_FILES = 10;
+
+/**
+ * Collect embeddable attachments from the most recent staff comment.
+ * Downloads files ≤25MB from Jira and returns them as Discord-ready buffers.
+ * Only embeds from the latest staff comment to avoid re-uploading old attachments.
+ */
+async function collectEmbeddableAttachments(
+  comments: TicketComment[],
+  provider: { getAttachmentBuffer?(url: string): Promise<Buffer | null> }
+): Promise<Array<{ attachment: Buffer; name: string }>> {
+  if (!provider.getAttachmentBuffer) return [];
+
+  // Find the latest staff comment with attachments
+  const latestStaffWithAttachments = [...comments]
+    .reverse()
+    .find(c => c.isStaff && c.attachments && c.attachments.length > 0);
+
+  if (!latestStaffWithAttachments?.attachments) return [];
+
+  const embeddable = latestStaffWithAttachments.attachments
+    .filter(a => a.size <= MAX_DISCORD_FILE_SIZE)
+    .slice(0, MAX_DISCORD_FILES);
+
+  const files: Array<{ attachment: Buffer; name: string }> = [];
+  for (const att of embeddable) {
+    try {
+      const buffer = await provider.getAttachmentBuffer(att.url);
+      if (buffer) {
+        files.push({ attachment: buffer, name: att.filename });
+      }
+    } catch (err) {
+      console.error(`[Helpers] Failed to download attachment ${att.filename}:`, err);
+    }
+  }
+
+  return files;
 }
 
 // ==========================================

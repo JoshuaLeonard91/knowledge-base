@@ -12,6 +12,15 @@
  * - JIRA_REQUEST_TYPE_ID: Request type ID for support requests (optional, uses default)
  */
 
+export interface JiraAttachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  content: string; // download URL
+  created: string;
+}
+
 export interface JiraIssue {
   id: string;
   key: string;
@@ -40,6 +49,7 @@ export interface JiraIssue {
       accountId: string;
     } | null;
     labels?: string[];
+    attachment?: JiraAttachment[];
   };
 }
 
@@ -628,6 +638,7 @@ export class JiraServiceDeskClient {
       author: string;
       body: string;
       created: string;
+      mediaAttachmentIds: string[];
     }>;
   }> {
     if (!this.isConfigured) {
@@ -639,25 +650,114 @@ export class JiraServiceDeskClient {
       return { issue: null, comments: [] };
     }
 
-    // Fetch comments
+    // Fetch comments with full ADF body
     const commentsResult = await this.fetch<{
       comments: Array<{
         id: string;
         author: { displayName: string };
-        body: { content: Array<{ content: Array<{ text: string }> }> };
+        body: unknown;
         created: string;
       }>;
     }>(`${this.baseUrl}/issue/${issueKey}/comment`);
 
-    const comments = commentsResult.data?.comments?.map(c => ({
-      id: c.id,
-      author: c.author?.displayName || 'Unknown',
-      body: c.body?.content?.[0]?.content?.[0]?.text || '',
-      created: c.created,
-    })) || [];
+    const comments = commentsResult.data?.comments?.map(c => {
+      const { text, attachmentIds } = extractAdfContent(c.body);
+      return {
+        id: c.id,
+        author: c.author?.displayName || 'Unknown',
+        body: text,
+        created: c.created,
+        mediaAttachmentIds: attachmentIds,
+      };
+    }) || [];
 
     return { issue, comments };
   }
+
+  /**
+   * Download an attachment from Jira by its content URL.
+   * Requires auth headers since attachment URLs are protected.
+   */
+  async downloadAttachment(url: string): Promise<Buffer | null> {
+    if (!this.isConfigured) return null;
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          Authorization: this.authHeader,
+          Accept: '*/*',
+        },
+      });
+
+      if (!response.ok) return null;
+      return Buffer.from(await response.arrayBuffer());
+    } catch {
+      return null;
+    }
+  }
+}
+
+// ==========================================
+// ADF (Atlassian Document Format) PARSER
+// ==========================================
+
+interface AdfNode {
+  type: string;
+  text?: string;
+  content?: AdfNode[];
+  attrs?: Record<string, unknown>;
+}
+
+/**
+ * Extract plain text and media attachment IDs from a Jira ADF document.
+ * Handles: text, paragraph, hardBreak, heading, bulletList, orderedList,
+ * listItem, blockquote, codeBlock, mediaSingle, media, rule, table, etc.
+ */
+function extractAdfContent(body: unknown): { text: string; attachmentIds: string[] } {
+  const attachmentIds: string[] = [];
+
+  if (typeof body === 'string') {
+    return { text: body, attachmentIds: [] };
+  }
+
+  if (!body || typeof body !== 'object') {
+    return { text: '', attachmentIds: [] };
+  }
+
+  const doc = body as { content?: AdfNode[] };
+  if (!doc.content) {
+    return { text: '', attachmentIds: [] };
+  }
+
+  function walkNode(node: AdfNode): string {
+    if (node.type === 'text') return node.text || '';
+    if (node.type === 'hardBreak') return '\n';
+    if (node.type === 'rule') return '\n---\n';
+
+    // Media nodes — extract attachment ID
+    if (node.type === 'media' && node.attrs) {
+      const id = node.attrs.id as string;
+      if (id) attachmentIds.push(id);
+      return '';
+    }
+    if (node.type === 'mediaSingle') {
+      return node.content ? node.content.map(walkNode).join('') : '';
+    }
+
+    // Block-level nodes that separate with newlines
+    if (node.content) {
+      const inner = node.content.map(walkNode).join('');
+      if (['paragraph', 'heading', 'blockquote', 'codeBlock', 'listItem'].includes(node.type)) {
+        return inner + '\n';
+      }
+      return inner;
+    }
+
+    return '';
+  }
+
+  const text = doc.content.map(walkNode).join('').replace(/\n{3,}/g, '\n\n').trim();
+  return { text, attachmentIds };
 }
 
 // Export singleton instance

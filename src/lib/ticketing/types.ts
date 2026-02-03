@@ -23,12 +23,21 @@ export interface Ticket {
   comments: TicketComment[];
 }
 
+export interface TicketAttachment {
+  id: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+  url: string;          // Provider download URL (requires auth)
+}
+
 export interface TicketComment {
   id: string;
   author: string;       // Sanitized author label (e.g., "Support Team", "You")
   body: string;
   created: string;      // ISO 8601
   isStaff: boolean;     // true = support team, false = ticket owner
+  attachments?: TicketAttachment[];
 }
 
 export interface TicketListItem {
@@ -109,6 +118,9 @@ export interface TicketProvider {
 
   /** Upload an attachment to a ticket (optional — not all providers support this) */
   addAttachment?(ticketId: string, file: Buffer, filename: string, mimeType: string): Promise<boolean>;
+
+  /** Download an attachment buffer by its provider URL (optional) */
+  getAttachmentBuffer?(url: string): Promise<Buffer | null>;
 
   /** Assign a ticket to a user (optional — requires Jira account ID mapping) */
   assignTicket?(ticketId: string, jiraAccountId: string): Promise<boolean>;

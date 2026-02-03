@@ -13,6 +13,7 @@ import type {
   CreateTicketResult,
   TicketListItem,
   Ticket,
+  TicketAttachment,
   AddCommentInput,
 } from '../types';
 
@@ -155,6 +156,10 @@ export class JiraTicketProvider implements TicketProvider {
       return null; // Treat as not found to avoid info leakage
     }
 
+    // Build attachment lookup from issue-level attachments
+    const issueAttachments = issue.fields.attachment || [];
+    const attachmentById = new Map(issueAttachments.map(a => [a.id, a]));
+
     return {
       id: issue.key,
       summary: issue.fields.summary,
@@ -167,12 +172,49 @@ export class JiraTicketProvider implements TicketProvider {
       updated: issue.fields.updated,
       comments: comments.map(c => {
         const isUserComment = c.body.includes(`Discord User ID: ${discordUserId}`);
+
+        // Match attachments to this comment via ADF media node IDs
+        const commentAttachments: TicketAttachment[] = [];
+        for (const mediaId of c.mediaAttachmentIds) {
+          const att = attachmentById.get(mediaId);
+          if (att) {
+            commentAttachments.push({
+              id: att.id,
+              filename: att.filename,
+              mimeType: att.mimeType,
+              size: att.size,
+              url: att.content,
+            });
+          }
+        }
+
+        // Also match by timestamp: attachments created within 10s of comment
+        if (commentAttachments.length === 0 && !isUserComment) {
+          const commentTime = new Date(c.created).getTime();
+          for (const att of issueAttachments) {
+            const attTime = new Date(att.created).getTime();
+            if (Math.abs(attTime - commentTime) < 10_000) {
+              // Avoid duplicates
+              if (!commentAttachments.some(a => a.id === att.id)) {
+                commentAttachments.push({
+                  id: att.id,
+                  filename: att.filename,
+                  mimeType: att.mimeType,
+                  size: att.size,
+                  url: att.content,
+                });
+              }
+            }
+          }
+        }
+
         return {
           id: c.id,
           author: isUserComment ? 'You' : (c.author.toLowerCase().includes('system') ? 'System' : 'Support Team'),
           body: sanitizeDescription(c.body),
           created: c.created,
           isStaff: !isUserComment,
+          attachments: commentAttachments.length > 0 ? commentAttachments : undefined,
         };
       }),
     };
@@ -200,6 +242,10 @@ export class JiraTicketProvider implements TicketProvider {
 
   async addAttachment(ticketId: string, file: Buffer, filename: string, mimeType: string): Promise<boolean> {
     return this.client.addAttachment(ticketId, file, filename, mimeType);
+  }
+
+  async getAttachmentBuffer(url: string): Promise<Buffer | null> {
+    return this.client.downloadAttachment(url);
   }
 
   async assignTicket(ticketId: string, jiraAccountId: string): Promise<boolean> {

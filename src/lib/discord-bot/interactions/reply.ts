@@ -2,8 +2,8 @@
  * Button + Modal Interaction Handlers
  *
  * Handles:
- * - "Reply" button click → opens modal with text input
- * - Modal submit → adds comment to ticket via provider
+ * - "Reply" button click → opens modal with text input + file upload
+ * - Modal submit → adds comment + uploads attachments to ticket via provider
  *
  * Custom ID format: "reply:{tenantId}:{ticketId}"
  */
@@ -12,11 +12,15 @@ import {
   type ButtonInteraction,
   type ModalSubmitInteraction,
   type Interaction,
+  ComponentType,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  ActionRowBuilder,
+  LabelBuilder,
+  FileUploadBuilder,
+  MessageFlags,
 } from 'discord.js';
+import type { FileUploadModalData } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { refreshTicketDM } from '../helpers';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
@@ -36,7 +40,7 @@ export async function handleButtonInteraction(
 }
 
 /**
- * "Reply" button → open modal
+ * "Reply" button → open modal with text input + file upload
  */
 async function handleReplyButton(
   interaction: ButtonInteraction
@@ -51,28 +55,39 @@ async function handleReplyButton(
 
   const modal = new ModalBuilder()
     .setCustomId(`reply-modal:${tenantId}:${ticketId}`)
-    .setTitle(`Reply to Ticket ${ticketId}`);
+    .setTitle(`Reply to ${ticketId}`);
 
-  const messageInput = new TextInputBuilder()
-    .setCustomId('message')
-    .setLabel('Your reply')
-    .setStyle(TextInputStyle.Paragraph)
-    .setPlaceholder('Type your reply here...')
-    .setMinLength(1)
-    .setMaxLength(4000)
-    .setRequired(true);
-
-  const row = new ActionRowBuilder<TextInputBuilder>().addComponents(
-    messageInput
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Your reply')
+      .setTextInputComponent(
+        new TextInputBuilder()
+          .setCustomId('message')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Type your reply here...')
+          .setMinLength(1)
+          .setMaxLength(4000)
+          .setRequired(true)
+      )
   );
 
-  modal.addComponents(row);
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Attachments')
+      .setDescription('Screenshots or files (optional)')
+      .setFileUploadComponent(
+        new FileUploadBuilder()
+          .setCustomId('reply_files')
+          .setRequired(false)
+          .setMaxValues(5)
+      )
+  );
 
   await interaction.showModal(modal);
 }
 
 /**
- * Modal submit → add comment to ticket
+ * Modal submit → add comment + upload attachments to ticket
  */
 async function handleReplyModal(
   interaction: ModalSubmitInteraction
@@ -85,7 +100,7 @@ async function handleReplyModal(
 
   const [, tenantId, ticketId] = parts;
 
-  await interaction.deferReply({ ephemeral: true });
+  await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
     const message = interaction.fields.getTextInputValue('message');
@@ -122,6 +137,26 @@ async function handleReplyModal(
           'Failed to add your reply. You may not have permission or the ticket may be closed.',
       });
       return;
+    }
+
+    // Upload attachments if provided
+    let fileField: FileUploadModalData | null = null;
+    try {
+      fileField = interaction.fields.getField('reply_files', ComponentType.FileUpload) as FileUploadModalData;
+    } catch {
+      // No files uploaded
+    }
+
+    if (fileField?.attachments?.size && provider.addAttachment) {
+      for (const [, attachment] of fileField.attachments) {
+        try {
+          const response = await fetch(attachment.url);
+          const buffer = Buffer.from(await response.arrayBuffer());
+          await provider.addAttachment(ticketId, buffer, attachment.name, attachment.contentType || 'application/octet-stream');
+        } catch (err) {
+          console.error('[ReplyModal] Failed to upload attachment:', attachment.name, err);
+        }
+      }
     }
 
     await interaction.editReply({

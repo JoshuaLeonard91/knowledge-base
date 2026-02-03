@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
+import { refreshTicketDM } from '@/lib/discord-bot/helpers';
+import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
 
 export async function GET(
   request: NextRequest,
@@ -160,7 +162,7 @@ export async function POST(
     }
 
     // Tenant-aware provider
-    const { provider } = await resolveProviderFromRequest();
+    const { provider, tenantId } = await resolveProviderFromRequest();
     if (!provider) {
       return NextResponse.json(
         { success: false, error: 'Ticketing is not configured.' },
@@ -190,6 +192,12 @@ export async function POST(
         await provider.addAttachment(ticketId, buffer, file.name, file.type);
       }
     }
+
+    // Fire-and-forget: refresh the Discord DM with the new comment
+    const botId = tenantId || MAIN_DOMAIN_BOT_ID;
+    refreshTicketDM(botId, ticketId, user.id).catch(err =>
+      console.error('[API] DM refresh after comment failed:', err)
+    );
 
     return NextResponse.json({ success: true });
   } catch {
@@ -241,7 +249,7 @@ export async function PATCH(
     }
 
     // Tenant-aware provider
-    const { provider } = await resolveProviderFromRequest();
+    const { provider, tenantId } = await resolveProviderFromRequest();
     if (!provider) {
       return NextResponse.json(
         { success: false, error: 'Ticketing is not configured.' },
@@ -278,6 +286,12 @@ export async function PATCH(
 
     // Re-fetch updated ticket
     const updated = await provider.getTicket(ticketId, user.id);
+
+    // Fire-and-forget: refresh the Discord DM with the new status
+    const botId = tenantId || MAIN_DOMAIN_BOT_ID;
+    refreshTicketDM(botId, ticketId, user.id).catch(err =>
+      console.error('[API] DM refresh after status change failed:', err)
+    );
 
     return NextResponse.json({
       success: true,

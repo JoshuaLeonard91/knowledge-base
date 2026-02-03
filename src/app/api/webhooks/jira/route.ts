@@ -202,16 +202,26 @@ export async function POST(request: NextRequest) {
 
 /** Extract plain text from Jira ADF content nodes (recursive) */
 function extractAdfText(
-  content: Array<{ type: string; text?: string; content?: unknown[] }>
+  content: Array<{ type: string; text?: string; content?: unknown[]; attrs?: Record<string, unknown> }>
 ): string {
   return content
     .map((node) => {
       if (node.type === 'text') return node.text || '';
       if (node.type === 'hardBreak') return '\n';
+      if (node.type === 'rule') return '\n---\n';
+      // Skip media nodes (attachments handled separately)
+      if (node.type === 'media' || node.type === 'mediaSingle') return '';
       if (node.content) {
-        return extractAdfText(node.content as typeof content);
+        const inner = extractAdfText(node.content as typeof content);
+        // Block-level nodes get trailing newlines
+        if (['paragraph', 'heading', 'blockquote', 'codeBlock', 'listItem'].includes(node.type)) {
+          return inner + '\n';
+        }
+        return inner;
       }
       return '';
     })
-    .join('');
+    .join('')
+    .replace(/\n{3,}/g, '\n\n')
+    .trim();
 }
