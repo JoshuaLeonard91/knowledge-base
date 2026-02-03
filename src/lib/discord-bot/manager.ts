@@ -36,10 +36,14 @@ import {
 } from './commands/setup';
 import {
   handlePanelCategorySelect,
-  handlePanelSeverityButton,
+  handlePanelSeveritySelect,
   handlePanelCreateButton,
   handlePanelModal,
 } from './commands/panel';
+import {
+  handlePanelCommand,
+  handlePanelEditModal,
+} from './commands/panel-config';
 import { handleButtonInteraction } from './interactions/reply';
 
 import { MAIN_DOMAIN_BOT_ID } from './constants';
@@ -67,7 +71,17 @@ const setupCommand = new SlashCommandBuilder()
   .setName('setup')
   .setDescription('Configure the support bot for this server (owner only)');
 
-const commands = [ticketCommand.toJSON(), setupCommand.toJSON()];
+const panelCommand = new SlashCommandBuilder()
+  .setName('panel')
+  .setDescription('Customize the ticket panel (owner only)')
+  .addSubcommand(sub => sub
+    .setName('edit')
+    .setDescription('Edit panel title, description, button, and info lines'))
+  .addSubcommand(sub => sub
+    .setName('refresh')
+    .setDescription('Re-post the panel with current config'));
+
+const commands = [ticketCommand.toJSON(), setupCommand.toJSON(), panelCommand.toJSON()];
 
 // ==========================================
 // BOT MANAGER
@@ -237,6 +251,8 @@ class BotManager {
         await handleTicketCommand(interaction, tenantId);
       } else if (interaction.commandName === 'setup') {
         await handleSetupCommand(interaction, tenantId);
+      } else if (interaction.commandName === 'panel') {
+        await handlePanelCommand(interaction, tenantId);
       }
     }
     // === Channel Select Menus ===
@@ -255,6 +271,8 @@ class BotManager {
         await handleTicketCategorySelect(interaction, tenantId);
       } else if (cid.startsWith('panel_category:')) {
         await handlePanelCategorySelect(interaction, tenantId);
+      } else if (cid.startsWith('panel_severity:')) {
+        await handlePanelSeveritySelect(interaction, tenantId);
       }
     }
     // === Buttons ===
@@ -264,8 +282,6 @@ class BotManager {
         await handleTicketSeverityButton(interaction);
       } else if (cid.startsWith('ticket_next:')) {
         await handleTicketNextButton(interaction);
-      } else if (cid.startsWith('panel_severity:')) {
-        await handlePanelSeverityButton(interaction);
       } else if (cid.startsWith('panel_create:')) {
         await handlePanelCreateButton(interaction);
       } else if (cid.startsWith('setup_skiplog:')) {
@@ -285,6 +301,8 @@ class BotManager {
         await handleTicketModal(interaction);
       } else if (cid.startsWith('panel_modal:')) {
         await handlePanelModal(interaction);
+      } else if (cid.startsWith('panel_edit_modal:')) {
+        await handlePanelEditModal(interaction);
       } else if (cid.startsWith('reply-modal:')) {
         await handleButtonInteraction(interaction, tenantId);
       }

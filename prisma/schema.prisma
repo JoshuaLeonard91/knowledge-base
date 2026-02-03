@@ -193,6 +193,10 @@ model DiscordBotSetup {
   ticketPanelMessageId String?
   dmOnCreate           Boolean  @default(true)
   dmOnUpdate           Boolean  @default(true)
+  panelTitle           String   @default("Support Tickets")
+  panelDescription     String   @default("Select a category and severity, then click **Create Ticket**.")
+  panelButtonLabel     String   @default("Create Ticket")
+  panelInfoLines       String?  // JSON array of strings
 
   createdAt            DateTime @default(now())
   updatedAt            DateTime @updatedAt

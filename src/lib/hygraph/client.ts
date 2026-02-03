@@ -1147,6 +1147,36 @@ export class HygraphClient {
   }
 
   /**
+   * Check if landing page content exists in CMS (lightweight — only fetches id)
+   */
+  async hasLandingPageContent(): Promise<boolean> {
+    const data = await this.query<{ landingPageContents: { id: string }[] }>(`
+      query HasLandingPageContent {
+        landingPageContents(first: 1) {
+          id
+        }
+      }
+    `, undefined, HygraphClient.CACHE_TTL.LONG);
+
+    return (data?.landingPageContents?.length ?? 0) > 0;
+  }
+
+  /**
+   * Check if service tiers exist in CMS (lightweight — only fetches id)
+   */
+  async hasServiceTiers(): Promise<boolean> {
+    const data = await this.query<{ serviceTiers: { id: string }[] }>(`
+      query HasServiceTiers {
+        serviceTiers(first: 1) {
+          id
+        }
+      }
+    `, undefined, HygraphClient.CACHE_TTL.LONG);
+
+    return (data?.serviceTiers?.length ?? 0) > 0;
+  }
+
+  /**
    * Get contact channels for contact page
    * Returns enabled channels sorted by order
    */

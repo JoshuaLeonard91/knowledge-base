@@ -12,6 +12,7 @@
  * See: docs/CLIENT_HYGRAPH_SETUP.md
  */
 
+import { cache } from 'react';
 import { Article, ArticleCategory, ContactChannel, ResponseTimeItem, ContactPageSettings, ContactPageData } from '@/types';
 
 // Import providers
@@ -253,7 +254,7 @@ export async function getServiceBySlug(slug: string): Promise<Service | null> {
 /**
  * Get all service tiers from the CMS
  */
-export async function getServiceTiers(): Promise<ServiceTier[]> {
+export const getServiceTiers = cache(async (): Promise<ServiceTier[]> => {
   const client = await getHygraphClient();
 
   if (client) {
@@ -261,7 +262,7 @@ export async function getServiceTiers(): Promise<ServiceTier[]> {
   }
 
   return [];
-}
+});
 
 /**
  * Check if pricing page should be shown (has service tiers configured)
@@ -553,10 +554,10 @@ import type { FooterSettings, FooterLink } from '@/lib/hygraph';
  * Get footer data (settings + links)
  * Returns defaults if not configured in CMS
  */
-export async function getFooterData(): Promise<{
+export const getFooterData = cache(async (): Promise<{
   settings: FooterSettings;
   links: FooterLink[];
-}> {
+}> => {
   const client = await getHygraphClient();
 
   if (client) {
@@ -599,7 +600,7 @@ export async function getFooterData(): Promise<{
       { id: 'default-7', title: 'GitHub', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity' as const, external: true, order: 3 },
     ],
   };
-}
+});
 
 // ==========================================
 // HEADER/NAVBAR DATA
@@ -611,27 +612,27 @@ import type { HeaderSettings, NavLink } from '@/lib/hygraph';
  * Get header/navbar data (settings + nav links + page availability flags)
  * Returns defaults if not configured in CMS
  */
-export async function getHeaderData(): Promise<{
+export const getHeaderData = cache(async (): Promise<{
   settings: HeaderSettings;
   navLinks: NavLink[];
   hasContactPage: boolean;
   hasLandingPage: boolean;
   hasPricingPage: boolean;
-}> {
+}> => {
   const client = await getHygraphClient();
 
   if (client) {
-    const [headerData, hasContact, landingContent, pricingTiers] = await Promise.all([
+    const [headerData, hasContact, hasLanding, hasPricing] = await Promise.all([
       client.getHeaderData(),
       client.hasContactPageSettings(),
-      client.getLandingPageContentOrNull(),
-      client.getServiceTiers(),
+      client.hasLandingPageContent(),
+      client.hasServiceTiers(),
     ]);
     return {
       ...headerData,
       hasContactPage: hasContact,
-      hasLandingPage: landingContent !== null,
-      hasPricingPage: pricingTiers.length > 0,
+      hasLandingPage: hasLanding,
+      hasPricingPage: hasPricing,
     };
   }
 
@@ -664,7 +665,7 @@ export async function getHeaderData(): Promise<{
     hasLandingPage: false,
     hasPricingPage: false,
   };
-}
+});
 
 // ==========================================
 // TICKET FORM DATA

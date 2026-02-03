@@ -49,6 +49,10 @@ export const getServicesPageContent = () => hygraph.getServicesPageContent();
 export const getContactPageSettings = () => hygraph.getContactPageSettings();
 export const hasContactPageSettings = () => hygraph.hasContactPageSettings();
 
+// Lightweight existence checks (used by getHeaderData for nav flags)
+export const hasLandingPageContent = () => hygraph.hasLandingPageContent();
+export const hasServiceTiers = () => hygraph.hasServiceTiers();
+
 // Combined (single query - reduces API calls)
 export const getServicesPageData = () => hygraph.getServicesPageData();
 

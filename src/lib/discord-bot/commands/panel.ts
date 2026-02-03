@@ -2,14 +2,14 @@
  * Persistent Ticket Panel
  *
  * A non-ephemeral V2 container posted in the ticket channel after /setup.
- * Shows category dropdown + severity buttons + "Create Ticket" button.
+ * Shows category dropdown + severity dropdown + "Create Ticket" button.
  *
  * The message is shared by all users. Interactions are tracked per-user
  * in memory (panelUserState). The persistent message itself never changes.
  *
  * Custom IDs:
  *   panel_category:{botId}                      → select menu
- *   panel_severity:{botId}:{severity}           → severity buttons
+ *   panel_severity:{botId}                      → severity select menu
  *   panel_create:{botId}                        → create ticket button
  *   panel_modal:{botId}:{categoryId}:{severity} → modal submit
  */
@@ -39,7 +39,8 @@ import { MAIN_DOMAIN_BOT_ID } from '../constants';
 import { botManager } from '../manager';
 import { sendTicketCreationDM } from '../notifications';
 import { logTicketCreated } from '../log';
-import { resolveTenantSlug } from '../helpers';
+import { getBotSetup, resolveTenantSlug } from '../helpers';
+import { prisma } from '@/lib/db/client';
 
 // ==========================================
 // HELPERS
@@ -61,6 +62,45 @@ async function resolveProvider(botId: string) {
     return provider.isAvailable() ? provider : null;
   }
   return getTicketProviderForTenant(botId);
+}
+
+// ==========================================
+// PANEL CONFIG
+// ==========================================
+
+export interface PanelConfig {
+  title: string;
+  description: string;
+  buttonLabel: string;
+  infoLines: string[];
+}
+
+const DEFAULT_PANEL_CONFIG: PanelConfig = {
+  title: 'Support Tickets',
+  description: 'Select a category and severity, then click **Create Ticket**.',
+  buttonLabel: 'Create Ticket',
+  infoLines: [],
+};
+
+export async function getPanelConfig(botId: string): Promise<PanelConfig> {
+  const setup = await getBotSetup(botId);
+  if (!setup) return DEFAULT_PANEL_CONFIG;
+
+  let infoLines: string[] = [];
+  if (setup.panelInfoLines) {
+    try {
+      infoLines = JSON.parse(setup.panelInfoLines);
+    } catch {
+      infoLines = [];
+    }
+  }
+
+  return {
+    title: setup.panelTitle || DEFAULT_PANEL_CONFIG.title,
+    description: setup.panelDescription || DEFAULT_PANEL_CONFIG.description,
+    buttonLabel: setup.panelButtonLabel || DEFAULT_PANEL_CONFIG.buttonLabel,
+    infoLines,
+  };
 }
 
 // ==========================================
@@ -94,17 +134,10 @@ setInterval(() => {
 const categoryNameCache = new Map<string, string>();
 
 // ==========================================
-// ACCENT COLORS & EMOJIS
+// ACCENT COLORS
 // ==========================================
 
 const BLURPLE = 0x5865f2;
-
-const severityEmojis: Record<string, string> = {
-  low: '\u{1F7E2}',
-  medium: '\u{1F7E1}',
-  high: '\u{1F7E0}',
-  critical: '\u{1F534}',
-};
 
 const severityAccentColors: Record<string, number> = {
   low: 0x57f287,
@@ -130,7 +163,8 @@ const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 
  */
 export async function postPersistentPanel(
   botId: string,
-  channelId: string
+  channelId: string,
+  config?: PanelConfig
 ): Promise<string> {
   const client = botManager.getBot(botId);
   if (!client) throw new Error('Bot not available');
@@ -140,6 +174,7 @@ export async function postPersistentPanel(
     throw new Error('Channel not found or not a text channel');
   }
 
+  const panelConfig = config || await getPanelConfig(botId);
   const categories = await resolveCategories(botId);
 
   // Cache category names
@@ -147,8 +182,8 @@ export async function postPersistentPanel(
     categoryNameCache.set(cat.id, cat.name);
   }
 
-  // Build the persistent panel
-  const selectMenu = new StringSelectMenuBuilder()
+  // Category dropdown
+  const categoryMenu = new StringSelectMenuBuilder()
     .setCustomId(`panel_category:${botId}`)
     .setPlaceholder('Select a category...')
     .addOptions(
@@ -159,38 +194,54 @@ export async function postPersistentPanel(
       )
     );
 
-  const severityButtons = (['low', 'medium', 'high', 'critical'] as const).map((sev) =>
-    new ButtonBuilder()
-      .setCustomId(`panel_severity:${botId}:${sev}`)
-      .setLabel(sev.charAt(0).toUpperCase() + sev.slice(1))
-      .setStyle(ButtonStyle.Secondary)
-      .setEmoji(severityEmojis[sev])
-  );
+  // Severity dropdown
+  const severityMenu = new StringSelectMenuBuilder()
+    .setCustomId(`panel_severity:${botId}`)
+    .setPlaceholder('Select severity...')
+    .addOptions(
+      new StringSelectMenuOptionBuilder().setLabel('Low').setValue('low').setEmoji('\u{1F7E2}'),
+      new StringSelectMenuOptionBuilder().setLabel('Medium').setValue('medium').setEmoji('\u{1F7E1}'),
+      new StringSelectMenuOptionBuilder().setLabel('High').setValue('high').setEmoji('\u{1F7E0}'),
+      new StringSelectMenuOptionBuilder().setLabel('Critical').setValue('critical').setEmoji('\u{1F534}'),
+    );
 
+  // Create ticket button
   const createButton = new ButtonBuilder()
     .setCustomId(`panel_create:${botId}`)
-    .setLabel('Create Ticket')
+    .setLabel(panelConfig.buttonLabel)
     .setStyle(ButtonStyle.Success);
 
+  // Build container
   const container = new ContainerBuilder()
     .setAccentColor(BLURPLE)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('# Support Tickets')
+      new TextDisplayBuilder().setContent(`# ${panelConfig.title}`)
     )
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        'Select a category and severity, then click **Create Ticket**.'
-      )
+      new TextDisplayBuilder().setContent(panelConfig.description)
     )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
     )
     .addActionRowComponents(
-      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(categoryMenu)
     )
     .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(...severityButtons)
-    )
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(severityMenu)
+    );
+
+  // Info lines (optional)
+  if (panelConfig.infoLines.length > 0) {
+    container.addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    );
+    const infoText = panelConfig.infoLines.map(line => `-# ${line}`).join('\n');
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(infoText)
+    );
+  }
+
+  container
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     )
@@ -204,6 +255,41 @@ export async function postPersistentPanel(
   });
 
   return msg.id;
+}
+
+/**
+ * Re-post the panel: delete old message, post new one, update DB.
+ */
+export async function refreshPanel(botId: string): Promise<string | null> {
+  const setup = await getBotSetup(botId);
+  if (!setup?.ticketChannelId) return null;
+
+  const client = botManager.getBot(botId);
+  if (!client) return null;
+
+  // Delete old panel message (best-effort)
+  if (setup.ticketPanelMessageId) {
+    try {
+      const channel = await client.channels.fetch(setup.ticketChannelId);
+      if (channel?.isTextBased()) {
+        const oldMsg = await (channel as TextChannel).messages.fetch(setup.ticketPanelMessageId);
+        await oldMsg.delete();
+      }
+    } catch {
+      // Already deleted or inaccessible
+    }
+  }
+
+  const config = await getPanelConfig(botId);
+  const newMessageId = await postPersistentPanel(botId, setup.ticketChannelId, config);
+
+  // Update DB
+  await prisma.discordBotSetup.update({
+    where: { id: botId },
+    data: { ticketPanelMessageId: newMessageId },
+  });
+
+  return newMessageId;
 }
 
 // ==========================================
@@ -235,17 +321,15 @@ export async function handlePanelCategorySelect(
 }
 
 // ==========================================
-// SEVERITY BUTTON
+// SEVERITY SELECT
 // ==========================================
 
-export async function handlePanelSeverityButton(
-  interaction: ButtonInteraction
+export async function handlePanelSeveritySelect(
+  interaction: StringSelectMenuInteraction,
+  botId: string
 ): Promise<void> {
   try {
-    const parts = interaction.customId.split(':');
-    if (parts.length !== 3) return;
-
-    const [, botId, severity] = parts;
+    const severity = interaction.values[0];
 
     const key = panelKey(botId, interaction.user.id);
     const existing = panelUserState.get(key);
@@ -258,7 +342,7 @@ export async function handlePanelSeverityButton(
 
     await interaction.deferUpdate();
   } catch (error) {
-    console.error('[Panel] Error handling severity button:', error);
+    console.error('[Panel] Error handling severity select:', error);
   }
 }
 
