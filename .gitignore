@@ -72,3 +72,4 @@ prisma/seed-donuts.ts
 prisma/reset-donuts-color.ts
 prisma/migrations/20260202_remove_zendesk/migration.sql
 prisma/schema.prisma
+nul

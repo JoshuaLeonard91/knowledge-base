@@ -1,10 +1,14 @@
 /**
- * /ticket Command — Interactive Component Flow
+ * /ticket Command — Components V2 Interactive Flow
+ *
+ * Uses Discord's Components V2 system (ContainerBuilder, TextDisplayBuilder,
+ * SeparatorBuilder) for a polished card-style UI with accent colors and
+ * markdown headers.
  *
  * Flow:
- * 1. /ticket → Single panel: category dropdown + severity buttons + Next
+ * 1. /ticket → Container panel: category dropdown + severity buttons + Next
  * 2. Click Next → Modal with Title + Description
- * 3. Submit modal → Create ticket → Confirmation embed → Auto-dismiss
+ * 3. Submit modal → Create ticket → Confirmation container → Auto-dismiss
  *
  * State is passed between steps via customId strings:
  *   ticket_category:{tenantId}                         → select menu
@@ -26,8 +30,11 @@ import {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
-  EmbedBuilder,
   MessageFlags,
+  ContainerBuilder,
+  TextDisplayBuilder,
+  SeparatorBuilder,
+  SeparatorSpacingSize,
 } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { getTicketCategories, getTicketCategoriesForTenant } from '@/lib/cms';
@@ -61,6 +68,115 @@ const userState = new Map<string, { category: string; categoryName: string; seve
 // Category name cache (avoid re-fetching in modal handler)
 const categoryNameCache = new Map<string, string>();
 
+// Accent colors by severity
+const BLURPLE = 0x5865f2;
+const severityAccentColors: Record<string, number> = {
+  low: 0x57f287,      // green
+  medium: 0xfee75c,   // yellow
+  high: 0xe67e22,     // orange
+  critical: 0xed4245, // red
+};
+
+const severityEmojis: Record<string, string> = {
+  low: '\u{1F7E2}',
+  medium: '\u{1F7E1}',
+  high: '\u{1F7E0}',
+  critical: '\u{1F534}',
+};
+
+// ==========================================
+// BUILD PANEL CONTAINER
+// ==========================================
+
+function buildTicketPanel(
+  tenantId: string,
+  categories: Array<{ id: string; name: string }>,
+  state: { category: string; categoryName: string; severity: string }
+): ContainerBuilder {
+  const bothSelected = state.category !== '' && state.severity !== '';
+  const accentColor = state.severity ? (severityAccentColors[state.severity] || BLURPLE) : BLURPLE;
+
+  // Status text
+  const statusParts: string[] = [];
+  if (state.categoryName) {
+    statusParts.push(`**Category:** ${state.categoryName}`);
+  }
+  if (state.severity) {
+    const label = state.severity.charAt(0).toUpperCase() + state.severity.slice(1);
+    statusParts.push(`**Severity:** ${label}`);
+  }
+
+  const hint = bothSelected
+    ? 'Click **Next** to describe your issue.'
+    : 'Select a category and severity, then click **Next**.';
+
+  // Category dropdown
+  const selectMenu = new StringSelectMenuBuilder()
+    .setCustomId(`ticket_category:${tenantId}`)
+    .setPlaceholder('Select a category...')
+    .addOptions(
+      categories.slice(0, 25).map((cat) =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(cat.name)
+          .setValue(cat.id)
+          .setDefault(cat.id === state.category)
+      )
+    );
+
+  // Severity buttons
+  const severityButtons = (['low', 'medium', 'high', 'critical'] as const).map((sev) => {
+    const selected = state.severity === sev;
+    return new ButtonBuilder()
+      .setCustomId(`ticket_severity:${tenantId}:${sev}`)
+      .setLabel(sev.charAt(0).toUpperCase() + sev.slice(1))
+      .setStyle(selected ? ButtonStyle.Primary : ButtonStyle.Secondary)
+      .setEmoji(severityEmojis[sev]);
+  });
+
+  // Next button
+  const nextButton = new ButtonBuilder()
+    .setCustomId(`ticket_next:${tenantId}`)
+    .setLabel('Next')
+    .setStyle(ButtonStyle.Success)
+    .setDisabled(!bothSelected);
+
+  // Build container
+  const container = new ContainerBuilder()
+    .setAccentColor(accentColor)
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('# Create a Support Ticket')
+    );
+
+  // Show current selections if any
+  if (statusParts.length > 0) {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(statusParts.join('\n'))
+    );
+  }
+
+  container
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`-# ${hint}`)
+    )
+    .addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+    )
+    .addActionRowComponents(
+      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
+    )
+    .addActionRowComponents(
+      new ActionRowBuilder<ButtonBuilder>().addComponents(...severityButtons)
+    )
+    .addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    )
+    .addActionRowComponents(
+      new ActionRowBuilder<ButtonBuilder>().addComponents(nextButton)
+    );
+
+  return container;
+}
+
 // ==========================================
 // STEP 1: /ticket → Show combined panel
 // ==========================================
@@ -86,59 +202,14 @@ export async function handleTicketCommand(
     }
 
     // Initialize user state
-    userState.set(interaction.user.id, { category: '', categoryName: '', severity: '' });
+    const state = { category: '', categoryName: '', severity: '' };
+    userState.set(interaction.user.id, state);
 
-    // Row 1: Category dropdown
-    const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-      new StringSelectMenuBuilder()
-        .setCustomId(`ticket_category:${tenantId}`)
-        .setPlaceholder('Select a category...')
-        .addOptions(
-          categories.slice(0, 25).map((cat) =>
-            new StringSelectMenuOptionBuilder()
-              .setLabel(cat.name)
-              .setValue(cat.id)
-          )
-        )
-    );
-
-    // Row 2: Severity buttons
-    const severityRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`ticket_severity:${tenantId}:low`)
-        .setLabel('Low')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🟢'),
-      new ButtonBuilder()
-        .setCustomId(`ticket_severity:${tenantId}:medium`)
-        .setLabel('Medium')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🟡'),
-      new ButtonBuilder()
-        .setCustomId(`ticket_severity:${tenantId}:high`)
-        .setLabel('High')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🟠'),
-      new ButtonBuilder()
-        .setCustomId(`ticket_severity:${tenantId}:critical`)
-        .setLabel('Critical')
-        .setStyle(ButtonStyle.Secondary)
-        .setEmoji('🔴'),
-    );
-
-    // Row 3: Next button (disabled until both selected)
-    const nextRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`ticket_next:${tenantId}`)
-        .setLabel('Next')
-        .setStyle(ButtonStyle.Primary)
-        .setDisabled(true),
-    );
+    const container = buildTicketPanel(tenantId, categories, state);
 
     await interaction.reply({
-      content: '**Create a Support Ticket**\n\nSelect a category and severity, then click **Next**.',
-      components: [selectRow, severityRow, nextRow],
-      flags: MessageFlags.Ephemeral,
+      components: [container],
+      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
     });
   } catch (error) {
     console.error('[TicketCommand] Error showing panel:', error);
@@ -167,7 +238,12 @@ export async function handleTicketCategorySelect(
     state.categoryName = categoryName;
     userState.set(interaction.user.id, state);
 
-    await rebuildPanel(interaction, tenantId, state);
+    const categories = await resolveCategories(tenantId);
+    const container = buildTicketPanel(tenantId, categories, state);
+
+    await interaction.update({
+      components: [container],
+    });
   } catch (error) {
     console.error('[TicketCommand] Error handling category select:', error);
   }
@@ -191,79 +267,15 @@ export async function handleTicketSeverityButton(
     state.severity = severity;
     userState.set(interaction.user.id, state);
 
-    await rebuildPanel(interaction, tenantId, state);
+    const categories = await resolveCategories(tenantId);
+    const container = buildTicketPanel(tenantId, categories, state);
+
+    await interaction.update({
+      components: [container],
+    });
   } catch (error) {
     console.error('[TicketCommand] Error handling severity:', error);
   }
-}
-
-// ==========================================
-// Rebuild the panel with current selections
-// ==========================================
-
-async function rebuildPanel(
-  interaction: StringSelectMenuInteraction | ButtonInteraction,
-  tenantId: string,
-  state: { category: string; categoryName: string; severity: string }
-): Promise<void> {
-  const bothSelected = state.category !== '' && state.severity !== '';
-
-  // Build status line
-  const lines = ['**Create a Support Ticket**\n'];
-  if (state.categoryName) {
-    lines.push(`**Category:** ${state.categoryName}`);
-  }
-  if (state.severity) {
-    lines.push(`**Severity:** ${state.severity.charAt(0).toUpperCase() + state.severity.slice(1)}`);
-  }
-  if (!bothSelected) {
-    lines.push('\nSelect a category and severity, then click **Next**.');
-  } else {
-    lines.push('\nClick **Next** to describe your issue.');
-  }
-
-  // Row 1: Category dropdown (re-fetch to rebuild)
-  const categories = await resolveCategories(tenantId);
-  const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(
-    new StringSelectMenuBuilder()
-      .setCustomId(`ticket_category:${tenantId}`)
-      .setPlaceholder('Select a category...')
-      .addOptions(
-        categories.slice(0, 25).map((cat) =>
-          new StringSelectMenuOptionBuilder()
-            .setLabel(cat.name)
-            .setValue(cat.id)
-            .setDefault(cat.id === state.category)
-        )
-      )
-  );
-
-  // Row 2: Severity buttons — highlight selected
-  const severityRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    ...(['low', 'medium', 'high', 'critical'] as const).map((sev) => {
-      const emojis: Record<string, string> = { low: '🟢', medium: '🟡', high: '🟠', critical: '🔴' };
-      const selected = state.severity === sev;
-      return new ButtonBuilder()
-        .setCustomId(`ticket_severity:${tenantId}:${sev}`)
-        .setLabel(sev.charAt(0).toUpperCase() + sev.slice(1))
-        .setStyle(selected ? ButtonStyle.Primary : ButtonStyle.Secondary)
-        .setEmoji(emojis[sev]);
-    })
-  );
-
-  // Row 3: Next button
-  const nextRow = new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId(`ticket_next:${tenantId}`)
-      .setLabel('Next')
-      .setStyle(ButtonStyle.Success)
-      .setDisabled(!bothSelected),
-  );
-
-  await interaction.update({
-    content: lines.join('\n'),
-    components: [selectRow, severityRow, nextRow],
-  });
 }
 
 // ==========================================
@@ -333,13 +345,6 @@ const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 
   critical: 'highest',
 };
 
-const severityColors: Record<string, number> = {
-  low: 0x57f287,      // green
-  medium: 0x5865f2,   // blurple
-  high: 0xed4245,     // red
-  critical: 0xed4245, // red
-};
-
 export async function handleTicketModal(
   interaction: ModalSubmitInteraction
 ): Promise<void> {
@@ -364,6 +369,7 @@ export async function handleTicketModal(
 
     const categoryName = categoryNameCache.get(categoryId) || categoryId;
     const priority = severityToPriority[severity] || 'medium';
+    const severityLabel = severity.charAt(0).toUpperCase() + severity.slice(1);
 
     const summary = `[${categoryName}] ${title}`;
     const labels = [
@@ -393,22 +399,43 @@ export async function handleTicketModal(
     // Clean up user state
     userState.delete(interaction.user.id);
 
-    const embed = new EmbedBuilder()
-      .setColor(severityColors[severity] || 0x5865f2)
-      .setTitle(`Ticket Created — ${result.ticketId}`)
-      .addFields(
-        { name: 'Category', value: categoryName, inline: true },
-        { name: 'Severity', value: severity.charAt(0).toUpperCase() + severity.slice(1), inline: true },
-        { name: 'Status', value: 'Open', inline: true },
-        { name: 'Title', value: title },
-        { name: 'Description', value: description.length > 1024 ? description.substring(0, 1021) + '...' : description },
+    // Build confirmation container
+    const accentColor = severityAccentColors[severity] || BLURPLE;
+    const truncatedDesc = description.length > 1024
+      ? description.substring(0, 1021) + '...'
+      : description;
+
+    const container = new ContainerBuilder()
+      .setAccentColor(accentColor)
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`# Ticket Created \u2014 ${result.ticketId}`)
       )
-      .setFooter({ text: `Created by ${interaction.user.username}` })
-      .setTimestamp();
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `**Category:** ${categoryName}  \u00b7  **Severity:** ${severityLabel}  \u00b7  **Status:** Open`
+        )
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`### ${title}\n${truncatedDesc}`)
+      )
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `-# Created by ${interaction.user.username}`
+        )
+      );
 
     await interaction.editReply({
-      content: '',
-      embeds: [embed],
+      components: [container],
+      flags: MessageFlags.IsComponentsV2,
     });
 
     // Auto-dismiss after 15 seconds
