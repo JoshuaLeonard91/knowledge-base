@@ -198,18 +198,8 @@ export async function sendTicketUpdateDM(
     const setup = await getBotSetup(notification.tenantId);
     if (setup && !setup.dmOnUpdate) return false;
 
-    // Check if user has opted in to notifications
-    const tenantUser = await prisma.tenantUser.findFirst({
-      where: {
-        tenant: { id: notification.tenantId },
-        discordId: notification.discordUserId,
-        discordNotifications: true,
-      },
-    });
-
-    if (!tenantUser) return false;
-
-    // Check if we have an existing DM to edit
+    // Check if we have an existing DM to edit — if so, always update it
+    // (the tracker proves we already sent this user a DM for this ticket)
     const tracker = await prisma.ticketDMTracker.findUnique({
       where: {
         tenantId_ticketId_discordUserId: {
@@ -230,7 +220,18 @@ export async function sendTicketUpdateDM(
       return true;
     }
 
-    // No tracker — send a new DM with just this update
+    // No tracker — only send a new DM if user has opted in to notifications
+    const tenantUser = await prisma.tenantUser.findFirst({
+      where: {
+        tenant: { id: notification.tenantId },
+        discordId: notification.discordUserId,
+        discordNotifications: true,
+      },
+    });
+
+    if (!tenantUser) return false;
+
+    // Send a new DM with just this update
     const client = botManager.getBot(notification.tenantId);
     if (!client) {
       console.warn(`[Notifications] No bot available for ${notification.tenantId}`);

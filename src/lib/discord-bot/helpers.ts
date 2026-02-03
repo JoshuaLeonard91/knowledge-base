@@ -115,6 +115,17 @@ function getStatusEmoji(status: string): string {
   return statusEmojis[status.toLowerCase()] || '\u26AA'; // ⚪ default
 }
 
+/** Map Jira priority name back to severity for accent color */
+function priorityToSeverity(priority?: string): string | undefined {
+  if (!priority) return undefined;
+  const p = priority.toLowerCase();
+  if (p === 'lowest' || p === 'low') return 'low';
+  if (p === 'medium') return 'medium';
+  if (p === 'high') return 'high';
+  if (p === 'highest' || p === 'critical') return 'critical';
+  return undefined;
+}
+
 export function buildTicketDMContainer(params: {
   ticketId: string;
   summary: string;
@@ -222,6 +233,7 @@ export async function refreshTicketDM(
       summary: ticket.summary,
       status: ticket.status,
       priority: ticket.priority,
+      severity: priorityToSeverity(ticket.priority),
       conversationMarkdown,
       botId,
       portalUrl,
