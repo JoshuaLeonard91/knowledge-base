@@ -6,7 +6,7 @@
  * ownership verification, and description sanitization.
  */
 
-import { jiraServiceDesk, type JiraIssue } from '@/lib/atlassian/client';
+import { jiraServiceDesk, JiraServiceDeskClient, type JiraIssue } from '@/lib/atlassian/client';
 import type {
   TicketProvider,
   CreateTicketInput,
@@ -98,13 +98,18 @@ function normalizeStatusCategory(key: string): 'new' | 'indeterminate' | 'done' 
 
 export class JiraTicketProvider implements TicketProvider {
   readonly name = 'Jira';
+  private client: JiraServiceDeskClient;
+
+  constructor(client?: JiraServiceDeskClient) {
+    this.client = client || jiraServiceDesk;
+  }
 
   isAvailable(): boolean {
-    return jiraServiceDesk.isAvailable();
+    return this.client.isAvailable();
   }
 
   async createTicket(input: CreateTicketInput): Promise<CreateTicketResult> {
-    const result = await jiraServiceDesk.createRequest({
+    const result = await this.client.createRequest({
       summary: input.summary,
       description: input.description,
       requesterName: input.discordUsername,
@@ -127,7 +132,7 @@ export class JiraTicketProvider implements TicketProvider {
   }
 
   async listTickets(discordUserId: string, discordUsername?: string): Promise<TicketListItem[]> {
-    const issues = await jiraServiceDesk.getTicketsByDiscordUser(discordUserId, discordUsername);
+    const issues = await this.client.getTicketsByDiscordUser(discordUserId, discordUsername);
 
     return issues.map(issue => ({
       id: issue.key,
@@ -140,7 +145,7 @@ export class JiraTicketProvider implements TicketProvider {
   }
 
   async getTicket(ticketId: string, discordUserId: string): Promise<Ticket | null> {
-    const { issue, comments } = await jiraServiceDesk.getTicketWithComments(ticketId);
+    const { issue, comments } = await this.client.getTicketWithComments(ticketId);
 
     if (!issue) return null;
 
@@ -174,7 +179,7 @@ export class JiraTicketProvider implements TicketProvider {
 
   async addComment(input: AddCommentInput): Promise<boolean> {
     // Verify ownership first
-    const issue = await jiraServiceDesk.getIssue(input.ticketId);
+    const issue = await this.client.getIssue(input.ticketId);
     if (!issue) return false;
 
     const descriptionText = extractDescriptionText(issue);
@@ -189,18 +194,18 @@ export class JiraTicketProvider implements TicketProvider {
     }
     commentText += `Discord User ID: ${input.discordUserId}`;
 
-    return jiraServiceDesk.addComment(input.ticketId, commentText);
+    return this.client.addComment(input.ticketId, commentText);
   }
 
   async addAttachment(ticketId: string, file: Buffer, filename: string, mimeType: string): Promise<boolean> {
-    return jiraServiceDesk.addAttachment(ticketId, file, filename, mimeType);
+    return this.client.addAttachment(ticketId, file, filename, mimeType);
   }
 
   async assignTicket(ticketId: string, jiraAccountId: string): Promise<boolean> {
-    return jiraServiceDesk.assignIssue(ticketId, jiraAccountId);
+    return this.client.assignIssue(ticketId, jiraAccountId);
   }
 
   async transitionTicket(ticketId: string, targetStatus: string): Promise<boolean> {
-    return jiraServiceDesk.transitionIssue(ticketId, targetStatus);
+    return this.client.transitionIssue(ticketId, targetStatus);
   }
 }

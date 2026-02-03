@@ -83,7 +83,19 @@ const ATLASSIAN_API_TOKEN = process.env.ATLASSIAN_API_TOKEN || '';
 const JIRA_SERVICE_DESK_ID = process.env.JIRA_SERVICE_DESK_ID || '';
 const JIRA_REQUEST_TYPE_ID = process.env.JIRA_REQUEST_TYPE_ID || '';
 
-class JiraServiceDeskClient {
+/**
+ * Optional config for creating a per-tenant client instead of
+ * using environment variables.
+ */
+export interface JiraClientConfig {
+  domain: string;       // e.g. "acme.atlassian.net"
+  email: string;
+  apiToken: string;
+  serviceDeskId?: string;
+  requestTypeId?: string;
+}
+
+export class JiraServiceDeskClient {
   private baseUrl: string;
   private serviceDeskApiUrl: string;
   private authHeader: string;
@@ -91,19 +103,23 @@ class JiraServiceDeskClient {
   private serviceDeskId: string;
   private requestTypeId: string;
 
-  constructor() {
-    this.isConfigured = Boolean(
-      ATLASSIAN_DOMAIN && ATLASSIAN_EMAIL && ATLASSIAN_API_TOKEN && JIRA_SERVICE_DESK_ID
-    );
-    this.baseUrl = ATLASSIAN_DOMAIN ? `https://${ATLASSIAN_DOMAIN}/rest/api/3` : '';
-    this.serviceDeskApiUrl = ATLASSIAN_DOMAIN
-      ? `https://${ATLASSIAN_DOMAIN}/rest/servicedeskapi`
+  constructor(config?: JiraClientConfig) {
+    const domain = config?.domain || ATLASSIAN_DOMAIN;
+    const email = config?.email || ATLASSIAN_EMAIL;
+    const apiToken = config?.apiToken || ATLASSIAN_API_TOKEN;
+    const sdId = config?.serviceDeskId || JIRA_SERVICE_DESK_ID;
+    const rtId = config?.requestTypeId || JIRA_REQUEST_TYPE_ID;
+
+    this.isConfigured = Boolean(domain && email && apiToken && sdId);
+    this.baseUrl = domain ? `https://${domain}/rest/api/3` : '';
+    this.serviceDeskApiUrl = domain
+      ? `https://${domain}/rest/servicedeskapi`
       : '';
-    this.serviceDeskId = JIRA_SERVICE_DESK_ID;
-    this.requestTypeId = JIRA_REQUEST_TYPE_ID;
+    this.serviceDeskId = sdId;
+    this.requestTypeId = rtId;
 
     // Atlassian uses email:api_token for authentication (Basic Auth)
-    const credentials = `${ATLASSIAN_EMAIL}:${ATLASSIAN_API_TOKEN}`;
+    const credentials = `${email}:${apiToken}`;
     this.authHeader = this.isConfigured
       ? `Basic ${Buffer.from(credentials).toString('base64')}`
       : '';
