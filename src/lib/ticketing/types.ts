@@ -17,6 +17,7 @@ export interface Ticket {
   status: string;       // Display name (e.g., "In Progress")
   statusCategory: 'new' | 'indeterminate' | 'done' | 'undefined';
   priority?: string;
+  assignee?: string;    // Display name of the assigned agent
   created: string;      // ISO 8601
   updated: string;      // ISO 8601
   comments: TicketComment[];

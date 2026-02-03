@@ -162,6 +162,7 @@ export class JiraTicketProvider implements TicketProvider {
       status: issue.fields.status?.name || 'Unknown',
       statusCategory: normalizeStatusCategory(issue.fields.status?.statusCategory?.key || ''),
       priority: issue.fields.priority?.name,
+      assignee: issue.fields.assignee?.displayName || undefined,
       created: issue.fields.created,
       updated: issue.fields.updated,
       comments: comments.map(c => {

@@ -2,23 +2,19 @@
  * Persistent Ticket Panel
  *
  * A non-ephemeral V2 container posted in the ticket channel after /setup.
- * Shows category dropdown + severity dropdown + "Create Ticket" button.
- *
- * The message is shared by all users. Interactions are tracked per-user
- * in memory (panelUserState). The persistent message itself never changes.
+ * Shows description + "Create Ticket" button. Clicking the button opens
+ * a modal with category, severity, title, description, and file upload.
  *
  * Custom IDs:
- *   panel_category:{botId}                      → select menu
- *   panel_severity:{botId}                      → severity select menu
- *   panel_create:{botId}                        → create ticket button
- *   panel_modal:{botId}:{categoryId}:{severity} → modal submit
+ *   panel_create:{botId}       → create ticket button → shows modal
+ *   panel_modal:{botId}        → modal submit
  */
 
 import {
-  type StringSelectMenuInteraction,
   type ButtonInteraction,
   type ModalSubmitInteraction,
   type TextChannel,
+  ComponentType,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
   ActionRowBuilder,
@@ -27,12 +23,15 @@ import {
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  LabelBuilder,
+  FileUploadBuilder,
   MessageFlags,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
 } from 'discord.js';
+import type { FileUploadModalData } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { getTicketCategories, getTicketCategoriesForTenant } from '@/lib/cms';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
@@ -64,9 +63,28 @@ async function resolveProvider(botId: string) {
   return getTicketProviderForTenant(botId);
 }
 
+// Category name cache
+const categoryNameCache = new Map<string, string>();
+
 // ==========================================
 // PANEL CONFIG
 // ==========================================
+
+const BLURPLE = 0x5865f2;
+
+const severityAccentColors: Record<string, number> = {
+  low: 0x57f287,
+  medium: 0xfee75c,
+  high: 0xe67e22,
+  critical: 0xed4245,
+};
+
+const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 'highest'> = {
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+  critical: 'highest',
+};
 
 export interface PanelConfig {
   title: string;
@@ -77,7 +95,7 @@ export interface PanelConfig {
 
 const DEFAULT_PANEL_CONFIG: PanelConfig = {
   title: 'Support Tickets',
-  description: 'Select a category and severity, then click **Create Ticket**.',
+  description: 'Click **Create Ticket** to open a support request.',
   buttonLabel: 'Create Ticket',
   infoLines: [],
 };
@@ -104,56 +122,6 @@ export async function getPanelConfig(botId: string): Promise<PanelConfig> {
 }
 
 // ==========================================
-// USER STATE
-// ==========================================
-
-interface PanelUserState {
-  category: string;
-  categoryName: string;
-  severity: string;
-  createdAt: number;
-}
-
-const panelUserState = new Map<string, PanelUserState>();
-
-function panelKey(botId: string, userId: string): string {
-  return `${botId}:${userId}`;
-}
-
-// Clean stale entries every 5 minutes
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, state] of panelUserState) {
-    if (now - state.createdAt > 15 * 60 * 1000) {
-      panelUserState.delete(key);
-    }
-  }
-}, 5 * 60 * 1000);
-
-// Category name cache
-const categoryNameCache = new Map<string, string>();
-
-// ==========================================
-// ACCENT COLORS
-// ==========================================
-
-const BLURPLE = 0x5865f2;
-
-const severityAccentColors: Record<string, number> = {
-  low: 0x57f287,
-  medium: 0xfee75c,
-  high: 0xe67e22,
-  critical: 0xed4245,
-};
-
-const severityToPriority: Record<string, 'lowest' | 'low' | 'medium' | 'high' | 'highest'> = {
-  low: 'low',
-  medium: 'medium',
-  high: 'high',
-  critical: 'highest',
-};
-
-// ==========================================
 // POST PERSISTENT PANEL
 // ==========================================
 
@@ -175,35 +143,12 @@ export async function postPersistentPanel(
   }
 
   const panelConfig = config || await getPanelConfig(botId);
-  const categories = await resolveCategories(botId);
 
-  // Cache category names
+  // Pre-cache category names for modal handler
+  const categories = await resolveCategories(botId);
   for (const cat of categories) {
     categoryNameCache.set(cat.id, cat.name);
   }
-
-  // Category dropdown
-  const categoryMenu = new StringSelectMenuBuilder()
-    .setCustomId(`panel_category:${botId}`)
-    .setPlaceholder('Select a category...')
-    .addOptions(
-      categories.slice(0, 25).map((cat) =>
-        new StringSelectMenuOptionBuilder()
-          .setLabel(cat.name)
-          .setValue(cat.id)
-      )
-    );
-
-  // Severity dropdown
-  const severityMenu = new StringSelectMenuBuilder()
-    .setCustomId(`panel_severity:${botId}`)
-    .setPlaceholder('Select severity...')
-    .addOptions(
-      new StringSelectMenuOptionBuilder().setLabel('Low').setValue('low').setEmoji('\u{1F7E2}'),
-      new StringSelectMenuOptionBuilder().setLabel('Medium').setValue('medium').setEmoji('\u{1F7E1}'),
-      new StringSelectMenuOptionBuilder().setLabel('High').setValue('high').setEmoji('\u{1F7E0}'),
-      new StringSelectMenuOptionBuilder().setLabel('Critical').setValue('critical').setEmoji('\u{1F534}'),
-    );
 
   // Create ticket button
   const createButton = new ButtonBuilder()
@@ -211,7 +156,7 @@ export async function postPersistentPanel(
     .setLabel(panelConfig.buttonLabel)
     .setStyle(ButtonStyle.Success);
 
-  // Build container
+  // Build container — simplified, no dropdowns
   const container = new ContainerBuilder()
     .setAccentColor(BLURPLE)
     .addTextDisplayComponents(
@@ -219,15 +164,6 @@ export async function postPersistentPanel(
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(panelConfig.description)
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(categoryMenu)
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(severityMenu)
     );
 
   // Info lines (optional)
@@ -293,60 +229,6 @@ export async function refreshPanel(botId: string): Promise<string | null> {
 }
 
 // ==========================================
-// CATEGORY SELECT
-// ==========================================
-
-export async function handlePanelCategorySelect(
-  interaction: StringSelectMenuInteraction,
-  botId: string
-): Promise<void> {
-  try {
-    const categoryId = interaction.values[0];
-    const categoryName = categoryNameCache.get(categoryId) || categoryId;
-
-    const key = panelKey(botId, interaction.user.id);
-    const existing = panelUserState.get(key);
-    panelUserState.set(key, {
-      category: categoryId,
-      categoryName,
-      severity: existing?.severity || '',
-      createdAt: existing?.createdAt || Date.now(),
-    });
-
-    // Don't update the persistent message — just acknowledge silently
-    await interaction.deferUpdate();
-  } catch (error) {
-    console.error('[Panel] Error handling category select:', error);
-  }
-}
-
-// ==========================================
-// SEVERITY SELECT
-// ==========================================
-
-export async function handlePanelSeveritySelect(
-  interaction: StringSelectMenuInteraction,
-  botId: string
-): Promise<void> {
-  try {
-    const severity = interaction.values[0];
-
-    const key = panelKey(botId, interaction.user.id);
-    const existing = panelUserState.get(key);
-    panelUserState.set(key, {
-      category: existing?.category || '',
-      categoryName: existing?.categoryName || '',
-      severity,
-      createdAt: existing?.createdAt || Date.now(),
-    });
-
-    await interaction.deferUpdate();
-  } catch (error) {
-    console.error('[Panel] Error handling severity select:', error);
-  }
-}
-
-// ==========================================
 // CREATE TICKET BUTTON → MODAL
 // ==========================================
 
@@ -358,49 +240,115 @@ export async function handlePanelCreateButton(
     if (parts.length !== 2) return;
 
     const [, botId] = parts;
-    const key = panelKey(botId, interaction.user.id);
-    const state = panelUserState.get(key);
 
-    if (!state || !state.category || !state.severity) {
+    const categories = await resolveCategories(botId);
+    if (!categories || categories.length === 0) {
       await interaction.reply({
-        content: 'Please select a category and severity first, then click **Create Ticket**.',
+        content: 'No ticket categories are configured. Ask the server admin to set up categories.',
         flags: MessageFlags.Ephemeral,
       });
       return;
     }
 
-    const modal = new ModalBuilder()
-      .setCustomId(`panel_modal:${botId}:${state.category}:${state.severity}`)
-      .setTitle('Describe Your Issue');
+    // Cache category names
+    for (const cat of categories) {
+      categoryNameCache.set(cat.id, cat.name);
+    }
 
-    const titleInput = new TextInputBuilder()
-      .setCustomId('ticket_title')
-      .setLabel('Title')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Brief summary of the issue')
-      .setMinLength(5)
-      .setMaxLength(100)
-      .setRequired(true);
-
-    const descriptionInput = new TextInputBuilder()
-      .setCustomId('ticket_description')
-      .setLabel('Description')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Provide details about the issue...')
-      .setMinLength(10)
-      .setMaxLength(4000)
-      .setRequired(true);
-
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput),
-    );
-
-    // showModal MUST be the first response
+    const modal = buildPanelModal(botId, categories);
     await interaction.showModal(modal);
   } catch (error) {
     console.error('[Panel] Error showing modal:', error);
   }
+}
+
+function buildPanelModal(
+  botId: string,
+  categories: Array<{ id: string; name: string }>
+): ModalBuilder {
+  const modal = new ModalBuilder()
+    .setCustomId(`panel_modal:${botId}`)
+    .setTitle('Create a Support Ticket');
+
+  // 1. Category select
+  const categorySelect = new StringSelectMenuBuilder()
+    .setCustomId('ticket_category')
+    .setPlaceholder('Select a category...')
+    .addOptions(
+      categories.slice(0, 25).map((cat) =>
+        new StringSelectMenuOptionBuilder()
+          .setLabel(cat.name)
+          .setValue(cat.id)
+      )
+    );
+
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Category')
+      .setStringSelectMenuComponent(categorySelect)
+  );
+
+  // 2. Severity select
+  const severitySelect = new StringSelectMenuBuilder()
+    .setCustomId('ticket_severity')
+    .setPlaceholder('Select severity...')
+    .addOptions(
+      new StringSelectMenuOptionBuilder().setLabel('Low').setValue('low').setEmoji('\u{1F7E2}'),
+      new StringSelectMenuOptionBuilder().setLabel('Medium').setValue('medium').setEmoji('\u{1F7E1}'),
+      new StringSelectMenuOptionBuilder().setLabel('High').setValue('high').setEmoji('\u{1F7E0}'),
+      new StringSelectMenuOptionBuilder().setLabel('Critical').setValue('critical').setEmoji('\u{1F534}'),
+    );
+
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Severity')
+      .setStringSelectMenuComponent(severitySelect)
+  );
+
+  // 3. Title
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Title')
+      .setTextInputComponent(
+        new TextInputBuilder()
+          .setCustomId('ticket_title')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Brief summary of the issue')
+          .setMinLength(5)
+          .setMaxLength(100)
+          .setRequired(true)
+      )
+  );
+
+  // 4. Description
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Description')
+      .setTextInputComponent(
+        new TextInputBuilder()
+          .setCustomId('ticket_description')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Provide details about the issue...')
+          .setMinLength(10)
+          .setMaxLength(4000)
+          .setRequired(true)
+      )
+  );
+
+  // 5. File upload
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Attachments')
+      .setDescription('Screenshots or files (optional)')
+      .setFileUploadComponent(
+        new FileUploadBuilder()
+          .setCustomId('ticket_files')
+          .setRequired(false)
+          .setMaxValues(5)
+      )
+  );
+
+  return modal;
 }
 
 // ==========================================
@@ -411,15 +359,25 @@ export async function handlePanelModal(
   interaction: ModalSubmitInteraction
 ): Promise<void> {
   const parts = interaction.customId.split(':');
-  if (parts.length !== 4) return;
+  if (parts.length !== 2) return;
 
-  const [, botId, categoryId, severity] = parts;
+  const [, botId] = parts;
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
+    // Extract fields from modal
+    const categoryId = interaction.fields.getStringSelectValues('ticket_category')[0];
+    const severity = interaction.fields.getStringSelectValues('ticket_severity')[0];
     const title = interaction.fields.getTextInputValue('ticket_title');
     const description = interaction.fields.getTextInputValue('ticket_description');
+
+    if (!categoryId || !severity) {
+      await interaction.editReply({
+        content: 'Please select both a category and severity.',
+      });
+      return;
+    }
 
     const provider = await resolveProvider(botId);
     if (!provider) {
@@ -458,15 +416,29 @@ export async function handlePanelModal(
       return;
     }
 
-    // Clean up user state
-    const key = panelKey(botId, interaction.user.id);
-    panelUserState.delete(key);
+    // Upload attachments
+    let fileField: FileUploadModalData | null = null;
+    try {
+      fileField = interaction.fields.getField('ticket_files', ComponentType.FileUpload) as FileUploadModalData;
+    } catch {
+      // No files uploaded
+    }
+
+    if (fileField?.attachments?.size && provider.addAttachment) {
+      const ticketId = result.ticketId!;
+      for (const [, attachment] of fileField.attachments) {
+        try {
+          const response = await fetch(attachment.url);
+          const buffer = Buffer.from(await response.arrayBuffer());
+          await provider.addAttachment(ticketId, buffer, attachment.name, attachment.contentType || 'application/octet-stream');
+        } catch (err) {
+          console.error('[Panel] Failed to upload attachment:', attachment.name, err);
+        }
+      }
+    }
 
     // Build confirmation
     const accentColor = severityAccentColors[severity] || BLURPLE;
-    const truncatedDesc = description.length > 1024
-      ? description.substring(0, 1021) + '...'
-      : description;
 
     const container = new ContainerBuilder()
       .setAccentColor(accentColor)
@@ -485,14 +457,8 @@ export async function handlePanelModal(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`### ${title}\n${truncatedDesc}`)
-      )
-      .addSeparatorComponents(
-        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-      )
-      .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `-# Created by ${interaction.user.username}`
+          "-# You'll receive updates in your DMs."
         )
       );
 
@@ -507,10 +473,7 @@ export async function handlePanelModal(
       botId,
       tenantSlug: slug,
       ticketId: result.ticketId!,
-      category: categoryName,
       severity,
-      status: 'Open',
-      title,
       description,
       discordUserId: interaction.user.id,
     }).catch(err => console.error('[Panel] DM failed:', err));
@@ -523,6 +486,7 @@ export async function handlePanelModal(
       severity,
       discordUserId: interaction.user.id,
       discordUsername: interaction.user.username,
+      avatarUrl: interaction.user.displayAvatarURL({ size: 64 }),
     }).catch(err => console.error('[Panel] Log failed:', err));
 
     // Auto-dismiss after 15 seconds

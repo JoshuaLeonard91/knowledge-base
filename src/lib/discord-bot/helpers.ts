@@ -129,35 +129,33 @@ function priorityToSeverity(priority?: string): string | undefined {
 
 export function buildTicketDMContainer(params: {
   ticketId: string;
-  summary: string;
   status: string;
   statusCategory?: string;
-  priority?: string;
-  severity?: string;
+  assignee?: string;
   conversationMarkdown: string;
   botId: string;
   portalUrl: string;
+  severity?: string;
+  createdAt?: string;
 }): ContainerBuilder {
   const accentColor = params.severity
     ? (severityAccentColors[params.severity] || BLURPLE)
     : BLURPLE;
 
   const statusEmoji = getStatusEmoji(params.status);
-  const priorityPart = params.priority ? `  \u00b7  **Priority:** ${params.priority}` : '';
   const isDone = params.statusCategory === 'done';
+
+  // Status line — keep it minimal
+  let statusLine = `${statusEmoji} **${params.status}**`;
+  if (params.assignee) statusLine += `  \u00b7  ${params.assignee}`;
 
   const container = new ContainerBuilder()
     .setAccentColor(accentColor)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# ${params.ticketId}`)
     )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-    )
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `**Status:** ${statusEmoji} ${params.status}${priorityPart}`
-      )
+      new TextDisplayBuilder().setContent(statusLine)
     )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
@@ -167,12 +165,18 @@ export function buildTicketDMContainer(params: {
     )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `-# Last updated <t:${Math.floor(Date.now() / 1000)}:R>`
-      )
     );
+
+  // Footer — creation time + last updated
+  const footerParts: string[] = [];
+  if (params.createdAt) {
+    const createdTs = Math.floor(new Date(params.createdAt).getTime() / 1000);
+    footerParts.push(`Opened <t:${createdTs}:R>`);
+  }
+  footerParts.push(`Updated <t:${Math.floor(Date.now() / 1000)}:R>`);
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`-# ${footerParts.join('  \u00b7  ')}`)
+  );
 
   // Action buttons — Reply + Close/Reopen + View on Portal
   const buttons: ButtonBuilder[] = [
@@ -256,14 +260,14 @@ export async function refreshTicketDM(
 
     const container = buildTicketDMContainer({
       ticketId,
-      summary: ticket.summary,
       status: ticket.status,
       statusCategory: ticket.statusCategory,
-      priority: ticket.priority,
-      severity: priorityToSeverity(ticket.priority),
+      assignee: ticket.assignee,
       conversationMarkdown,
       botId,
       portalUrl,
+      severity: priorityToSeverity(ticket.priority),
+      createdAt: ticket.created,
     });
 
     try {

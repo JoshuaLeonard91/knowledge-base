@@ -35,6 +35,10 @@ export interface JiraIssue {
       displayName: string;
       emailAddress: string;
     };
+    assignee?: {
+      displayName: string;
+      accountId: string;
+    } | null;
     labels?: string[];
   };
 }

@@ -1,41 +1,34 @@
 /**
- * /ticket Command — Components V2 Interactive Flow
+ * /ticket Command — Unified Modal with Components V2
  *
- * Uses Discord's Components V2 system (ContainerBuilder, TextDisplayBuilder,
- * SeparatorBuilder) for a polished card-style UI with accent colors and
- * markdown headers.
+ * Shows a single modal with category select, severity select,
+ * title, description, and file upload. No multi-step flow.
  *
  * Flow:
- * 1. /ticket → Container panel: category dropdown + severity buttons + Next
- * 2. Click Next → Modal with Title + Description
- * 3. Submit modal → Create ticket → Confirmation container → Auto-dismiss
+ * 1. /ticket → Modal with all fields (category, severity, title, description, files)
+ * 2. Submit modal → Create ticket → Upload attachments → Confirmation → Auto-dismiss
  *
- * State is passed between steps via customId strings:
- *   ticket_category:{tenantId}                         → select menu
- *   ticket_severity:{tenantId}:{severity}              → severity buttons
- *   ticket_next:{tenantId}                             → next button
- *   ticket_modal:{tenantId}:{categoryId}:{severity}    → modal
+ * Custom ID: ticket_modal:{tenantId}
  */
 
 import {
   type ChatInputCommandInteraction,
-  type StringSelectMenuInteraction,
-  type ButtonInteraction,
   type ModalSubmitInteraction,
+  ComponentType,
   StringSelectMenuBuilder,
   StringSelectMenuOptionBuilder,
-  ActionRowBuilder,
-  ButtonBuilder,
-  ButtonStyle,
   ModalBuilder,
   TextInputBuilder,
   TextInputStyle,
+  LabelBuilder,
+  FileUploadBuilder,
   MessageFlags,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
 } from 'discord.js';
+import type { FileUploadModalData } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { getTicketCategories, getTicketCategoriesForTenant } from '@/lib/cms';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
@@ -65,9 +58,6 @@ async function resolveProvider(tenantId: string) {
   return getTicketProviderForTenant(tenantId);
 }
 
-// Per-user state for the ticket form (category + severity selection)
-const userState = new Map<string, { category: string; categoryName: string; severity: string }>();
-
 // Category name cache (avoid re-fetching in modal handler)
 const categoryNameCache = new Map<string, string>();
 
@@ -88,100 +78,100 @@ const severityEmojis: Record<string, string> = {
 };
 
 // ==========================================
-// BUILD PANEL CONTAINER
+// BUILD TICKET MODAL
 // ==========================================
 
-function buildTicketPanel(
+function buildTicketModal(
   tenantId: string,
-  categories: Array<{ id: string; name: string }>,
-  state: { category: string; categoryName: string; severity: string }
-): ContainerBuilder {
-  const bothSelected = state.category !== '' && state.severity !== '';
-  const accentColor = state.severity ? (severityAccentColors[state.severity] || BLURPLE) : BLURPLE;
+  categories: Array<{ id: string; name: string }>
+): ModalBuilder {
+  const modal = new ModalBuilder()
+    .setCustomId(`ticket_modal:${tenantId}`)
+    .setTitle('Create a Support Ticket');
 
-  // Status text
-  const statusParts: string[] = [];
-  if (state.categoryName) {
-    statusParts.push(`**Category:** ${state.categoryName}`);
-  }
-  if (state.severity) {
-    const label = state.severity.charAt(0).toUpperCase() + state.severity.slice(1);
-    statusParts.push(`**Severity:** ${label}`);
-  }
-
-  const hint = bothSelected
-    ? 'Click **Next** to describe your issue.'
-    : 'Select a category and severity, then click **Next**.';
-
-  // Category dropdown
-  const selectMenu = new StringSelectMenuBuilder()
-    .setCustomId(`ticket_category:${tenantId}`)
+  // 1. Category select
+  const categorySelect = new StringSelectMenuBuilder()
+    .setCustomId('ticket_category')
     .setPlaceholder('Select a category...')
     .addOptions(
       categories.slice(0, 25).map((cat) =>
         new StringSelectMenuOptionBuilder()
           .setLabel(cat.name)
           .setValue(cat.id)
-          .setDefault(cat.id === state.category)
       )
     );
 
-  // Severity buttons
-  const severityButtons = (['low', 'medium', 'high', 'critical'] as const).map((sev) => {
-    const selected = state.severity === sev;
-    return new ButtonBuilder()
-      .setCustomId(`ticket_severity:${tenantId}:${sev}`)
-      .setLabel(sev.charAt(0).toUpperCase() + sev.slice(1))
-      .setStyle(selected ? ButtonStyle.Primary : ButtonStyle.Secondary)
-      .setEmoji(severityEmojis[sev]);
-  });
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Category')
+      .setStringSelectMenuComponent(categorySelect)
+  );
 
-  // Next button
-  const nextButton = new ButtonBuilder()
-    .setCustomId(`ticket_next:${tenantId}`)
-    .setLabel('Next')
-    .setStyle(ButtonStyle.Success)
-    .setDisabled(!bothSelected);
-
-  // Build container
-  const container = new ContainerBuilder()
-    .setAccentColor(accentColor)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('# Create a Support Ticket')
+  // 2. Severity select
+  const severitySelect = new StringSelectMenuBuilder()
+    .setCustomId('ticket_severity')
+    .setPlaceholder('Select severity...')
+    .addOptions(
+      new StringSelectMenuOptionBuilder().setLabel('Low').setValue('low').setEmoji('\u{1F7E2}'),
+      new StringSelectMenuOptionBuilder().setLabel('Medium').setValue('medium').setEmoji('\u{1F7E1}'),
+      new StringSelectMenuOptionBuilder().setLabel('High').setValue('high').setEmoji('\u{1F7E0}'),
+      new StringSelectMenuOptionBuilder().setLabel('Critical').setValue('critical').setEmoji('\u{1F534}'),
     );
 
-  // Show current selections if any
-  if (statusParts.length > 0) {
-    container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(statusParts.join('\n'))
-    );
-  }
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Severity')
+      .setStringSelectMenuComponent(severitySelect)
+  );
 
-  container
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`-# ${hint}`)
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(selectMenu)
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(...severityButtons)
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<ButtonBuilder>().addComponents(nextButton)
-    );
+  // 3. Title
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Title')
+      .setTextInputComponent(
+        new TextInputBuilder()
+          .setCustomId('ticket_title')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('Brief summary of the issue')
+          .setMinLength(5)
+          .setMaxLength(100)
+          .setRequired(true)
+      )
+  );
 
-  return container;
+  // 4. Description
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Description')
+      .setTextInputComponent(
+        new TextInputBuilder()
+          .setCustomId('ticket_description')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('Provide details about the issue...')
+          .setMinLength(10)
+          .setMaxLength(4000)
+          .setRequired(true)
+      )
+  );
+
+  // 5. File upload
+  modal.addLabelComponents(
+    new LabelBuilder()
+      .setLabel('Attachments')
+      .setDescription('Screenshots or files (optional)')
+      .setFileUploadComponent(
+        new FileUploadBuilder()
+          .setCustomId('ticket_files')
+          .setRequired(false)
+          .setMaxValues(5)
+      )
+  );
+
+  return modal;
 }
 
 // ==========================================
-// STEP 1: /ticket → Show combined panel
+// /ticket → Show modal directly
 // ==========================================
 
 export async function handleTicketCommand(
@@ -204,136 +194,14 @@ export async function handleTicketCommand(
       categoryNameCache.set(cat.id, cat.name);
     }
 
-    // Initialize user state
-    const state = { category: '', categoryName: '', severity: '' };
-    userState.set(interaction.user.id, state);
-
-    const container = buildTicketPanel(tenantId, categories, state);
-
-    await interaction.reply({
-      components: [container],
-      flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
-    });
+    const modal = buildTicketModal(tenantId, categories);
+    await interaction.showModal(modal);
   } catch (error) {
-    console.error('[TicketCommand] Error showing panel:', error);
+    console.error('[TicketCommand] Error showing modal:', error);
     await interaction.reply({
       content: 'An error occurred. Please try again later.',
       flags: MessageFlags.Ephemeral,
     });
-  }
-}
-
-// ==========================================
-// Category selected → Update panel
-// ==========================================
-
-export async function handleTicketCategorySelect(
-  interaction: StringSelectMenuInteraction,
-  tenantId: string
-): Promise<void> {
-  try {
-    const categoryId = interaction.values[0];
-    const categoryName = categoryNameCache.get(categoryId) || categoryId;
-
-    // Update user state
-    const state = userState.get(interaction.user.id) || { category: '', categoryName: '', severity: '' };
-    state.category = categoryId;
-    state.categoryName = categoryName;
-    userState.set(interaction.user.id, state);
-
-    const categories = await resolveCategories(tenantId);
-    const container = buildTicketPanel(tenantId, categories, state);
-
-    await interaction.update({
-      components: [container],
-    });
-  } catch (error) {
-    console.error('[TicketCommand] Error handling category select:', error);
-  }
-}
-
-// ==========================================
-// Severity selected → Update panel
-// ==========================================
-
-export async function handleTicketSeverityButton(
-  interaction: ButtonInteraction
-): Promise<void> {
-  try {
-    const parts = interaction.customId.split(':');
-    if (parts.length !== 3) return;
-
-    const [, tenantId, severity] = parts;
-
-    // Update user state
-    const state = userState.get(interaction.user.id) || { category: '', categoryName: '', severity: '' };
-    state.severity = severity;
-    userState.set(interaction.user.id, state);
-
-    const categories = await resolveCategories(tenantId);
-    const container = buildTicketPanel(tenantId, categories, state);
-
-    await interaction.update({
-      components: [container],
-    });
-  } catch (error) {
-    console.error('[TicketCommand] Error handling severity:', error);
-  }
-}
-
-// ==========================================
-// Next button → Open modal
-// ==========================================
-
-export async function handleTicketNextButton(
-  interaction: ButtonInteraction
-): Promise<void> {
-  try {
-    const parts = interaction.customId.split(':');
-    if (parts.length !== 2) return;
-
-    const [, tenantId] = parts;
-    const state = userState.get(interaction.user.id);
-
-    if (!state || !state.category || !state.severity) {
-      await interaction.reply({
-        content: 'Please select both a category and severity first.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId(`ticket_modal:${tenantId}:${state.category}:${state.severity}`)
-      .setTitle('Describe Your Issue');
-
-    const titleInput = new TextInputBuilder()
-      .setCustomId('ticket_title')
-      .setLabel('Title')
-      .setStyle(TextInputStyle.Short)
-      .setPlaceholder('Brief summary of the issue')
-      .setMinLength(5)
-      .setMaxLength(100)
-      .setRequired(true);
-
-    const descriptionInput = new TextInputBuilder()
-      .setCustomId('ticket_description')
-      .setLabel('Description')
-      .setStyle(TextInputStyle.Paragraph)
-      .setPlaceholder('Provide details about the issue...')
-      .setMinLength(10)
-      .setMaxLength(4000)
-      .setRequired(true);
-
-    modal.addComponents(
-      new ActionRowBuilder<TextInputBuilder>().addComponents(titleInput),
-      new ActionRowBuilder<TextInputBuilder>().addComponents(descriptionInput),
-    );
-
-    // showModal MUST be the first response
-    await interaction.showModal(modal);
-  } catch (error) {
-    console.error('[TicketCommand] Error showing modal:', error);
   }
 }
 
@@ -352,15 +220,25 @@ export async function handleTicketModal(
   interaction: ModalSubmitInteraction
 ): Promise<void> {
   const parts = interaction.customId.split(':');
-  if (parts.length !== 4) return;
+  if (parts.length !== 2) return;
 
-  const [, tenantId, categoryId, severity] = parts;
+  const [, tenantId] = parts;
 
   await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
   try {
+    // Extract fields from modal
+    const categoryId = interaction.fields.getStringSelectValues('ticket_category')[0];
+    const severity = interaction.fields.getStringSelectValues('ticket_severity')[0];
     const title = interaction.fields.getTextInputValue('ticket_title');
     const description = interaction.fields.getTextInputValue('ticket_description');
+
+    if (!categoryId || !severity) {
+      await interaction.editReply({
+        content: 'Please select both a category and severity.',
+      });
+      return;
+    }
 
     const provider = await resolveProvider(tenantId);
     if (!provider) {
@@ -399,8 +277,26 @@ export async function handleTicketModal(
       return;
     }
 
-    // Clean up user state
-    userState.delete(interaction.user.id);
+    // Upload attachments (fire-and-forget)
+    let fileField: FileUploadModalData | null = null;
+    try {
+      fileField = interaction.fields.getField('ticket_files', ComponentType.FileUpload) as FileUploadModalData;
+    } catch {
+      // No files uploaded
+    }
+
+    if (fileField?.attachments?.size && provider.addAttachment) {
+      const ticketId = result.ticketId!;
+      for (const [, attachment] of fileField.attachments) {
+        try {
+          const response = await fetch(attachment.url);
+          const buffer = Buffer.from(await response.arrayBuffer());
+          await provider.addAttachment(ticketId, buffer, attachment.name, attachment.contentType || 'application/octet-stream');
+        } catch (err) {
+          console.error('[TicketCommand] Failed to upload attachment:', attachment.name, err);
+        }
+      }
+    }
 
     // Build confirmation container
     const accentColor = severityAccentColors[severity] || BLURPLE;
@@ -445,10 +341,7 @@ export async function handleTicketModal(
       botId: tenantId,
       tenantSlug: slug,
       ticketId: result.ticketId!,
-      category: categoryName,
       severity,
-      status: 'Open',
-      title,
       description,
       discordUserId: interaction.user.id,
     }).catch(err => console.error('[TicketCommand] DM failed:', err));
@@ -461,6 +354,7 @@ export async function handleTicketModal(
       severity,
       discordUserId: interaction.user.id,
       discordUsername: interaction.user.username,
+      avatarUrl: interaction.user.displayAvatarURL({ size: 64 }),
       guildName: interaction.guild?.name,
       guildId: interaction.guildId || undefined,
     }).catch(err => console.error('[TicketCommand] Log failed:', err));

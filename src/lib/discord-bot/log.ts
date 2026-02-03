@@ -11,6 +11,8 @@ import {
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
+  SectionBuilder,
+  ThumbnailBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -86,6 +88,7 @@ export async function logTicketCreated(params: {
   severity: string;
   discordUserId: string;
   discordUsername: string;
+  avatarUrl?: string;
   guildName?: string;
   guildId?: string;
 }): Promise<void> {
@@ -123,6 +126,7 @@ function buildTicketCreatedContainer(params: {
   status: string;
   discordUserId: string;
   discordUsername: string;
+  avatarUrl?: string;
   guildName?: string;
   guildId?: string;
   assignedTo: { username: string; userId: string } | null;
@@ -132,42 +136,47 @@ function buildTicketCreatedContainer(params: {
   const statusEmoji = getStatusEmoji(params.status);
   const sevEmoji = getSeverityEmoji(params.severity);
 
-  const serverLine = params.guildName
-    ? `**Server:** ${params.guildName}${params.guildId ? ` (${params.guildId})` : ''}`
-    : null;
-
   const container = new ContainerBuilder()
     .setAccentColor(accentColor)
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `# ${params.ticketId}\n${params.summary}`
-      )
+      new TextDisplayBuilder().setContent(`# ${params.ticketId}\n${params.summary}`)
     )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `${statusEmoji} **${params.status}**\n` +
-        `**Severity:** ${sevEmoji} ${sevLabel}  \u00b7  **Category:** ${params.category}`
+        `${statusEmoji} **${params.status}**  \u00b7  ${sevEmoji} **${sevLabel}**  \u00b7  ${params.category}`
       )
     )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     );
 
-  // Metadata block
-  let metaText = `**Created by:** ${params.discordUsername} (<@${params.discordUserId}>)`;
-  if (serverLine) {
-    metaText += `\n${serverLine}`;
+  // Metadata block with user avatar thumbnail
+  const metaLines = [`**Created by:** <@${params.discordUserId}>`];
+  if (params.guildName) {
+    metaLines.push(`**Server:** ${params.guildName}`);
   }
   if (params.assignedTo) {
-    metaText += `\n**Assigned to:** ${params.assignedTo.username} (<@${params.assignedTo.userId}>)`;
+    metaLines.push(`**Assigned to:** <@${params.assignedTo.userId}>`);
   }
 
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(metaText)
-  );
+  if (params.avatarUrl) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(metaLines.join('\n'))
+        )
+        .setThumbnailAccessory(
+          new ThumbnailBuilder().setURL(params.avatarUrl)
+        )
+    );
+  } else {
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(metaLines.join('\n'))
+    );
+  }
 
   container.addSeparatorComponents(
     new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
@@ -176,7 +185,7 @@ function buildTicketCreatedContainer(params: {
   // Timestamp
   const timestamp = Math.floor(Date.now() / 1000);
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`-# Created <t:${timestamp}:R>`)
+    new TextDisplayBuilder().setContent(`-# <t:${timestamp}:R>`)
   );
 
   // Action buttons: Assign + Resolve/Reopen
@@ -304,6 +313,18 @@ export async function handleAssignButton(
       // The first TextDisplay has "# TICKET-ID\nSummary"
       // We'll reconstruct the container with known data
       const originalTexts = extractTextFromMessage(message);
+      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+
+      // Fetch creator avatar for thumbnail
+      let avatarUrl: string | undefined;
+      if (creatorId) {
+        try {
+          const creatorUser = await interaction.client.users.fetch(creatorId);
+          avatarUrl = creatorUser.displayAvatarURL({ size: 64 });
+        } catch {
+          // Can't fetch — proceed without avatar
+        }
+      }
 
       const container = buildAssignedContainer({
         botId,
@@ -314,6 +335,7 @@ export async function handleAssignButton(
           userId: interaction.user.id,
         },
         assignedInJira,
+        avatarUrl,
       });
 
       await interaction.editReply({
@@ -321,7 +343,6 @@ export async function handleAssignButton(
       });
 
       // Refresh the ticket creator's DM to show "In Progress" + assignee
-      const creatorId = extractDiscordUserIdFromTexts(originalTexts);
       if (creatorId) {
         refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
           console.error('[Log] Failed to refresh creator DM after assignment:', err)
@@ -399,10 +420,11 @@ function buildAssignedContainer(params: {
   originalTexts: string[];
   assignedTo: { username: string; userId: string };
   assignedInJira: boolean;
+  avatarUrl?: string;
 }): ContainerBuilder {
   // Try to find severity from original text to keep accent color
   let accentColor = 0xfee75c; // default to yellow (in progress)
-  const severityMatch = params.originalTexts.find(t => t.includes('**Severity:**'));
+  const severityMatch = params.originalTexts.find(t => t.includes('**'));
   if (severityMatch) {
     if (severityMatch.includes('Critical')) accentColor = 0xed4245;
     else if (severityMatch.includes('High')) accentColor = 0xe67e22;
@@ -413,65 +435,56 @@ function buildAssignedContainer(params: {
   // Get original heading (ticket ID + summary)
   const heading = params.originalTexts[0] || `# ${params.ticketId}`;
 
+  // Get the status/severity/category info line (contains · separators)
+  const infoLine = params.originalTexts.find(t => t.includes('\u00b7')) || '';
+  // Replace the old status with In Progress
+  const updatedInfoLine = infoLine.replace(/[^\s]+ \*\*\w+\*\*/, '\u{1F7E1} **In Progress**');
+
   // Get original metadata text (created by, server)
   const metaText = params.originalTexts.find(t => t.includes('**Created by:**')) || '';
 
-  // Get original severity/category line
-  const sevCatLine = params.originalTexts.find(t => t.includes('**Category:**')) || '';
-  // Strip the old status line and rebuild
-  const sevCatOnly = sevCatLine.split('\n').filter(l => l.includes('**Severity:**') || l.includes('**Category:**')).join('\n');
+  // Build metadata with assignee
+  const metaLines = metaText.split('\n').filter(l => l.includes('**Created by:**') || l.includes('**Server:**'));
+  metaLines.push(`**Assigned to:** <@${params.assignedTo.userId}>`);
+  if (!params.assignedInJira) {
+    metaLines.push('-# Jira assignment failed \u2014 check account ID in dashboard.');
+  }
 
   const container = new ContainerBuilder()
     .setAccentColor(accentColor)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(heading)
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `\u{1F7E1} **In Progress**\n${sevCatOnly}`
-      )
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
-    );
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(updatedInfoLine || '\u{1F7E1} **In Progress**'))
+    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small));
 
-  // Metadata + assignee
-  let updatedMeta = metaText;
-  updatedMeta += `\n**Assigned to:** ${params.assignedTo.username} (<@${params.assignedTo.userId}>)`;
-  if (!params.assignedInJira) {
-    updatedMeta += '\n-# Jira assignment failed \u2014 check account ID in dashboard.';
+  if (params.avatarUrl) {
+    container.addSectionComponents(
+      new SectionBuilder()
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(metaLines.join('\n'))
+        )
+        .setThumbnailAccessory(
+          new ThumbnailBuilder().setURL(params.avatarUrl)
+        )
+    );
+  } else {
+    container.addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')));
   }
 
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(updatedMeta)
-  );
-
-  container.addSeparatorComponents(
-    new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
-  );
-
-  // Timestamp
-  const timestamp = Math.floor(Date.now() / 1000);
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`-# Assigned <t:${timestamp}:R>`)
-  );
-
-  // Action buttons: Reassign + Resolve
-  container.addActionRowComponents(
-    new ActionRowBuilder<ButtonBuilder>().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`assign_ticket:${params.botId}:${params.ticketId}`)
-        .setLabel('Reassign to me')
-        .setStyle(ButtonStyle.Secondary),
-      new ButtonBuilder()
-        .setCustomId(`resolve_ticket:${params.botId}:${params.ticketId}`)
-        .setLabel('Resolve')
-        .setStyle(ButtonStyle.Success)
-    )
-  );
+  container.addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Assigned <t:${Math.floor(Date.now() / 1000)}:R>`))
+    .addActionRowComponents(
+      new ActionRowBuilder<ButtonBuilder>().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`assign_ticket:${params.botId}:${params.ticketId}`)
+          .setLabel('Reassign to me')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(`resolve_ticket:${params.botId}:${params.ticketId}`)
+          .setLabel('Resolve')
+          .setStyle(ButtonStyle.Success)
+      )
+    );
 
   return container;
 }
@@ -580,25 +593,25 @@ export async function handleResolveButton(
     if (message) {
       const originalTexts = extractTextFromMessage(message);
       const heading = originalTexts[0] || `# ${ticketId}`;
+      const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
       const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
-      const sevCatLine = originalTexts.find(t => t.includes('**Category:**')) || '';
-      const sevCatOnly = sevCatLine.split('\n').filter(l => l.includes('**Severity:**') || l.includes('**Category:**')).join('\n');
 
-      // Find assignee from original text
-      const assigneeMatch = metaText.match(/\*\*Assigned to:\*\* (.+?) \(<@(\d+)>\)/);
-      const assignedMeta = assigneeMatch ? `\n**Assigned to:** ${assigneeMatch[1]} (<@${assigneeMatch[2]}>)` : '';
+      // Replace status in info line
+      const resolvedInfoLine = infoLine.replace(/[^\s]+ \*\*[\w\s]+\*\*/, '\u2705 **Resolved**');
+
+      // Build metadata
+      const metaLines = metaText.split('\n').filter(l =>
+        l.includes('**Created by:**') || l.includes('**Server:**') || l.includes('**Assigned to:**')
+      );
+      metaLines.push(`**Resolved by:** <@${interaction.user.id}>`);
 
       const container = new ContainerBuilder()
         .setAccentColor(0x57f287) // green for resolved
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\u2705 **Resolved**\n${sevCatOnly}`))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedInfoLine || '\u2705 **Resolved**'))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-          metaText.split('\n').filter(l => l.includes('**Created by:**') || l.includes('**Server:**')).join('\n') +
-          assignedMeta +
-          `\n**Resolved by:** ${interaction.user.username} (<@${interaction.user.id}>)`
-        ))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Resolved <t:${Math.floor(Date.now() / 1000)}:R>`))
         .addActionRowComponents(
@@ -683,29 +696,32 @@ export async function handleReopenStaffButton(
     if (message) {
       const originalTexts = extractTextFromMessage(message);
       const heading = originalTexts[0] || `# ${ticketId}`;
+      const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
       const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
-      const sevCatLine = originalTexts.find(t => t.includes('**Category:**')) || '';
-      const sevCatOnly = sevCatLine.split('\n').filter(l => l.includes('**Severity:**') || l.includes('**Category:**')).join('\n');
 
       // Detect severity for accent color
       let accentColor = 0x5865f2;
-      if (sevCatLine.includes('Critical')) accentColor = 0xed4245;
-      else if (sevCatLine.includes('High')) accentColor = 0xe67e22;
-      else if (sevCatLine.includes('Medium')) accentColor = 0xfee75c;
-      else if (sevCatLine.includes('Low')) accentColor = 0x57f287;
+      if (infoLine.includes('Critical')) accentColor = 0xed4245;
+      else if (infoLine.includes('High')) accentColor = 0xe67e22;
+      else if (infoLine.includes('Medium')) accentColor = 0xfee75c;
+      else if (infoLine.includes('Low')) accentColor = 0x57f287;
+
+      // Replace status in info line
+      const reopenedInfoLine = infoLine.replace(/[^\s]+ \*\*[\w\s]+\*\*/, '\u{1F7E2} **Open**');
+
+      // Build metadata
+      const metaLines = metaText.split('\n').filter(l =>
+        l.includes('**Created by:**') || l.includes('**Server:**')
+      );
+      metaLines.push(`**Reopened by:** <@${interaction.user.id}>`);
 
       const container = new ContainerBuilder()
         .setAccentColor(accentColor)
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(`\u{1F7E2} **Open**\n${sevCatOnly}`))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(reopenedInfoLine || '\u{1F7E2} **Open**'))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(
-          metaText.split('\n').filter(l =>
-            l.includes('**Created by:**') || l.includes('**Server:**')
-          ).join('\n') +
-          `\n**Reopened by:** ${interaction.user.username} (<@${interaction.user.id}>)`
-        ))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Reopened <t:${Math.floor(Date.now() / 1000)}:R>`))
         .addActionRowComponents(

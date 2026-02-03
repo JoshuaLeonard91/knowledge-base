@@ -48,10 +48,7 @@ interface TicketCreationDMParams {
   botId: string;
   tenantSlug: string;
   ticketId: string;
-  category: string;
   severity: string;
-  status: string;
-  title: string;
   description: string;
   discordUserId: string;
 }
@@ -102,38 +99,31 @@ export async function sendTicketCreationDM(
 
     const portalUrl = `https://${params.tenantSlug}.helpportal.app/support/tickets/${params.ticketId}`;
     const accentColor = severityAccentColors[params.severity] || BLURPLE;
-    const severityLabel = params.severity.charAt(0).toUpperCase() + params.severity.slice(1);
     const truncatedDesc = params.description.length > 1500
       ? params.description.substring(0, 1497) + '...'
       : params.description;
-
-    const statusEmoji = statusEmojis[params.status.toLowerCase()] || '\u26AA';
 
     const container = new ContainerBuilder()
       .setAccentColor(accentColor)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`# ${params.ticketId}`)
       )
-      .addSeparatorComponents(
-        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-      )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(
-          `**Status:** ${statusEmoji} ${params.status}\n` +
-          `**Category:** ${params.category}  \u00b7  **Severity:** ${severityLabel}`
-        )
+        new TextDisplayBuilder().setContent('\u{1F7E2} **Open**')
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`### ${params.title}\n${truncatedDesc}`)
+        new TextDisplayBuilder().setContent(`**You**\n> ${truncatedDesc.replace(/\n/g, '\n> ')}`)
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('-# Reply using the button below.')
+        new TextDisplayBuilder().setContent(
+          `-# Opened <t:${Math.floor(Date.now() / 1000)}:R>`
+        )
       )
       .addActionRowComponents(
         new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -141,6 +131,10 @@ export async function sendTicketCreationDM(
             .setCustomId(`reply:${params.botId}:${params.ticketId}`)
             .setLabel('Reply')
             .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId(`close_ticket:${params.botId}:${params.ticketId}`)
+            .setLabel('Close Ticket')
+            .setStyle(ButtonStyle.Danger),
           new ButtonBuilder()
             .setLabel('View on Portal')
             .setStyle(ButtonStyle.Link)
@@ -246,27 +240,29 @@ export async function sendTicketUpdateDM(
     const slug = await resolveTenantSlug(notification.tenantId);
     const portalUrl = `https://${slug}.helpportal.app/support/tickets/${notification.ticketId}`;
 
+    const statusEmoji = statusEmojis[notification.status.toLowerCase()] || '\u26AA';
+
     const container = new ContainerBuilder()
       .setAccentColor(BLURPLE)
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(`# ${notification.ticketId}`)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`**Status:** ${notification.status}`)
+        new TextDisplayBuilder().setContent(`${statusEmoji} **${notification.status}**`)
       )
       .addSeparatorComponents(
-        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
       )
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `**${notification.commentAuthor}**\n> ${truncate(notification.commentBody, 1500)}`
+          `**${notification.commentAuthor}**\n> ${truncate(notification.commentBody, 1500).replace(/\n/g, '\n> ')}`
         )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('-# Reply using the button below.')
+        new TextDisplayBuilder().setContent(`-# Updated <t:${Math.floor(Date.now() / 1000)}:R>`)
       )
       .addActionRowComponents(
         new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -274,6 +270,10 @@ export async function sendTicketUpdateDM(
             .setCustomId(`reply:${notification.tenantId}:${notification.ticketId}`)
             .setLabel('Reply')
             .setStyle(ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId(`close_ticket:${notification.tenantId}:${notification.ticketId}`)
+            .setLabel('Close Ticket')
+            .setStyle(ButtonStyle.Danger),
           new ButtonBuilder()
             .setLabel('View on Portal')
             .setStyle(ButtonStyle.Link)

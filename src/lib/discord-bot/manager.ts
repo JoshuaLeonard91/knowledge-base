@@ -21,9 +21,6 @@ import { prisma } from '@/lib/db/client';
 import { decryptFromString } from '@/lib/security/crypto';
 import {
   handleTicketCommand,
-  handleTicketCategorySelect,
-  handleTicketSeverityButton,
-  handleTicketNextButton,
   handleTicketModal,
 } from './commands/ticket';
 import {
@@ -35,8 +32,6 @@ import {
   handleSetupConfirmButton,
 } from './commands/setup';
 import {
-  handlePanelCategorySelect,
-  handlePanelSeveritySelect,
   handlePanelCreateButton,
   handlePanelModal,
 } from './commands/panel';
@@ -266,23 +261,12 @@ class BotManager {
     }
     // === String Select Menus ===
     else if (interaction.isStringSelectMenu()) {
-      const cid = interaction.customId;
-      if (cid.startsWith('ticket_category:')) {
-        await handleTicketCategorySelect(interaction, tenantId);
-      } else if (cid.startsWith('panel_category:')) {
-        await handlePanelCategorySelect(interaction, tenantId);
-      } else if (cid.startsWith('panel_severity:')) {
-        await handlePanelSeveritySelect(interaction, tenantId);
-      }
+      // No standalone string select menu handlers — selects are now inside modals
     }
     // === Buttons ===
     else if (interaction.isButton()) {
       const cid = interaction.customId;
-      if (cid.startsWith('ticket_severity:')) {
-        await handleTicketSeverityButton(interaction);
-      } else if (cid.startsWith('ticket_next:')) {
-        await handleTicketNextButton(interaction);
-      } else if (cid.startsWith('panel_create:')) {
+      if (cid.startsWith('panel_create:')) {
         await handlePanelCreateButton(interaction);
       } else if (cid.startsWith('setup_skiproles:')) {
         await handleSetupSkipRolesButton(interaction, tenantId);
