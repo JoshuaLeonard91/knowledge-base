@@ -160,13 +160,19 @@ class BotManager {
       // Register slash commands for this guild
       try {
         const rest = new REST({ version: '10' }).setToken(botToken);
-        await rest.put(
+        console.log(`[BotManager] Registering ${commands.length} commands for guild ${guildId} (app: ${client.user!.id}):`);
+        for (const cmd of commands) {
+          console.log(`[BotManager]   - /${cmd.name}: ${cmd.description}`);
+        }
+        const result = await rest.put(
           Routes.applicationGuildCommands(client.user!.id, guildId),
           { body: commands }
         );
-        console.log(
-          `[BotManager] Registered commands for guild ${guildId}`
-        );
+        const registered = result as Array<{ name: string; id: string }>;
+        console.log(`[BotManager] Successfully registered ${registered.length} commands for guild ${guildId}:`);
+        for (const cmd of registered) {
+          console.log(`[BotManager]   - /${cmd.name} (id: ${cmd.id})`);
+        }
       } catch (error) {
         console.error(
           `[BotManager] Failed to register commands for guild ${guildId}:`,
