@@ -117,7 +117,7 @@ async function handleEdit(
 
   const infoInput = new TextInputBuilder()
     .setCustomId('panel_info_lines')
-    .setLabel('Info Lines (one per line, leave empty to clear)')
+    .setLabel('Info Lines (one per line)')
     .setStyle(TextInputStyle.Paragraph)
     .setPlaceholder('Response Time: < 2 hours\nHours: Mon-Fri 9am-5pm')
     .setValue(config.infoLines.join('\n'))
