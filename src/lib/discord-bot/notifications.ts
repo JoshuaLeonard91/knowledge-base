@@ -67,6 +67,13 @@ const severityAccentColors: Record<string, number> = {
   critical: 0xed4245,
 };
 
+const statusEmojis: Record<string, string> = {
+  open: '\u{1F7E2}',           // 🟢
+  'in progress': '\u{1F7E1}',  // 🟡
+  resolved: '\u2705',          // ✅
+  closed: '\u2705',            // ✅
+};
+
 // ==========================================
 // CREATION DM
 // ==========================================
@@ -99,17 +106,20 @@ export async function sendTicketCreationDM(
       ? params.description.substring(0, 1497) + '...'
       : params.description;
 
+    const statusEmoji = statusEmojis[params.status.toLowerCase()] || '\u26AA';
+
     const container = new ContainerBuilder()
       .setAccentColor(accentColor)
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# Ticket Created \u2014 ${params.ticketId}`)
+        new TextDisplayBuilder().setContent(`# ${params.ticketId}`)
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
       )
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `**Category:** ${params.category}  \u00b7  **Severity:** ${severityLabel}  \u00b7  **Status:** ${params.status}`
+          `**Status:** ${statusEmoji} ${params.status}\n` +
+          `**Category:** ${params.category}  \u00b7  **Severity:** ${severityLabel}`
         )
       )
       .addSeparatorComponents(
@@ -122,7 +132,7 @@ export async function sendTicketCreationDM(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent('-# Reply to this ticket using the button below.')
+        new TextDisplayBuilder().setContent('-# Reply using the button below.')
       )
       .addActionRowComponents(
         new ActionRowBuilder<ButtonBuilder>().addComponents(

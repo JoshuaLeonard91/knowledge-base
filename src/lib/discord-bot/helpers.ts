@@ -105,6 +105,17 @@ const severityAccentColors: Record<string, number> = {
   critical: 0xed4245,
 };
 
+const statusEmojis: Record<string, string> = {
+  open: '\u{1F7E2}',           // 🟢
+  'in progress': '\u{1F7E1}',  // 🟡
+  resolved: '\u2705',          // ✅
+  closed: '\u2705',            // ✅
+};
+
+function getStatusEmoji(status: string): string {
+  return statusEmojis[status.toLowerCase()] || '\u26AA'; // ⚪ default
+}
+
 export function buildTicketDMContainer(params: {
   ticketId: string;
   summary: string;
@@ -119,21 +130,24 @@ export function buildTicketDMContainer(params: {
     ? (severityAccentColors[params.severity] || BLURPLE)
     : BLURPLE;
 
-  const statusLine = [
-    `**Status:** ${params.status}`,
-    params.priority ? `**Priority:** ${params.priority}` : null,
-  ].filter(Boolean).join('  \u00b7  ');
+  const statusEmoji = getStatusEmoji(params.status);
+  const priorityPart = params.priority ? `  \u00b7  **Priority:** ${params.priority}` : '';
 
   const container = new ContainerBuilder()
     .setAccentColor(accentColor)
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(`# ${params.ticketId}`)
     )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(statusLine)
-    )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(
+        `**Status:** ${statusEmoji} ${params.status}${priorityPart}`
+      )
+    )
+    .addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(params.conversationMarkdown)

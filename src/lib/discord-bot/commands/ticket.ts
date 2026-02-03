@@ -404,35 +404,33 @@ export async function handleTicketModal(
 
     // Build confirmation container
     const accentColor = severityAccentColors[severity] || BLURPLE;
-    const truncatedDesc = description.length > 1024
-      ? description.substring(0, 1021) + '...'
-      : description;
 
     const container = new ContainerBuilder()
       .setAccentColor(accentColor)
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`# Ticket Created \u2014 ${result.ticketId}`)
+        new TextDisplayBuilder().setContent('# Ticket Created')
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
       )
       .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `**Category:** ${categoryName}  \u00b7  **Severity:** ${severityLabel}  \u00b7  **Status:** Open`
+          `**${result.ticketId}**\n${title}`
+        )
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(
+          `**Category:** ${categoryName}\n` +
+          `**Severity:** ${severityEmojis[severity] || ''} ${severityLabel}\n` +
+          `**Status:** \u{1F7E2} Open`
         )
       )
       .addSeparatorComponents(
         new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
       )
       .addTextDisplayComponents(
-        new TextDisplayBuilder().setContent(`### ${title}\n${truncatedDesc}`)
-      )
-      .addSeparatorComponents(
-        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-      )
-      .addTextDisplayComponents(
         new TextDisplayBuilder().setContent(
-          `-# Created by ${interaction.user.username}`
+          "-# You'll receive updates in your DMs."
         )
       );
 
@@ -463,6 +461,8 @@ export async function handleTicketModal(
       severity,
       discordUserId: interaction.user.id,
       discordUsername: interaction.user.username,
+      guildName: interaction.guild?.name,
+      guildId: interaction.guildId || undefined,
     }).catch(err => console.error('[TicketCommand] Log failed:', err));
 
     // Auto-dismiss after 15 seconds

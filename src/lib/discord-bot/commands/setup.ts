@@ -1,30 +1,43 @@
 /**
  * /setup Command — Owner-Only Server Configuration Wizard
  *
- * 3-step ephemeral wizard:
- * 1. Select ticket channel (where persistent panel is posted)
- * 2. Select log channel (optional, for admin ticket activity)
- * 3. Notification preferences (DM on create, DM on update)
+ * 4-step ephemeral wizard:
+ * 1. Modal: enter ticket channel name + log channel name
+ * 2. Role select: pick roles that can access the log channel (or skip)
+ * 3. DM preferences: toggle DM on create / DM on update
+ * 4. Confirm: bot creates channels with permissions, posts panel
  *
- * On confirm: upserts DiscordBotSetup, posts persistent panel.
+ * Custom IDs:
+ *   setup_names_modal:{botId}  — Modal (step 1)
+ *   setup_roles:{botId}        — RoleSelectMenu (step 2)
+ *   setup_skiproles:{botId}    — Button (step 2)
+ *   setup_dmcreate:{botId}     — Button (step 3)
+ *   setup_dmupdate:{botId}     — Button (step 3)
+ *   setup_confirm:{botId}      — Button (step 3)
  */
 
 import {
   type ChatInputCommandInteraction,
-  type ChannelSelectMenuInteraction,
+  type ModalSubmitInteraction,
+  type RoleSelectMenuInteraction,
   type ButtonInteraction,
-  ChannelSelectMenuBuilder,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  RoleSelectMenuBuilder,
   ChannelType,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
+  PermissionFlagsBits,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
   SeparatorSpacingSize,
 } from 'discord.js';
 import { prisma } from '@/lib/db/client';
+import { botManager } from '../manager';
 import { postPersistentPanel } from './panel';
 
 // ==========================================
@@ -33,8 +46,9 @@ import { postPersistentPanel } from './panel';
 
 interface SetupWizardState {
   step: 1 | 2 | 3;
-  ticketChannelId?: string;
-  logChannelId?: string;
+  ticketChannelName: string;
+  logChannelName?: string;
+  modRoleIds: string[];
   dmOnCreate: boolean;
   dmOnUpdate: boolean;
 }
@@ -61,36 +75,6 @@ const GREEN = 0x57f287;
 // STEP BUILDERS
 // ==========================================
 
-function buildStep1Container(botId: string): ContainerBuilder {
-  return new ContainerBuilder()
-    .setAccentColor(BLURPLE)
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('# Server Setup (1/3)')
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        'Select the channel where the ticket creation panel will be posted.'
-      )
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-    )
-    .addActionRowComponents(
-      new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(
-        new ChannelSelectMenuBuilder()
-          .setCustomId(`setup_ticketch:${botId}`)
-          .setPlaceholder('Select a text channel...')
-          .setChannelTypes(ChannelType.GuildText)
-      )
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('-# Use /setup again to change this later.')
-    );
-}
-
 function buildStep2Container(botId: string): ContainerBuilder {
   return new ContainerBuilder()
     .setAccentColor(BLURPLE)
@@ -99,27 +83,34 @@ function buildStep2Container(botId: string): ContainerBuilder {
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        'Select a log channel for ticket activity (optional).\nAdmins will see ticket creates and comments here.'
+        'Select roles that can access the **log channel**.\nThese roles will be able to view ticket activity.'
       )
     )
     .addSeparatorComponents(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
     )
     .addActionRowComponents(
-      new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(
-        new ChannelSelectMenuBuilder()
-          .setCustomId(`setup_logch:${botId}`)
-          .setPlaceholder('Select a text channel...')
-          .setChannelTypes(ChannelType.GuildText)
+      new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(
+        new RoleSelectMenuBuilder()
+          .setCustomId(`setup_roles:${botId}`)
+          .setPlaceholder('Select roles...')
+          .setMinValues(1)
+          .setMaxValues(25)
       )
     )
     .addActionRowComponents(
       new ActionRowBuilder<ButtonBuilder>().addComponents(
         new ButtonBuilder()
-          .setCustomId(`setup_skiplog:${botId}`)
-          .setLabel('Skip')
+          .setCustomId(`setup_skiproles:${botId}`)
+          .setLabel('Skip (admin only)')
           .setStyle(ButtonStyle.Secondary)
       )
+    )
+    .addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent('-# The bot and server owner always have access.')
     );
 }
 
@@ -185,7 +176,7 @@ function buildConfirmationContainer(
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        `**Ticket panel:** <#${ticketChannelId}>\n` +
+        `**Ticket channel:** <#${ticketChannelId}>\n` +
         `**Log channel:** ${logLine}\n` +
         `**DM on create:** ${dmOnCreate ? 'On' : 'Off'} \u00b7 ` +
         `**DM on update:** ${dmOnUpdate ? 'On' : 'Off'}`
@@ -195,7 +186,9 @@ function buildConfirmationContainer(
       new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
     )
     .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent('-# Run /setup again to reconfigure.')
+      new TextDisplayBuilder().setContent(
+        '-# Channels created with permissions. Run /setup again to reconfigure.'
+      )
     );
 }
 
@@ -203,12 +196,14 @@ function buildConfirmationContainer(
 // HANDLERS
 // ==========================================
 
+/**
+ * Step 1: /setup → Show modal for channel names
+ */
 export async function handleSetupCommand(
   interaction: ChatInputCommandInteraction,
   botId: string
 ): Promise<void> {
   try {
-    // Owner-only check
     if (!interaction.guild) {
       await interaction.reply({
         content: 'This command can only be used in a server.',
@@ -225,29 +220,114 @@ export async function handleSetupCommand(
       return;
     }
 
+    // Show modal immediately (must be first response)
+    const modal = new ModalBuilder()
+      .setCustomId(`setup_names_modal:${botId}`)
+      .setTitle('Server Setup (1/3)');
+
+    const ticketNameInput = new TextInputBuilder()
+      .setCustomId('ticket_channel_name')
+      .setLabel('Ticket Channel Name')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('support-tickets')
+      .setValue('support-tickets')
+      .setMaxLength(100)
+      .setRequired(true);
+
+    const logNameInput = new TextInputBuilder()
+      .setCustomId('log_channel_name')
+      .setLabel('Log Channel Name (leave empty to skip)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('ticket-logs')
+      .setValue('ticket-logs')
+      .setMaxLength(100)
+      .setRequired(false);
+
+    modal.addComponents(
+      new ActionRowBuilder<TextInputBuilder>().addComponents(ticketNameInput),
+      new ActionRowBuilder<TextInputBuilder>().addComponents(logNameInput),
+    );
+
+    await interaction.showModal(modal);
+  } catch (error) {
+    console.error('[Setup] Error starting wizard:', error);
+    try {
+      await interaction.reply({
+        content: 'An error occurred. Please try again.',
+        flags: MessageFlags.Ephemeral,
+      });
+    } catch {
+      // Modal was already shown, can't reply
+    }
+  }
+}
+
+/**
+ * Step 1 result: Modal submit → save names, show role select (step 2)
+ */
+export async function handleSetupNamesModal(
+  interaction: ModalSubmitInteraction,
+  botId: string
+): Promise<void> {
+  try {
+    const ticketChannelName = interaction.fields
+      .getTextInputValue('ticket_channel_name')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '') || 'support-tickets';
+
+    const logRaw = interaction.fields
+      .getTextInputValue('log_channel_name')
+      .trim()
+      .toLowerCase()
+      .replace(/[^a-z0-9-]/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-|-$/g, '');
+
+    const logChannelName = logRaw || undefined;
+
     const key = stateKey(botId, interaction.user.id);
     wizardState.set(key, {
-      step: 1,
+      step: 2,
+      ticketChannelName,
+      logChannelName,
+      modRoleIds: [],
       dmOnCreate: true,
       dmOnUpdate: true,
     });
     trackWizardTimeout(key);
 
+    // If no log channel, skip role select → go to step 3
+    if (!logChannelName) {
+      const state = wizardState.get(key)!;
+      state.step = 3;
+      await interaction.reply({
+        components: [buildStep3Container(botId, state)],
+        flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
+      });
+      return;
+    }
+
     await interaction.reply({
-      components: [buildStep1Container(botId)],
+      components: [buildStep2Container(botId)],
       flags: MessageFlags.Ephemeral | MessageFlags.IsComponentsV2,
     });
   } catch (error) {
-    console.error('[Setup] Error starting wizard:', error);
+    console.error('[Setup] Error handling names modal:', error);
     await interaction.reply({
-      content: 'An error occurred. Please try again.',
+      content: 'An error occurred. Please try /setup again.',
       flags: MessageFlags.Ephemeral,
     });
   }
 }
 
-export async function handleSetupTicketChannelSelect(
-  interaction: ChannelSelectMenuInteraction,
+/**
+ * Step 2: Role select → save roles, show DM preferences (step 3)
+ */
+export async function handleSetupRoleSelect(
+  interaction: RoleSelectMenuInteraction,
   botId: string
 ): Promise<void> {
   try {
@@ -261,44 +341,21 @@ export async function handleSetupTicketChannelSelect(
       return;
     }
 
-    state.ticketChannelId = interaction.values[0];
-    state.step = 2;
-
-    await interaction.update({
-      components: [buildStep2Container(botId)],
-    });
-  } catch (error) {
-    console.error('[Setup] Error handling ticket channel select:', error);
-  }
-}
-
-export async function handleSetupLogChannelSelect(
-  interaction: ChannelSelectMenuInteraction,
-  botId: string
-): Promise<void> {
-  try {
-    const key = stateKey(botId, interaction.user.id);
-    const state = wizardState.get(key);
-    if (!state) {
-      await interaction.reply({
-        content: 'Setup session expired. Run /setup again.',
-        flags: MessageFlags.Ephemeral,
-      });
-      return;
-    }
-
-    state.logChannelId = interaction.values[0];
+    state.modRoleIds = interaction.values;
     state.step = 3;
 
     await interaction.update({
       components: [buildStep3Container(botId, state)],
     });
   } catch (error) {
-    console.error('[Setup] Error handling log channel select:', error);
+    console.error('[Setup] Error handling role select:', error);
   }
 }
 
-export async function handleSetupSkipLogButton(
+/**
+ * Step 2: Skip roles → go to DM preferences (step 3)
+ */
+export async function handleSetupSkipRolesButton(
   interaction: ButtonInteraction,
   botId: string
 ): Promise<void> {
@@ -313,17 +370,20 @@ export async function handleSetupSkipLogButton(
       return;
     }
 
-    state.logChannelId = undefined;
+    state.modRoleIds = [];
     state.step = 3;
 
     await interaction.update({
       components: [buildStep3Container(botId, state)],
     });
   } catch (error) {
-    console.error('[Setup] Error handling skip log:', error);
+    console.error('[Setup] Error handling skip roles:', error);
   }
 }
 
+/**
+ * Step 3: DM toggle buttons
+ */
 export async function handleSetupDmToggle(
   interaction: ButtonInteraction,
   botId: string
@@ -339,7 +399,6 @@ export async function handleSetupDmToggle(
       return;
     }
 
-    // Toggle based on which button was clicked
     if (interaction.customId.startsWith('setup_dmcreate:')) {
       state.dmOnCreate = !state.dmOnCreate;
     } else if (interaction.customId.startsWith('setup_dmupdate:')) {
@@ -354,6 +413,9 @@ export async function handleSetupDmToggle(
   }
 }
 
+/**
+ * Step 4: Confirm → create channels, post panel, save config
+ */
 export async function handleSetupConfirmButton(
   interaction: ButtonInteraction,
   botId: string
@@ -361,7 +423,7 @@ export async function handleSetupConfirmButton(
   try {
     const key = stateKey(botId, interaction.user.id);
     const state = wizardState.get(key);
-    if (!state || !state.ticketChannelId) {
+    if (!state) {
       await interaction.reply({
         content: 'Setup session expired. Run /setup again.',
         flags: MessageFlags.Ephemeral,
@@ -369,19 +431,97 @@ export async function handleSetupConfirmButton(
       return;
     }
 
-    // Defer while we do DB + API calls
     await interaction.deferUpdate();
 
-    const guildId = interaction.guildId!;
+    const guild = interaction.guild!;
+    const client = botManager.getBot(botId);
+    if (!client?.user) {
+      await interaction.editReply({
+        content: 'Bot is not ready. Please try again.',
+      });
+      wizardState.delete(key);
+      return;
+    }
 
-    // Delete old panel message if exists
+    // --- Create ticket channel ---
+    let ticketChannel;
+    try {
+      ticketChannel = await guild.channels.create({
+        name: state.ticketChannelName,
+        type: ChannelType.GuildText,
+        permissionOverwrites: [
+          {
+            id: guild.id, // @everyone
+            deny: [PermissionFlagsBits.SendMessages],
+          },
+          {
+            id: client.user.id, // bot
+            allow: [
+              PermissionFlagsBits.ViewChannel,
+              PermissionFlagsBits.SendMessages,
+              PermissionFlagsBits.ManageMessages,
+              PermissionFlagsBits.EmbedLinks,
+            ],
+          },
+        ],
+      });
+    } catch (error) {
+      console.error('[Setup] Failed to create ticket channel:', error);
+      await interaction.editReply({
+        content: 'Failed to create the ticket channel. Make sure the bot has **Manage Channels** permission.',
+      });
+      wizardState.delete(key);
+      return;
+    }
+
+    // --- Create log channel (if name provided) ---
+    let logChannel = null;
+    if (state.logChannelName) {
+      try {
+        const roleOverwrites = state.modRoleIds.map(roleId => ({
+          id: roleId,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ] as const,
+        }));
+
+        logChannel = await guild.channels.create({
+          name: state.logChannelName,
+          type: ChannelType.GuildText,
+          permissionOverwrites: [
+            {
+              id: guild.id, // @everyone: hidden
+              deny: [PermissionFlagsBits.ViewChannel],
+            },
+            ...roleOverwrites.map(o => ({
+              id: o.id,
+              allow: [...o.allow],
+            })),
+            {
+              id: client.user.id, // bot
+              allow: [
+                PermissionFlagsBits.ViewChannel,
+                PermissionFlagsBits.SendMessages,
+                PermissionFlagsBits.EmbedLinks,
+              ],
+            },
+          ],
+        });
+      } catch (error) {
+        console.error('[Setup] Failed to create log channel:', error);
+        // Non-fatal: continue without log channel
+      }
+    }
+
+    // --- Delete old panel message if exists ---
     const existing = await prisma.discordBotSetup.findUnique({
       where: { id: botId },
     });
 
     if (existing?.ticketPanelMessageId && existing?.ticketChannelId) {
       try {
-        const guild = interaction.guild!;
         const oldChannel = await guild.channels.fetch(existing.ticketChannelId);
         if (oldChannel?.isTextBased()) {
           const oldMsg = await oldChannel.messages.fetch(existing.ticketPanelMessageId);
@@ -392,50 +532,48 @@ export async function handleSetupConfirmButton(
       }
     }
 
-    // Post persistent panel in the new channel
+    // --- Post persistent panel ---
     let panelMessageId: string | null = null;
     try {
-      panelMessageId = await postPersistentPanel(botId, state.ticketChannelId);
+      panelMessageId = await postPersistentPanel(botId, ticketChannel.id);
     } catch (error) {
       console.error('[Setup] Failed to post panel:', error);
       await interaction.editReply({
-        content: 'Failed to post the ticket panel. Check the bot has permissions to send messages in that channel.',
+        content: 'Channels created but failed to post the ticket panel. Run `/panel refresh` to try again.',
       });
       wizardState.delete(key);
       return;
     }
 
-    // Upsert DB config
+    // --- Upsert DB config ---
     await prisma.discordBotSetup.upsert({
       where: { id: botId },
       create: {
         id: botId,
-        guildId,
-        ticketChannelId: state.ticketChannelId,
-        logChannelId: state.logChannelId || null,
+        guildId: guild.id,
+        ticketChannelId: ticketChannel.id,
+        logChannelId: logChannel?.id || null,
         ticketPanelMessageId: panelMessageId,
         dmOnCreate: state.dmOnCreate,
         dmOnUpdate: state.dmOnUpdate,
       },
       update: {
-        guildId,
-        ticketChannelId: state.ticketChannelId,
-        logChannelId: state.logChannelId || null,
+        guildId: guild.id,
+        ticketChannelId: ticketChannel.id,
+        logChannelId: logChannel?.id || null,
         ticketPanelMessageId: panelMessageId,
         dmOnCreate: state.dmOnCreate,
         dmOnUpdate: state.dmOnUpdate,
       },
     });
 
-    // Clean up wizard state
     wizardState.delete(key);
 
-    // Show confirmation
     await interaction.editReply({
       components: [
         buildConfirmationContainer(
-          state.ticketChannelId,
-          state.logChannelId || null,
+          ticketChannel.id,
+          logChannel?.id || null,
           state.dmOnCreate,
           state.dmOnUpdate
         ),

@@ -28,9 +28,9 @@ import {
 } from './commands/ticket';
 import {
   handleSetupCommand,
-  handleSetupTicketChannelSelect,
-  handleSetupLogChannelSelect,
-  handleSetupSkipLogButton,
+  handleSetupNamesModal,
+  handleSetupRoleSelect,
+  handleSetupSkipRolesButton,
   handleSetupDmToggle,
   handleSetupConfirmButton,
 } from './commands/setup';
@@ -44,7 +44,7 @@ import {
   handlePanelCommand,
   handlePanelEditModal,
 } from './commands/panel-config';
-import { handleClaimCommand } from './commands/claim';
+import { handleAssignButton } from './log';
 import { handleButtonInteraction } from './interactions/reply';
 
 import { MAIN_DOMAIN_BOT_ID } from './constants';
@@ -82,15 +82,7 @@ const panelCommand = new SlashCommandBuilder()
     .setName('refresh')
     .setDescription('Re-post the panel with current config'));
 
-const claimCommand = new SlashCommandBuilder()
-  .setName('claim')
-  .setDescription('Claim a support ticket')
-  .addStringOption(opt => opt
-    .setName('ticket')
-    .setDescription('Ticket ID (e.g. SUPPORT-142)')
-    .setRequired(true));
-
-const commands = [ticketCommand.toJSON(), setupCommand.toJSON(), panelCommand.toJSON(), claimCommand.toJSON()];
+const commands = [ticketCommand.toJSON(), setupCommand.toJSON(), panelCommand.toJSON()];
 
 // ==========================================
 // BOT MANAGER
@@ -262,17 +254,13 @@ class BotManager {
         await handleSetupCommand(interaction, tenantId);
       } else if (interaction.commandName === 'panel') {
         await handlePanelCommand(interaction, tenantId);
-      } else if (interaction.commandName === 'claim') {
-        await handleClaimCommand(interaction, tenantId);
       }
     }
-    // === Channel Select Menus ===
-    else if (interaction.isChannelSelectMenu()) {
+    // === Role Select Menus ===
+    else if (interaction.isRoleSelectMenu()) {
       const cid = interaction.customId;
-      if (cid.startsWith('setup_ticketch:')) {
-        await handleSetupTicketChannelSelect(interaction, tenantId);
-      } else if (cid.startsWith('setup_logch:')) {
-        await handleSetupLogChannelSelect(interaction, tenantId);
+      if (cid.startsWith('setup_roles:')) {
+        await handleSetupRoleSelect(interaction, tenantId);
       }
     }
     // === String Select Menus ===
@@ -295,12 +283,14 @@ class BotManager {
         await handleTicketNextButton(interaction);
       } else if (cid.startsWith('panel_create:')) {
         await handlePanelCreateButton(interaction);
-      } else if (cid.startsWith('setup_skiplog:')) {
-        await handleSetupSkipLogButton(interaction, tenantId);
+      } else if (cid.startsWith('setup_skiproles:')) {
+        await handleSetupSkipRolesButton(interaction, tenantId);
       } else if (cid.startsWith('setup_dmcreate:') || cid.startsWith('setup_dmupdate:')) {
         await handleSetupDmToggle(interaction, tenantId);
       } else if (cid.startsWith('setup_confirm:')) {
         await handleSetupConfirmButton(interaction, tenantId);
+      } else if (cid.startsWith('assign_ticket:')) {
+        await handleAssignButton(interaction, tenantId);
       } else if (cid.startsWith('reply:')) {
         await handleButtonInteraction(interaction, tenantId);
       }
@@ -308,7 +298,10 @@ class BotManager {
     // === Modals ===
     else if (interaction.isModalSubmit()) {
       const cid = interaction.customId;
-      if (cid.startsWith('ticket_modal:')) {
+      if (cid.startsWith('setup_names_modal:')) {
+        const setupBotId = cid.split(':')[1];
+        await handleSetupNamesModal(interaction, setupBotId || tenantId);
+      } else if (cid.startsWith('ticket_modal:')) {
         await handleTicketModal(interaction);
       } else if (cid.startsWith('panel_modal:')) {
         await handlePanelModal(interaction);
