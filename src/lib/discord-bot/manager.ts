@@ -1,12 +1,12 @@
 /**
  * Discord Bot Manager
  *
- * Manages multiple Discord.js client instances — one per tenant.
- * Each tenant provides their own bot token. The manager:
- * - Connects/disconnects bots dynamically
- * - Registers slash commands on connect
- * - Routes interactions to handlers
- * - Provides a singleton instance for the app lifecycle
+ * Manages multiple Discord.js client instances:
+ * - Main domain bot: configured via env vars (DISCORD_BOT_TOKEN, DISCORD_GUILD_ID)
+ * - Tenant bots: configured via DB (TenantDiscordBotConfig)
+ *
+ * The main domain bot uses env-var Jira/Hygraph.
+ * Tenant bots use their own DB-stored Jira/Hygraph configs.
  */
 
 import {
@@ -23,9 +23,12 @@ import {
   handleTicketCommand,
   handleTicketCategorySelect,
   handleTicketSeverityButton,
+  handleTicketNextButton,
   handleTicketModal,
 } from './commands/ticket';
 import { handleButtonInteraction } from './interactions/reply';
+
+import { MAIN_DOMAIN_BOT_ID } from './constants';
 
 // ==========================================
 // TYPES
@@ -57,7 +60,7 @@ class BotManager {
   private initialized = false;
 
   /**
-   * Initialize: load all enabled tenant bot configs and connect
+   * Initialize: connect main domain bot (env vars) + all enabled tenant bots (DB)
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
@@ -65,13 +68,27 @@ class BotManager {
 
     console.log('[BotManager] Initializing...');
 
+    // Connect main domain bot from env vars
+    const mainToken = process.env.DISCORD_BOT_TOKEN;
+    const mainGuild = process.env.DISCORD_GUILD_ID;
+
+    if (mainToken && mainGuild) {
+      try {
+        await this.connectBot(MAIN_DOMAIN_BOT_ID, mainToken, mainGuild);
+        console.log('[BotManager] Main domain bot connected');
+      } catch (error) {
+        console.error('[BotManager] Failed to connect main domain bot:', error);
+      }
+    }
+
+    // Connect tenant bots from DB
     try {
       const configs = await prisma.tenantDiscordBotConfig.findMany({
         where: { enabled: true },
         include: { tenant: true },
       });
 
-      console.log(`[BotManager] Found ${configs.length} enabled bot configs`);
+      console.log(`[BotManager] Found ${configs.length} enabled tenant bot configs`);
 
       for (const config of configs) {
         try {
@@ -93,7 +110,7 @@ class BotManager {
   }
 
   /**
-   * Connect a bot for a tenant
+   * Connect a bot for a tenant (or main domain)
    */
   async connectBot(
     tenantId: string,
@@ -117,8 +134,9 @@ class BotManager {
     // Set up event handlers
     client.once('ready', async () => {
       tenantBot.ready = true;
+      const label = tenantId === MAIN_DOMAIN_BOT_ID ? 'main domain' : `tenant ${tenantId}`;
       console.log(
-        `[BotManager] Bot ready for tenant ${tenantId}: ${client.user?.tag}`
+        `[BotManager] Bot ready for ${label}: ${client.user?.tag}`
       );
 
       // Register slash commands for this guild
@@ -144,14 +162,14 @@ class BotManager {
         await this.handleInteraction(interaction, tenantId);
       } catch (error) {
         console.error(
-          `[BotManager] Interaction error for tenant ${tenantId}:`,
+          `[BotManager] Interaction error for ${tenantId}:`,
           error
         );
       }
     });
 
     client.on('error', (error) => {
-      console.error(`[BotManager] Client error for tenant ${tenantId}:`, error);
+      console.error(`[BotManager] Client error for ${tenantId}:`, error);
     });
 
     this.bots.set(tenantId, tenantBot);
@@ -160,14 +178,14 @@ class BotManager {
       await client.login(botToken);
       return true;
     } catch (error) {
-      console.error(`[BotManager] Login failed for tenant ${tenantId}:`, error);
+      console.error(`[BotManager] Login failed for ${tenantId}:`, error);
       this.bots.delete(tenantId);
       return false;
     }
   }
 
   /**
-   * Disconnect a tenant's bot
+   * Disconnect a bot
    */
   async disconnectBot(tenantId: string): Promise<void> {
     const bot = this.bots.get(tenantId);
@@ -178,7 +196,7 @@ class BotManager {
         // Ignore destroy errors
       }
       this.bots.delete(tenantId);
-      console.log(`[BotManager] Disconnected bot for tenant ${tenantId}`);
+      console.log(`[BotManager] Disconnected bot for ${tenantId}`);
     }
   }
 
@@ -200,6 +218,8 @@ class BotManager {
     } else if (interaction.isButton()) {
       if (interaction.customId.startsWith('ticket_severity:')) {
         await handleTicketSeverityButton(interaction);
+      } else if (interaction.customId.startsWith('ticket_next:')) {
+        await handleTicketNextButton(interaction);
       } else {
         // Reply buttons from DM notifications
         await handleButtonInteraction(interaction, tenantId);
@@ -215,7 +235,7 @@ class BotManager {
   }
 
   /**
-   * Get a bot client for a tenant (used by notification service)
+   * Get a bot client (used by notification service)
    */
   getBot(tenantId: string): Client | null {
     const bot = this.bots.get(tenantId);
