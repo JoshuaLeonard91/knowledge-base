@@ -67,7 +67,7 @@ export class JiraAutomationClient {
   private authHeader: string;
 
   constructor(cloudId: string, email: string, apiToken: string) {
-    this.baseUrl = `${AUTOMATION_API_BASE}/${cloudId}/rest/v1`;
+    this.baseUrl = `${AUTOMATION_API_BASE}/${encodeURIComponent(cloudId)}/rest/v1`;
     this.authHeader = `Basic ${Buffer.from(`${email}:${apiToken}`).toString('base64')}`;
   }
 
@@ -76,7 +76,7 @@ export class JiraAutomationClient {
    * Returns the authenticated user's accountId.
    */
   async validateCredentials(cloudId: string): Promise<{ accountId: string; displayName: string }> {
-    const url = `https://api.atlassian.com/ex/jira/${cloudId}/rest/api/3/myself`;
+    const url = `https://api.atlassian.com/ex/jira/${encodeURIComponent(cloudId)}/rest/api/3/myself`;
     const response = await fetch(url, {
       headers: {
         Authorization: this.authHeader,

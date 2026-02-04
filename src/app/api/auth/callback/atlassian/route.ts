@@ -20,7 +20,7 @@ import { exchangeCodeForTokens, getAccessibleResources } from '@/lib/atlassian/o
 import { encryptToString } from '@/lib/security/crypto';
 import { prisma } from '@/lib/db/client';
 
-const STATE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+const STATE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes (matches cookie maxAge)
 
 export async function GET(request: NextRequest) {
   const cookieStore = await cookies();

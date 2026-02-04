@@ -406,7 +406,7 @@ export class JiraServiceDeskClient {
 
     try {
       const response = await fetch(
-        `${this.baseUrl}/issue/${issueKey}/assignee`,
+        `${this.baseUrl}/issue/${encodeURIComponent(issueKey)}/assignee`,
         {
           method: 'PUT',
           headers: {
@@ -436,7 +436,7 @@ export class JiraServiceDeskClient {
       // Get available transitions for the issue
       const result = await this.fetch<{
         transitions: Array<{ id: string; name: string; to: { name: string; statusCategory?: { name: string } } }>;
-      }>(`${this.baseUrl}/issue/${issueKey}/transitions`);
+      }>(`${this.baseUrl}/issue/${encodeURIComponent(issueKey)}/transitions`);
 
       if (!result.data?.transitions) return false;
 
@@ -459,7 +459,7 @@ export class JiraServiceDeskClient {
 
       // Execute the transition
       const response = await fetch(
-        `${this.baseUrl}/issue/${issueKey}/transitions`,
+        `${this.baseUrl}/issue/${encodeURIComponent(issueKey)}/transitions`,
         {
           method: 'POST',
           headers: {
@@ -487,7 +487,7 @@ export class JiraServiceDeskClient {
       return null;
     }
 
-    const result = await this.fetch<JiraIssue>(`${this.baseUrl}/issue/${issueKey}`);
+    const result = await this.fetch<JiraIssue>(`${this.baseUrl}/issue/${encodeURIComponent(issueKey)}`);
     return result.data;
   }
 
@@ -523,7 +523,7 @@ export class JiraServiceDeskClient {
     }
 
     const result = await this.fetch<{ id: string }>(
-      `${this.baseUrl}/issue/${issueKey}/comment`,
+      `${this.baseUrl}/issue/${encodeURIComponent(issueKey)}/comment`,
       {
         method: 'POST',
         body: JSON.stringify({
@@ -563,7 +563,7 @@ export class JiraServiceDeskClient {
       formData.append('file', blob, filename);
 
       const response = await fetch(
-        `${this.baseUrl}/issue/${issueKey}/attachments`,
+        `${this.baseUrl}/issue/${encodeURIComponent(issueKey)}/attachments`,
         {
           method: 'POST',
           headers: {

@@ -71,8 +71,16 @@ export async function GET() {
 
     // Find the tenant matching the current request context
     const tenant = tenantContext
-      ? user.tenants.find(t => t.slug === tenantContext.slug) || user.tenants[0]
+      ? user.tenants.find(t => t.slug === tenantContext.slug)
       : user.tenants[0];
+
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Tenant access denied' },
+        { status: 403, headers: securityHeaders }
+      );
+    }
+
     const config = tenant.jiraConfig;
 
     // Return status and onboarding progress — NEVER return credentials
