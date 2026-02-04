@@ -27,15 +27,23 @@ const AUTOMATION_API_BASE = 'https://api.atlassian.com/automation/public/jira';
 /**
  * Build the automation rule payload for "Comment added → Send web request"
  *
- * Two formats are tried:
- * 1. OpenAPI RuleWriteRequest: `{ rule: { trigger, components, ruleScopeARIs } }`
- * 2. Flat components format: `{ name, components: [TRIGGER, ACTION], projects }`
+ * Matches the exact format returned by GET /rest/v1/rule/{uuid}, which is
+ * the format POST accepts. Verified working via curl (201 Created).
+ *
+ * Key requirements:
+ * - Wrapped in `{ rule: { ... } }`
+ * - `component` field on trigger ("TRIGGER") and actions ("ACTION")
+ * - `schemaVersion: 1` on trigger and components
+ * - `conditions: []` and `children: []` on components
+ * - `actor.actor` (not `actor.value`)
+ * - `ruleScopeARIs` array of ARI strings
  */
-function buildRulePayloadV1(
+function buildCommentWebhookRule(
   webhookUrl: string,
   cloudId: string,
   projectId: string,
-  ownerAccountId: string
+  ownerAccountId: string,
+  authorAccountId: string
 ) {
   const projectAri = `ari:cloud:jira:${cloudId}:project/${projectId}`;
   const customBody = JSON.stringify({
@@ -48,19 +56,28 @@ function buildRulePayloadV1(
     rule: {
       name: 'Webhook - Comment Notification',
       state: 'ENABLED',
+      description: '',
+      canOtherRuleTrigger: false,
+      notifyOnError: 'FIRSTERROR',
+      authorAccountId,
       actor: {
         type: 'ACCOUNT_ID',
         actor: ownerAccountId,
       },
       trigger: {
+        component: 'TRIGGER',
+        schemaVersion: 1,
         type: 'jira.issue.event.trigger:commented',
         value: {
           eventTypes: [],
           eventFilters: [projectAri],
         },
+        conditions: [],
       },
       components: [
         {
+          component: 'ACTION',
+          schemaVersion: 1,
           type: 'jira.issue.outgoing.webhook',
           value: {
             url: webhookUrl,
@@ -70,53 +87,15 @@ function buildRulePayloadV1(
             contentType: 'custom',
             customBody,
           },
+          conditions: [],
+          children: [],
         },
       ],
       ruleScopeARIs: [projectAri],
-      notifyOnError: 'FIRSTERROR',
-      canOtherRuleTrigger: false,
+      labels: [],
       writeAccessType: 'OWNER_ONLY',
+      collaborators: [],
     },
-  };
-}
-
-function buildRulePayloadV2(
-  webhookUrl: string,
-  projectId: string,
-  ownerAccountId: string
-) {
-  const customBody = JSON.stringify({
-    webhookEvent: 'comment_created',
-    issueKey: '{{issue.key}}',
-    commentId: '{{comment.id}}',
-  }, null, 2);
-
-  return {
-    name: 'Webhook - Comment Notification',
-    state: 'ENABLED',
-    projects: [{ id: projectId }],
-    authorAccountId: ownerAccountId,
-    components: [
-      {
-        component: 'TRIGGER',
-        type: 'jira.issue.commented',
-        value: {},
-      },
-      {
-        component: 'ACTION',
-        type: 'jira.issue.outgoing.webhook',
-        value: {
-          url: webhookUrl,
-          method: 'POST',
-          headers: [{ name: 'Content-Type', value: 'application/json' }],
-          sendIssue: false,
-          contentType: 'custom',
-          customBody,
-        },
-      },
-    ],
-    canOtherRuleTrigger: false,
-    notifyOnError: 'FIRSTERROR',
   };
 }
 
@@ -214,38 +193,28 @@ export async function POST(request: NextRequest) {
     const appUrl = process.env.AUTH_URL || 'https://helpportal.app';
     const webhookUrl = `${appUrl.replace(/\/+$/, '')}/api/webhooks/jira?secret=${webhookSecret}&tenant=${tenant.id}`;
 
-    // Build automation rule payloads (two formats to try)
-    const automationUrl = `${AUTOMATION_API_BASE}/${config.cloudId}/rest/v1/rule`;
-    const payloadV1 = buildRulePayloadV1(webhookUrl, config.cloudId!, config.projectId!, ownerAccountId);
-    const payloadV2 = buildRulePayloadV2(webhookUrl, config.projectId!, ownerAccountId);
+    // Build the automation rule payload
+    const rulePayload = buildCommentWebhookRule(
+      webhookUrl,
+      config.cloudId!,
+      config.projectId!,
+      ownerAccountId,
+      myselfData.accountId
+    );
 
-    // Try OpenAPI spec format first (rule wrapper)
-    console.log('[Jira Automation] Trying V1 (rule wrapper) payload');
-    let ruleResponse = await fetch(automationUrl, {
+    // Create the rule via Automation API (Basic Auth only — OAuth not supported)
+    const automationUrl = `${AUTOMATION_API_BASE}/${config.cloudId}/rest/v1/rule`;
+    console.log('[Jira Automation] Creating rule for project', config.projectKey);
+
+    const ruleResponse = await fetch(automationUrl, {
       method: 'POST',
       headers: {
         Authorization: basicAuth,
         'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify(payloadV1),
+      body: JSON.stringify(rulePayload),
     });
-
-    // If V1 fails with 400, try flat components format
-    if (ruleResponse.status === 400) {
-      const v1Error = await ruleResponse.text();
-      console.log('[Jira Automation] V1 failed (400), trying V2 (flat components):', v1Error);
-
-      ruleResponse = await fetch(automationUrl, {
-        method: 'POST',
-        headers: {
-          Authorization: basicAuth,
-          'Content-Type': 'application/json',
-          Accept: 'application/json',
-        },
-        body: JSON.stringify(payloadV2),
-      });
-    }
 
     if (!ruleResponse.ok) {
       const errorText = await ruleResponse.text();
