@@ -182,8 +182,35 @@ export async function POST(request: NextRequest) {
       ownerAccountId
     );
 
-    // Create the rule via Automation API (Basic Auth only — OAuth not supported)
+    // First, list existing rules to confirm API access works
     const automationUrl = `${AUTOMATION_API_BASE}/${config.cloudId}/rest/v1/rule`;
+
+    const listResponse = await fetch(automationUrl, {
+      headers: {
+        Authorization: basicAuth,
+        Accept: 'application/json',
+      },
+    });
+
+    if (!listResponse.ok) {
+      const listError = await listResponse.text();
+      console.error('[Jira Automation] Cannot list rules:', listResponse.status, listError);
+      return NextResponse.json(
+        { error: `Cannot access Automation API (${listResponse.status}). Ensure the account has Jira admin permissions.` },
+        { status: 502, headers: securityHeaders }
+      );
+    }
+
+    // Log an existing rule structure for reference
+    const existingRules = await listResponse.json();
+    if (existingRules.results?.length > 0) {
+      console.log('[Jira Automation] Sample existing rule structure:', JSON.stringify(existingRules.results[0], null, 2).substring(0, 2000));
+    } else {
+      console.log('[Jira Automation] No existing rules found');
+    }
+
+    // Create the rule via Automation API (Basic Auth only — OAuth not supported)
+    console.log('[Jira Automation] Creating rule with payload:', JSON.stringify(rulePayload, null, 2));
     const ruleResponse = await fetch(automationUrl, {
       method: 'POST',
       headers: {
