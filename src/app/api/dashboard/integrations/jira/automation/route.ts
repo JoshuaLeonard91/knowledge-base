@@ -27,39 +27,56 @@ const AUTOMATION_API_BASE = 'https://api.atlassian.com/automation/public/jira';
 /**
  * Build the automation rule payload for "Comment added → Send web request"
  *
- * Note: The Automation Rule Management API has undocumented component schemas.
- * This payload structure was reverse-engineered from the Jira Automation UI
- * by creating a rule manually and exporting it via GET /rest/v1/rule/{uuid}.
+ * Uses the ruleDetails.components[] structure required by the
+ * Automation Rule Management API (GA Sept 2025).
  */
-function buildCommentWebhookRule(webhookUrl: string, projectAri: string) {
+function buildCommentWebhookRule(
+  webhookUrl: string,
+  projectId: string,
+  projectKey: string,
+  ownerAccountId: string
+) {
   return {
     name: 'Webhook - Comment Notification',
     state: 'ENABLED',
-    ruleScopeARIs: [projectAri],
-    trigger: {
-      component: 'TRIGGER',
-      type: 'jira.issue.event.trigger:comment-created',
-      value: {
-        eventKey: 'comment_created',
-      },
-    },
-    actions: [
+    projects: [
       {
-        component: 'ACTION',
-        type: 'jira.automation.action:send-web-request',
-        value: {
-          url: webhookUrl,
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            webhookEvent: 'comment_created',
-            issueKey: '{{issue.key}}',
-          }),
-        },
+        projectId,
+        projectTypeKey: 'service_desk',
       },
     ],
+    ruleDetails: {
+      name: 'Webhook - Comment Notification',
+      components: [
+        {
+          componentType: 'TRIGGER',
+          id: 'jira.issue.event.trigger:comment-created',
+          value: {
+            eventKey: 'comment_created',
+          },
+        },
+        {
+          componentType: 'ACTION',
+          id: 'jira.automation.action:send-web-request',
+          value: {
+            url: webhookUrl,
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              webhookEvent: 'comment_created',
+              issueKey: `{{issue.key}}`,
+            }),
+          },
+        },
+      ],
+      actor: {
+        type: 'ACCOUNT_ID',
+        value: ownerAccountId,
+      },
+      notifyOnError: 'FIRSTERROR',
+    },
   };
 }
 
@@ -146,16 +163,24 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get the account ID of the admin (needed as rule actor)
+    const myselfData = await validateResponse.json();
+    const ownerAccountId = myselfData.accountId;
+
     // Generate webhook secret
     const webhookSecret = randomBytes(32).toString('hex');
 
     // Build the webhook URL
     const appUrl = process.env.AUTH_URL || 'https://helpportal.app';
-    const webhookUrl = `${appUrl}/api/webhooks/jira?secret=${webhookSecret}&tenant=${tenant.id}`;
+    const webhookUrl = `${appUrl.replace(/\/+$/, '')}/api/webhooks/jira?secret=${webhookSecret}&tenant=${tenant.id}`;
 
     // Build the automation rule
-    const projectAri = `ari:cloud:jira:${config.cloudId}:project/${config.projectId}`;
-    const rulePayload = buildCommentWebhookRule(webhookUrl, projectAri);
+    const rulePayload = buildCommentWebhookRule(
+      webhookUrl,
+      config.projectId!,
+      config.projectKey || '',
+      ownerAccountId
+    );
 
     // Create the rule via Automation API (Basic Auth only — OAuth not supported)
     const automationUrl = `${AUTOMATION_API_BASE}/${config.cloudId}/rest/v1/rule`;
@@ -199,7 +224,7 @@ export async function POST(request: NextRequest) {
       data: { automationRuleCreated: true },
     });
 
-    console.log(`[Jira Automation] Rule created for tenant ${tenant.id} (project ARI: ${projectAri})`);
+    console.log(`[Jira Automation] Rule created for tenant ${tenant.id} (project: ${config.projectKey})`);
 
     // API token is NOT stored — it was used once and is now discarded
     return NextResponse.json({ success: true }, { headers: securityHeaders });
