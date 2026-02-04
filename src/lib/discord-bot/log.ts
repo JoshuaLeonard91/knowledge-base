@@ -317,7 +317,9 @@ export async function handleAssignButton(
       // The first TextDisplay has "# TICKET-ID\nSummary"
       // We'll reconstruct the container with known data
       const originalTexts = extractTextFromMessage(message);
+      console.log(`[Log] Assign: extracted ${originalTexts.length} texts from message:`, originalTexts.map((t, i) => `[${i}] ${t.substring(0, 80)}`));
       const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+      console.log(`[Log] Assign: creatorId=${creatorId}`);
 
       // Fetch creator avatar for thumbnail
       let avatarUrl: string | undefined;
@@ -597,18 +599,24 @@ export async function handleResolveButton(
       ? (() => { const p = getTicketProvider(); return p.isAvailable() ? p : null; })()
       : await getTicketProviderForTenant(botId);
 
-    if (!provider || !provider.transitionTicket) return;
+    if (!provider || !provider.transitionTicket) {
+      console.log(`[Log] Resolve: no provider or transitionTicket not supported`);
+      return;
+    }
 
+    console.log(`[Log] Resolve: transitioning ${ticketId} to Done`);
     await provider.transitionTicket(ticketId, 'Done');
 
     // Rebuild the log message with updated status
     const message = interaction.message;
     if (message) {
       const originalTexts = extractTextFromMessage(message);
+      console.log(`[Log] Resolve: extracted ${originalTexts.length} texts from message:`, originalTexts.map((t, i) => `[${i}] ${t.substring(0, 80)}`));
       const heading = originalTexts[0] || `# ${ticketId}`;
       const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
       const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
       const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+      console.log(`[Log] Resolve: creatorId=${creatorId}, metaText=${metaText.substring(0, 100)}`);
 
       // Fetch creator avatar for thumbnail
       let avatarUrl: string | undefined;
@@ -666,12 +674,15 @@ export async function handleResolveButton(
 
       // Refresh the ticket creator's DM + send notification
       if (creatorId) {
+        console.log(`[Log] Resolve: refreshing DM for creator ${creatorId}`);
         refreshTicketDM(botId, ticketId, creatorId).catch((err) =>
           console.error('[Log] Failed to refresh creator DM after resolve:', err)
         );
         sendStatusNotification(botId, ticketId, creatorId, 'resolved').catch((err) =>
           console.error('[Log] Failed to send resolve notification:', err)
         );
+      } else {
+        console.warn(`[Log] Resolve: creatorId not found in message — cannot refresh DM`);
       }
     }
   } catch (error) {
