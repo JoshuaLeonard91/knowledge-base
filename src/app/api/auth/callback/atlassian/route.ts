@@ -90,8 +90,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // Exchange code for tokens
-    const callbackUrl = `${authBaseUrl}/api/auth/callback/atlassian`;
+    // Exchange code for tokens — redirect_uri must exactly match what's registered
+    const callbackUrl = `${authBaseUrl.replace(/\/+$/, '')}/api/auth/callback/atlassian`;
+    console.log('[Atlassian OAuth] Token exchange with redirect_uri:', callbackUrl);
     const tokens = await exchangeCodeForTokens(code, callbackUrl);
 
     // Discover accessible Jira sites

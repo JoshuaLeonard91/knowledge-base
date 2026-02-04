@@ -75,6 +75,13 @@ export async function exchangeCodeForTokens(
 }> {
   const { clientId, clientSecret } = getClientCredentials();
 
+  console.log('[Atlassian OAuth] Exchange params:', {
+    client_id: clientId,
+    redirect_uri: redirectUri,
+    secret_length: clientSecret.length,
+    code_length: code.length,
+  });
+
   const response = await fetch(ATLASSIAN_TOKEN_URL, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

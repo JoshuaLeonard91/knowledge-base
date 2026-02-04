@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
     const currentOrigin = `${forwardedProto}://${forwardedHost}`;
 
     const state = generateState();
-    const callbackUrl = `${authBaseUrl}/api/auth/callback/atlassian`;
+    const callbackUrl = `${authBaseUrl.replace(/\/+$/, '')}/api/auth/callback/atlassian`;
 
     // Store state and tenant info in cookies (same pattern as Discord OAuth)
     const cookieStore = await cookies();
