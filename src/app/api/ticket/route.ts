@@ -9,6 +9,9 @@ import {
 } from '@/lib/validation';
 import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
 import { prisma } from '@/lib/db/client';
+import { sendTicketCreationDM } from '@/lib/discord-bot/notifications';
+import { resolveTenantSlug } from '@/lib/discord-bot/helpers';
+import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
 import {
   createSuccessResponse,
   createErrorResponse,
@@ -134,7 +137,7 @@ export async function POST(request: NextRequest) {
     const labels = ['discord', 'support-portal', `category-${categoryId}`, `severity-${sanitizedSeverity}`];
 
     // Submit via ticket provider adapter (tenant-aware)
-    const { provider, error: providerError } = await resolveProviderFromRequest();
+    const { provider, tenantId, error: providerError } = await resolveProviderFromRequest();
     if (!provider) {
       return NextResponse.json(
         { success: false, error: providerError || 'Ticketing is not configured.' },
@@ -191,6 +194,19 @@ export async function POST(request: NextRequest) {
       ip,
       userId: user.id,
     });
+
+    // Fire-and-forget: send Discord DM with ticket confirmation + create tracker
+    const botId = tenantId || MAIN_DOMAIN_BOT_ID;
+    resolveTenantSlug(botId).then(slug => {
+      sendTicketCreationDM({
+        botId,
+        tenantSlug: slug,
+        ticketId,
+        severity: sanitizedSeverity,
+        description: descValidation.sanitized || description,
+        discordUserId: user.id,
+      }).catch(err => console.error('[Ticket API] DM failed:', err));
+    }).catch(err => console.error('[Ticket API] Slug resolve failed:', err));
 
     // Return sanitized response - only ticket reference, no internal data
     return createSuccessResponse({
