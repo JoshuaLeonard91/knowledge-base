@@ -73,6 +73,22 @@ export async function POST(request: NextRequest) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
 
+    // Validate domain to prevent SSRF — only allow *.atlassian.net
+    try {
+      const parsed = new URL(normalizedUrl);
+      if (!parsed.hostname.endsWith('.atlassian.net')) {
+        return NextResponse.json(
+          { valid: false, error: 'Invalid Jira URL. Must be a *.atlassian.net domain.' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { valid: false, error: 'Invalid URL format' },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
     // Create auth header (Basic auth with email:token)
     const authHeader = Buffer.from(`${email}:${apiToken}`).toString('base64');
 

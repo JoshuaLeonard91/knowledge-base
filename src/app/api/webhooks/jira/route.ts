@@ -108,7 +108,8 @@ export async function POST(request: NextRequest) {
     const signature = request.headers.get('x-hub-signature');
     const urlSecret = request.nextUrl.searchParams.get('secret');
     const hasValidSignature = signature && verifyJiraSignature(rawBody, signature, webhookSecret);
-    const hasValidToken = urlSecret && urlSecret === webhookSecret;
+    const hasValidToken = urlSecret && urlSecret.length === webhookSecret.length &&
+      timingSafeEqual(Buffer.from(urlSecret), Buffer.from(webhookSecret));
 
     if (!hasValidSignature && !hasValidToken) {
       console.log(`[Jira Webhook] Rejected: invalid auth for bot=${botId} (sig=${!!signature}, token=${!!urlSecret})`);

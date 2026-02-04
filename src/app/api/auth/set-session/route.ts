@@ -67,10 +67,12 @@ export async function GET(request: NextRequest) {
   const handoffToken = request.nextUrl.searchParams.get('token');
   const callbackUrl = request.nextUrl.searchParams.get('callback') || '/support';
 
-  // Build real origin from forwarded headers (DO App Platform runs an internal reverse proxy)
+  // Build real origin — prefer env var, fall back to validated forwarded headers
   const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
   const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
-  const realOrigin = `${forwardedProto}://${forwardedHost}`;
+  const appDomain = process.env.APP_DOMAIN || 'helpportal.app';
+  const isAllowedHost = forwardedHost === appDomain || forwardedHost.endsWith(`.${appDomain}`) || forwardedHost === 'localhost' || forwardedHost.startsWith('localhost:');
+  const realOrigin = isAllowedHost ? `${forwardedProto}://${forwardedHost}` : `https://${appDomain}`;
 
   // Validate handoff token exists
   if (!handoffToken) {

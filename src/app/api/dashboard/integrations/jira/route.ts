@@ -162,9 +162,17 @@ export async function POST(request: NextRequest) {
     if (!normalizedUrl.startsWith('https://')) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
-    if (!normalizedUrl.includes('atlassian.net')) {
+    try {
+      const parsed = new URL(normalizedUrl);
+      if (!parsed.hostname.endsWith('.atlassian.net')) {
+        return NextResponse.json(
+          { error: 'Invalid Jira URL. Expected format: yoursite.atlassian.net' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+    } catch {
       return NextResponse.json(
-        { error: 'Invalid Jira URL. Expected format: yoursite.atlassian.net' },
+        { error: 'Invalid URL format' },
         { status: 400, headers: securityHeaders }
       );
     }

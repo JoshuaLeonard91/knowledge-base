@@ -5,6 +5,7 @@ import { CaretLeft, Clock, SpinnerGap } from '@phosphor-icons/react';
 import { MinimalView } from './MinimalApp';
 import { Article } from '@/types';
 import { RichTextRenderer } from '@/components/content/RichTextRenderer';
+import { sanitizeHTML } from '@/lib/sanitize';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 
 interface MinimalArticleProps {
@@ -115,10 +116,10 @@ export function MinimalArticle({ slug, onBack }: MinimalArticleProps) {
       }
 
       // Regular paragraphs
-      const processedLine = line.replace(
+      const processedLine = sanitizeHTML(line.replace(
         /`([^`]+)`/g,
         '<code class="bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-sm">$1</code>'
-      );
+      ));
 
       elements.push(
         <p

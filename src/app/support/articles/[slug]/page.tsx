@@ -9,6 +9,7 @@ import { RichTextRenderer } from '@/components/content/RichTextRenderer';
 import { TableOfContents } from '@/components/content/TableOfContents';
 import { ArticleNavSidebar } from '@/components/content/ArticleNavSidebar';
 import { generateHeaderId, extractHeadingsFromRichText, extractHeadingsFromMarkdown } from '@/lib/utils/headings';
+import { sanitizeHTML } from '@/lib/sanitize';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 import { CaretLeft, Clock, BookOpenText, Tag } from '@phosphor-icons/react/dist/ssr';
 import { getIconSSR } from '@/lib/icons-ssr';
@@ -57,7 +58,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     // Helper to process inline formatting
     // Preserves safe HTML spans with color styles from CMS
     const formatInline = (text: string) => {
-      return text
+      const result = text
         .replace(/`([^`]+)`/g, '<code class="bg-[var(--bg-tertiary)] px-1.5 py-0.5 rounded text-sm font-mono">$1</code>')
         .replace(/\*\*([^*]+)\*\*/g, '<strong class="font-semibold text-[var(--text-primary)]">$1</strong>')
         .replace(/__([^_]+)__/g, '<strong class="font-semibold text-[var(--text-primary)]">$1</strong>')
@@ -66,7 +67,8 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
         // Images - must be before links since similar syntax
         .replace(/!\[([^\]]*)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto rounded-lg my-4" />')
         .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-[var(--accent-primary)] hover:underline">$1</a>');
-      // Note: <span style="color: ..."> tags from CMS are preserved and rendered via dangerouslySetInnerHTML
+      // Sanitize output to prevent XSS from CMS content
+      return sanitizeHTML(result);
     };
 
     const flushList = () => {

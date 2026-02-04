@@ -704,6 +704,18 @@ export class JiraServiceDeskClient {
   async downloadAttachment(url: string): Promise<Buffer | null> {
     if (!this.isConfigured) return null;
 
+    // Validate URL domain to prevent SSRF — only allow Atlassian-owned hosts
+    try {
+      const parsed = new URL(url);
+      const validHosts = ['.atlassian.net', '.atlassian.com', '.jira.com', '.atl-paas.net'];
+      if (!validHosts.some(h => parsed.hostname.endsWith(h))) {
+        console.warn(`[Jira] Blocked attachment download from untrusted host: ${parsed.hostname}`);
+        return null;
+      }
+    } catch {
+      return null;
+    }
+
     try {
       const response = await fetch(url, {
         headers: {

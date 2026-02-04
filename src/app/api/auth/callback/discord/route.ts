@@ -43,7 +43,22 @@ export async function GET(request: NextRequest) {
 
   // Get callback URL and original tenant origin (needed for all redirects)
   const callbackUrl = cookieStore.get('oauth_callback')?.value || '/support';
-  const tenantOrigin = cookieStore.get('oauth_origin')?.value || authBaseUrl;
+  const rawTenantOrigin = cookieStore.get('oauth_origin')?.value || authBaseUrl;
+
+  // Validate tenantOrigin against allowed domains to prevent open redirects
+  const appDomain = process.env.APP_DOMAIN || 'helpportal.app';
+  let tenantOrigin = authBaseUrl; // safe default
+  try {
+    const parsed = new URL(rawTenantOrigin);
+    const isAllowed = parsed.hostname === appDomain
+      || parsed.hostname.endsWith(`.${appDomain}`)
+      || parsed.hostname === 'localhost';
+    if (isAllowed) {
+      tenantOrigin = rawTenantOrigin;
+    }
+  } catch {
+    // Invalid URL — use safe default
+  }
 
   // Get code and state from query params
   const code = request.nextUrl.searchParams.get('code');

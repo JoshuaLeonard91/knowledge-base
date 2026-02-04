@@ -48,10 +48,18 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get base URL — use forwarded headers to handle DO App Platform's internal reverse proxy
-    const fwdHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
-    const fwdProto = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `${fwdProto}://${fwdHost}`;
+    // Get base URL — prefer env var, fall back to validated forwarded headers
+    const configuredUrl = process.env.NEXT_PUBLIC_APP_URL;
+    let baseUrl: string;
+    if (configuredUrl) {
+      baseUrl = configuredUrl;
+    } else {
+      const fwdHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+      const fwdProto = request.headers.get('x-forwarded-proto') || request.nextUrl.protocol.replace(':', '');
+      const appDomain = process.env.APP_DOMAIN || 'helpportal.app';
+      const isAllowed = fwdHost === appDomain || fwdHost.endsWith(`.${appDomain}`) || fwdHost === 'localhost' || fwdHost.startsWith('localhost:');
+      baseUrl = isAllowed ? `${fwdProto}://${fwdHost}` : `https://${appDomain}`;
+    }
 
     // Create Stripe portal session
     // Include from_portal param so the billing page knows to refresh data

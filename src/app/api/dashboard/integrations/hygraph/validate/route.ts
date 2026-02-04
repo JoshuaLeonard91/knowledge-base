@@ -80,6 +80,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Validate domain to prevent SSRF — only allow *.hygraph.com and *.graphassets.com
+    try {
+      const parsed = new URL(endpoint);
+      if (!parsed.hostname.endsWith('.hygraph.com') && !parsed.hostname.endsWith('.graphassets.com')) {
+        return NextResponse.json(
+          { valid: false, error: 'Invalid endpoint. Must be a Hygraph domain (*.hygraph.com).' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        { valid: false, error: 'Invalid URL format' },
+        { status: 400, headers: securityHeaders }
+      );
+    }
+
     // Test the connection
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 10000); // 10s timeout

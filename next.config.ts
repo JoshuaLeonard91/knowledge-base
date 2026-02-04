@@ -6,12 +6,12 @@ import type { NextConfig } from "next";
  */
 const ContentSecurityPolicy = [
   "default-src 'self'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://jsd-widget.atlassian.com", // unsafe-inline needed for Next.js, Atlassian for JSM widget
+  "script-src 'self' 'unsafe-inline' https://jsd-widget.atlassian.com", // unsafe-inline needed for Next.js, Atlassian for JSM widget
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://jsd-widget.atlassian.com", // Allow Google Fonts CSS and JSM widget styles
   "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com https://jsd-widget.atlassian.com", // Allow Google Fonts stylesheets and JSM widget
   "img-src 'self' data: https: blob: https://cdn.discordapp.com", // Allow Discord avatars
   "font-src 'self' data: https://fonts.gstatic.com https://jsd-widget.atlassian.com", // Allow Google Fonts files and JSM widget fonts
-  "connect-src 'self' https:", // Allow API calls
+  "connect-src 'self' https://discord.com https://*.atlassian.net https://*.atlassian.com https://api.atlassian.com https://*.hygraph.com https://*.graphassets.com https://api.stripe.com https://jsd-widget.atlassian.com", // Allow specific API domains only
   "frame-src 'self' https://jsd-widget.atlassian.com", // Allow JSM widget iframe
   "frame-ancestors 'none'", // Prevent framing (same as X-Frame-Options)
   "base-uri 'self' https://jsd-widget.atlassian.com https://joshualeonard1.atlassian.net",
@@ -96,11 +96,6 @@ const nextConfig: NextConfig = {
           {
             key: "X-Download-Options",
             value: "noopen",
-          },
-          // Control DNS prefetching
-          {
-            key: "X-DNS-Prefetch-Control",
-            value: "off",
           },
         ],
       },
