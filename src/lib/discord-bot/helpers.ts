@@ -13,6 +13,7 @@ import {
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
+  Routes,
 } from 'discord.js';
 import { prisma } from '@/lib/db/client';
 import { botManager } from './manager';
@@ -283,11 +284,16 @@ export async function refreshTicketDM(
       console.log(`[Helpers] refreshTicketDM: getTicket returned null (ownership check failed?)`);
       return;
     }
+    // Log comment details for debugging
+    for (const c of ticket.comments) {
+      console.log(`[Helpers] refreshTicketDM: comment id=${c.id}, isStaff=${c.isStaff}, bodyLen=${c.body.length}, author=${c.author}`);
+    }
     console.log(`[Helpers] refreshTicketDM: ticket found, status=${ticket.status}, comments=${ticket.comments.length}`);
 
     const slug = await resolveTenantSlug(botId);
     const portalUrl = `https://${slug}.helpportal.app/support/tickets/${ticketId}`;
     const conversationMarkdown = formatConversationHistory(ticket.comments, portalUrl);
+    console.log(`[Helpers] refreshTicketDM: conversationMarkdown length=${conversationMarkdown.length}, preview=${conversationMarkdown.substring(0, 200)}`);
 
     const container = buildTicketDMContainer({
       ticketId,
@@ -304,32 +310,40 @@ export async function refreshTicketDM(
     // Collect embeddable attachments from the latest staff comment (≤25MB, max 10)
     const discordFiles = await collectEmbeddableAttachments(ticket.comments, provider);
 
-    const messagePayload: {
-      components: [typeof container];
-      flags: typeof MessageFlags.IsComponentsV2;
-      files?: Array<{ attachment: Buffer; name: string }>;
-    } = {
+    const sendPayload = {
       components: [container],
-      flags: MessageFlags.IsComponentsV2,
+      flags: [MessageFlags.IsComponentsV2] as const,
+      ...(discordFiles.length > 0 ? { files: discordFiles } : {}),
     };
 
-    if (discordFiles.length > 0) {
-      messagePayload.files = discordFiles;
-    }
-
     try {
-      // Try editing the existing DM
+      // Edit using REST API directly — discord.js message.edit() may not
+      // properly serialize Components V2 containers (wraps in ActionRow)
       const user = await client.users.fetch(discordUserId);
       const dmChannel = await user.createDM();
-      const message = await dmChannel.messages.fetch(tracker.dmMessageId);
-      await message.edit(messagePayload);
+
+      if (discordFiles.length > 0) {
+        // When files are involved, use message.edit() which handles multipart
+        const message = await dmChannel.messages.fetch(tracker.dmMessageId);
+        await message.edit(sendPayload);
+      } else {
+        // Use REST API directly to ensure V2 components are serialized correctly
+        const serialized = {
+          components: [container.toJSON()],
+          flags: Number(MessageFlags.IsComponentsV2),
+        };
+        await client.rest.patch(
+          Routes.channelMessage(dmChannel.id, tracker.dmMessageId),
+          { body: serialized }
+        );
+      }
       console.log(`[Helpers] refreshTicketDM: edited existing DM (msgId=${tracker.dmMessageId}, files=${discordFiles.length})`);
     } catch (editErr) {
       console.warn('[Helpers] refreshTicketDM: edit failed, sending replacement DM:', (editErr as Error).message);
       // Message was deleted or inaccessible — send a new one
       try {
         const user = await client.users.fetch(discordUserId);
-        const sent = await user.send(messagePayload);
+        const sent = await user.send(sendPayload);
 
         await prisma.ticketDMTracker.update({
           where: { id: tracker.id },
