@@ -25,6 +25,17 @@ const SALT_LENGTH = 32;
 const KEY_LENGTH = 32; // 256 bits
 
 /**
+ * Get SESSION_SECRET with production enforcement
+ */
+function getSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret && process.env.NODE_ENV === 'production') {
+    throw new Error('[SECURITY] SESSION_SECRET is required in production');
+  }
+  return secret || 'insecure-dev-secret';
+}
+
+/**
  * Encrypted data structure
  */
 export interface EncryptedData {
@@ -46,14 +57,14 @@ function getEncryptionKey(): Buffer {
     return Buffer.from(envKey, 'hex');
   }
 
-  // Fallback: derive from SESSION_SECRET (less secure, for dev only)
-  const secret = process.env.SESSION_SECRET || 'insecure-dev-secret-change-in-production';
-  const salt = Buffer.from('static-salt-for-dev', 'utf8');
-
-  if (process.env.NODE_ENV === 'production' && !envKey) {
-    console.error('[SECURITY] ENCRYPTION_KEY not set in production!');
+  // In production, ENCRYPTION_KEY is required — fail hard
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('[SECURITY] ENCRYPTION_KEY is required in production. Set a 64-character hex string.');
   }
 
+  // Fallback: derive from SESSION_SECRET (dev only)
+  const secret = process.env.SESSION_SECRET || 'insecure-dev-secret-change-in-production';
+  const salt = Buffer.from('static-salt-for-dev', 'utf8');
   return scryptSync(secret, salt, KEY_LENGTH);
 }
 
@@ -141,7 +152,7 @@ export function decryptFromString(encryptedString: string): string {
  * Generate HMAC-SHA256 signature
  */
 export function sign(data: string, secret?: string): string {
-  const key = secret || process.env.SESSION_SECRET || 'insecure-dev-secret';
+  const key = secret || getSessionSecret();
   return createHmac('sha256', key).update(data).digest('base64');
 }
 
@@ -149,7 +160,7 @@ export function sign(data: string, secret?: string): string {
  * Verify HMAC-SHA256 signature (timing-safe)
  */
 export function verify(data: string, signature: string, secret?: string): boolean {
-  const key = secret || process.env.SESSION_SECRET || 'insecure-dev-secret';
+  const key = secret || getSessionSecret();
   const expected = createHmac('sha256', key).update(data).digest();
   const actual = Buffer.from(signature, 'base64');
 
@@ -183,7 +194,7 @@ export function generateUrlSafeToken(length: number = 32): string {
  * Uses HMAC with app secret so hashes are consistent but not reversible
  */
 export function hashForLog(data: string): string {
-  const secret = process.env.SESSION_SECRET || 'log-hash-secret';
+  const secret = process.env.SESSION_SECRET || (process.env.NODE_ENV === 'production' ? (() => { throw new Error('[SECURITY] SESSION_SECRET is required in production'); })() : 'log-hash-secret');
   return createHmac('sha256', secret)
     .update(data)
     .digest('hex')

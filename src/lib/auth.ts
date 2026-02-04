@@ -35,8 +35,13 @@ function isDiscordConfigured(): boolean {
 
 /**
  * Check if mock mode is enabled
+ * In production, mock mode requires explicit opt-in and Discord must be unconfigured
  */
 function isMockMode(): boolean {
+  if (process.env.NODE_ENV === 'production' && !isDiscordConfigured()) {
+    console.error('[SECURITY] Discord OAuth not configured in production! Authentication will fail. Set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and AUTH_SECRET.');
+    return false; // Deny access rather than silently falling back to mock
+  }
   return process.env.MOCK_AUTH === 'true' || !isDiscordConfigured();
 }
 

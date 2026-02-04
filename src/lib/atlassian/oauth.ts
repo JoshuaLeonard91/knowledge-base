@@ -109,12 +109,7 @@ export async function exchangeCodeForTokens(
 }> {
   const { clientId, clientSecret } = getClientCredentials();
 
-  console.log('[Atlassian OAuth] Exchange params:', {
-    client_id: clientId,
-    redirect_uri: redirectUri,
-    secret_length: clientSecret.length,
-    code_length: code.length,
-  });
+  console.log('[Atlassian OAuth] Exchanging authorization code for tokens');
 
   const response = await postTokenEndpoint({
     grant_type: 'authorization_code',

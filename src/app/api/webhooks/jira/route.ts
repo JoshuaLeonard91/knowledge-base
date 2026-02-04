@@ -165,7 +165,7 @@ export async function POST(request: NextRequest) {
 
     const { ticket, discordUserId } = result;
 
-    console.log(`[Jira Webhook] ticket=${issueKey}, status=${ticket.status}, comments=${ticket.comments.length}, discordUser=${discordUserId}`);
+    console.log(`[Jira Webhook] ticket=${issueKey}, status=${ticket.status}, comments=${ticket.comments.length}`);
 
     // For comment_created: check if the latest comment is from staff
     if (webhookEvent === 'comment_created' || webhookEvent === 'jira:issue_updated') {

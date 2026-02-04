@@ -113,7 +113,7 @@ export async function POST(request: NextRequest) {
       }, { headers: securityHeaders });
     } catch (err) {
       if (err instanceof AutomationApiError) {
-        console.error('[Jira Automation] List rules failed:', err.status, err.body);
+        console.error('[Jira Automation] List rules failed:', err.status);
         return NextResponse.json(
           { error: `Failed to list automation rules (${err.status})` },
           { status: 502, headers: securityHeaders }

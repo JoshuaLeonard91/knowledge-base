@@ -74,6 +74,9 @@ function extractTenantSubdomain(request: NextRequest): string | null {
 // Simple in-memory rate limiting for middleware
 // Note: This resets on server restart and doesn't share between instances
 const rateLimitStore = new Map<string, { count: number; resetAt: number }>();
+const RATE_LIMIT_MAX_ENTRIES = 10000;
+let rateLimitLastCleanup = Date.now();
+const RATE_LIMIT_CLEANUP_INTERVAL = 60 * 1000; // Clean up every 60 seconds
 
 // Rate limit configuration
 const RATE_LIMITS = {
@@ -108,6 +111,26 @@ function checkRateLimit(
   config: { windowMs: number; maxRequests: number }
 ): { allowed: boolean; remaining: number; reset: number } {
   const now = Date.now();
+
+  // Periodic cleanup of expired entries to prevent unbounded memory growth
+  if (now - rateLimitLastCleanup > RATE_LIMIT_CLEANUP_INTERVAL) {
+    rateLimitLastCleanup = now;
+    for (const [k, v] of rateLimitStore) {
+      if (v.resetAt < now) {
+        rateLimitStore.delete(k);
+      }
+    }
+    // Hard cap: if still too large, drop oldest entries
+    if (rateLimitStore.size > RATE_LIMIT_MAX_ENTRIES) {
+      const excess = rateLimitStore.size - RATE_LIMIT_MAX_ENTRIES;
+      const keys = rateLimitStore.keys();
+      for (let i = 0; i < excess; i++) {
+        const k = keys.next().value;
+        if (k) rateLimitStore.delete(k);
+      }
+    }
+  }
+
   const entry = rateLimitStore.get(key);
 
   // No entry or expired
@@ -257,7 +280,10 @@ export async function middleware(request: NextRequest) {
         // Use forwarded headers since DO App Platform runs an internal reverse proxy
         const fwdHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
         const fwdProto = request.headers.get('x-forwarded-proto') || 'https';
-        const signupUrl = new URL('/signup', `${fwdProto}://${fwdHost}`);
+        const appDomain = process.env.APP_DOMAIN || 'helpportal.app';
+        const isAllowedHost = fwdHost === appDomain || fwdHost.endsWith(`.${appDomain}`) || fwdHost === 'localhost' || fwdHost.startsWith('localhost:');
+        const origin = isAllowedHost ? `${fwdProto}://${fwdHost}` : (process.env.NEXT_PUBLIC_APP_URL || `https://${appDomain}`);
+        const signupUrl = new URL('/signup', origin);
         signupUrl.searchParams.set('redirect', pathname);
         return NextResponse.redirect(signupUrl);
       }

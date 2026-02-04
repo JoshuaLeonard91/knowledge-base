@@ -8,49 +8,13 @@
 import { NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
-import { decryptFromString, encryptToString } from '@/lib/security/crypto';
-import { refreshAccessToken } from '@/lib/atlassian/oauth';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
+import { getValidAccessToken } from '@/lib/atlassian/token-manager';
 
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'Cache-Control': 'no-store, private',
 };
-
-/**
- * Get a valid OAuth access token for the tenant, refreshing if needed.
- */
-async function getValidAccessToken(config: {
-  tenantId: string;
-  accessToken: string;
-  refreshToken: string;
-  tokenExpiry: Date | null;
-}): Promise<string | null> {
-  let accessToken = decryptFromString(config.accessToken);
-
-  const isExpired = config.tokenExpiry &&
-    new Date(config.tokenExpiry) <= new Date(Date.now() + 5 * 60 * 1000);
-
-  if (isExpired) {
-    try {
-      const refreshed = await refreshAccessToken(config.refreshToken);
-      accessToken = refreshed.access_token;
-
-      await prisma.tenantJiraConfig.update({
-        where: { tenantId: config.tenantId },
-        data: {
-          accessToken: encryptToString(refreshed.access_token),
-          refreshToken: encryptToString(refreshed.refresh_token),
-          tokenExpiry: new Date(Date.now() + refreshed.expires_in * 1000),
-        },
-      });
-    } catch {
-      return null;
-    }
-  }
-
-  return accessToken;
-}
 
 export async function GET() {
   try {

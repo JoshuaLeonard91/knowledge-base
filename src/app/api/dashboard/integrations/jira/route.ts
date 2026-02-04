@@ -224,6 +224,7 @@ export async function POST(request: NextRequest) {
       create: {
         tenantId: tenant.id,
         connected: true,
+        authMode: 'api_token',
         cloudUrl: normalizedUrl,
         accessToken: encryptedToken,
         // Store email in refreshToken field (encrypted) - reusing available field
@@ -233,6 +234,7 @@ export async function POST(request: NextRequest) {
       },
       update: {
         connected: true,
+        authMode: 'api_token',
         cloudUrl: normalizedUrl,
         accessToken: encryptedToken,
         refreshToken: encryptToString(email),

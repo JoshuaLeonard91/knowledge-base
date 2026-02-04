@@ -130,7 +130,7 @@ export async function POST(request: NextRequest) {
       await client.createRule(rulePayload);
     } catch (err) {
       if (err instanceof AutomationApiError) {
-        console.error('[Jira Automation] Rule creation failed:', err.status, err.body);
+        console.error('[Jira Automation] Rule creation failed:', err.status);
         return NextResponse.json(
           { error: `Failed to create automation rule (${err.status}). Ensure the account has Jira admin permissions.` },
           { status: 502, headers: securityHeaders }
