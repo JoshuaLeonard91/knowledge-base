@@ -27,56 +27,71 @@ const AUTOMATION_API_BASE = 'https://api.atlassian.com/automation/public/jira';
 /**
  * Build the automation rule payload for "Comment added → Send web request"
  *
- * Uses the ruleDetails.components[] structure required by the
- * Automation Rule Management API (GA Sept 2025).
+ * Structure matches the actual Jira Automation export format:
+ * - `trigger` is a top-level object (not inside components)
+ * - `components` is a top-level array containing actions only
+ * - `ruleScope` with ARI scopes the rule to a project
+ * - Field names use `component`/`type` (not `componentType`/`id`)
  */
 function buildCommentWebhookRule(
   webhookUrl: string,
+  cloudId: string,
   projectId: string,
-  projectKey: string,
   ownerAccountId: string
 ) {
+  const projectAri = `ari:cloud:jira:${cloudId}:project/${projectId}`;
+
   return {
     name: 'Webhook - Comment Notification',
     state: 'ENABLED',
-    projects: [
+    actor: {
+      type: 'ACCOUNT_ID',
+      value: ownerAccountId,
+    },
+    trigger: {
+      component: 'TRIGGER',
+      type: 'jira.issue.event.trigger:commented',
+      value: {
+        eventTypes: [],
+        eventFilters: [projectAri],
+      },
+      children: [],
+      conditions: [],
+    },
+    components: [
       {
-        projectId,
-        projectTypeKey: 'service_desk',
+        component: 'ACTION',
+        type: 'jira.issue.outgoing.webhook',
+        value: {
+          url: webhookUrl,
+          headers: [
+            {
+              name: 'Content-Type',
+              value: 'application/json',
+              headerSecure: false,
+            },
+          ],
+          sendIssue: false,
+          contentType: 'custom',
+          customBody: JSON.stringify({
+            webhookEvent: 'comment_created',
+            issueKey: '{{issue.key}}',
+            commentId: '{{comment.id}}',
+          }, null, 2),
+          method: 'POST',
+          responseEnabled: false,
+          continueOnErrorEnabled: false,
+        },
+        children: [],
+        conditions: [],
       },
     ],
-    ruleDetails: {
-      name: 'Webhook - Comment Notification',
-      components: [
-        {
-          componentType: 'TRIGGER',
-          id: 'jira.issue.event.trigger:comment-created',
-          value: {
-            eventKey: 'comment_created',
-          },
-        },
-        {
-          componentType: 'ACTION',
-          id: 'jira.automation.action:send-web-request',
-          value: {
-            url: webhookUrl,
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              webhookEvent: 'comment_created',
-              issueKey: `{{issue.key}}`,
-            }),
-          },
-        },
-      ],
-      actor: {
-        type: 'ACCOUNT_ID',
-        value: ownerAccountId,
-      },
-      notifyOnError: 'FIRSTERROR',
+    ruleScope: {
+      resources: [projectAri],
     },
+    canOtherRuleTrigger: false,
+    notifyOnError: 'FIRSTERROR',
+    writeAccessType: 'OWNER_ONLY',
   };
 }
 
@@ -177,40 +192,15 @@ export async function POST(request: NextRequest) {
     // Build the automation rule
     const rulePayload = buildCommentWebhookRule(
       webhookUrl,
+      config.cloudId!,
       config.projectId!,
-      config.projectKey || '',
       ownerAccountId
     );
 
-    // First, list existing rules to confirm API access works
-    const automationUrl = `${AUTOMATION_API_BASE}/${config.cloudId}/rest/v1/rule`;
-
-    const listResponse = await fetch(automationUrl, {
-      headers: {
-        Authorization: basicAuth,
-        Accept: 'application/json',
-      },
-    });
-
-    if (!listResponse.ok) {
-      const listError = await listResponse.text();
-      console.error('[Jira Automation] Cannot list rules:', listResponse.status, listError);
-      return NextResponse.json(
-        { error: `Cannot access Automation API (${listResponse.status}). Ensure the account has Jira admin permissions.` },
-        { status: 502, headers: securityHeaders }
-      );
-    }
-
-    // Log an existing rule structure for reference
-    const existingRules = await listResponse.json();
-    if (existingRules.results?.length > 0) {
-      console.log('[Jira Automation] Sample existing rule structure:', JSON.stringify(existingRules.results[0], null, 2).substring(0, 2000));
-    } else {
-      console.log('[Jira Automation] No existing rules found');
-    }
-
     // Create the rule via Automation API (Basic Auth only — OAuth not supported)
+    const automationUrl = `${AUTOMATION_API_BASE}/${config.cloudId}/rest/v1/rule`;
     console.log('[Jira Automation] Creating rule with payload:', JSON.stringify(rulePayload, null, 2));
+
     const ruleResponse = await fetch(automationUrl, {
       method: 'POST',
       headers: {
