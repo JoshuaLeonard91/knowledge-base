@@ -127,6 +127,14 @@ export interface TicketProvider {
 
   /** Transition a ticket to a target status (e.g., "In Progress") */
   transitionTicket?(ticketId: string, targetStatus: string): Promise<boolean>;
+
+  /**
+   * Fetch a ticket without ownership verification.
+   * Returns the ticket data + the Discord user ID found in the description metadata.
+   * Used by webhook handlers that receive an issue key but don't know the owner.
+   * MUST only be called from trusted server-side paths (never from user-facing API routes).
+   */
+  getTicketUnguarded?(ticketId: string): Promise<{ ticket: Ticket; discordUserId: string } | null>;
 }
 
 // ==========================================

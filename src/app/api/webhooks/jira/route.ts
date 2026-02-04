@@ -146,74 +146,23 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch the full ticket from Jira to get accurate data
-    // Pass a dummy userId — getTicket verifies ownership via description metadata,
-    // but we need to extract the Discord user ID from the ticket itself.
-    // Use the provider's underlying method if available, or fetch without ownership check.
+    // Fetch the full ticket from Jira without ownership verification.
+    // The webhook handler is a trusted server-side path — it extracts the
+    // Discord user ID from the ticket description metadata directly.
     console.log(`[Jira Webhook] Fetching ticket ${issueKey} from Jira...`);
 
-    // We need to find the Discord user ID from the ticket description.
-    // Use listTickets won't work here. Instead, we'll get the raw ticket data.
-    // The provider's getTicket requires a discordUserId for ownership verification,
-    // but we don't know it yet. We need a way to fetch without ownership check.
-    //
-    // Workaround: use getTicket with a wildcard-like approach — pass '*' and
-    // the provider will still return the ticket data. The ownership check in
-    // the Jira provider matches Discord User ID in the description, so if we
-    // pass a non-matching ID, it returns null.
-    //
-    // Better approach: extract Discord ID from ticket description directly via Jira API.
-    // The provider has the Jira client — let's call it through a lower-level method.
-
-    // For now, use a direct Jira API call through the provider's client
-    // by leveraging the getTicket method with a special flag, or just
-    // fetch the ticket ignoring ownership.
-    let discordUserId: string | null = null;
-    let ticket;
-
-    // Try to get the ticket — we'll iterate over known Discord users for this ticket
-    // from the DM tracker first (most common case: we already sent them a DM)
-    const trackers = await prisma.ticketDMTracker.findMany({
-      where: {
-        tenantId: botId,
-        ticketId: issueKey,
-      },
-    });
-
-    if (trackers.length > 0) {
-      // We know the Discord user(s) for this ticket
-      discordUserId = trackers[0].discordUserId;
-      ticket = await provider.getTicket(issueKey, discordUserId);
-      console.log(`[Jira Webhook] Found tracker: discordUser=${discordUserId}, ticket=${ticket ? 'loaded' : 'null'}`);
+    if (!provider.getTicketUnguarded) {
+      console.log(`[Jira Webhook] Error: provider does not support getTicketUnguarded`);
+      return NextResponse.json({ error: 'Not supported' }, { status: 501 });
     }
 
-    if (!ticket) {
-      // No tracker — try to fetch ticket by searching all tenantUsers
-      // who have tickets (fallback for first-time webhook before any DM was sent)
-      const tenantUsers = await prisma.tenantUser.findMany({
-        where: {
-          ...(botId === MAIN_DOMAIN_BOT_ID ? { tenantId: null } : { tenant: { id: botId } }),
-          discordId: { not: '' },
-        },
-        select: { discordId: true },
-      });
-
-      for (const tu of tenantUsers) {
-        if (!tu.discordId) continue;
-        const t = await provider.getTicket(issueKey, tu.discordId);
-        if (t) {
-          ticket = t;
-          discordUserId = tu.discordId;
-          console.log(`[Jira Webhook] Found ticket owner via tenantUser scan: discordUser=${discordUserId}`);
-          break;
-        }
-      }
-    }
-
-    if (!ticket || !discordUserId) {
-      console.log(`[Jira Webhook] Skipped: could not find ticket owner for ${issueKey}`);
+    const result = await provider.getTicketUnguarded(issueKey);
+    if (!result) {
+      console.log(`[Jira Webhook] Skipped: ticket ${issueKey} not found or no Discord User ID in description`);
       return NextResponse.json({ ok: true, skipped: true });
     }
+
+    const { ticket, discordUserId } = result;
 
     console.log(`[Jira Webhook] ticket=${issueKey}, status=${ticket.status}, comments=${ticket.comments.length}, discordUser=${discordUserId}`);
 

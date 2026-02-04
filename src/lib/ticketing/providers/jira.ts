@@ -220,6 +220,81 @@ export class JiraTicketProvider implements TicketProvider {
     };
   }
 
+  async getTicketUnguarded(ticketId: string): Promise<{ ticket: Ticket; discordUserId: string } | null> {
+    const { issue, comments } = await this.client.getTicketWithComments(ticketId);
+    if (!issue) return null;
+
+    const descriptionText = extractDescriptionText(issue);
+
+    // Extract Discord user ID from description metadata
+    const discordIdMatch = descriptionText.match(/Discord User ID:\s*(\d{17,19})/i);
+    if (!discordIdMatch) return null;
+
+    const discordUserId = discordIdMatch[1];
+
+    // Build attachment lookup from issue-level attachments
+    const issueAttachments = issue.fields.attachment || [];
+    const attachmentById = new Map(issueAttachments.map(a => [a.id, a]));
+
+    const ticket: Ticket = {
+      id: issue.key,
+      summary: issue.fields.summary,
+      description: sanitizeDescription(descriptionText),
+      status: issue.fields.status?.name || 'Unknown',
+      statusCategory: normalizeStatusCategory(issue.fields.status?.statusCategory?.key || ''),
+      priority: issue.fields.priority?.name,
+      assignee: issue.fields.assignee?.displayName || undefined,
+      created: issue.fields.created,
+      updated: issue.fields.updated,
+      comments: comments.map(c => {
+        const isUserComment = c.body.includes(`Discord User ID: ${discordUserId}`);
+
+        const commentAttachments: TicketAttachment[] = [];
+        for (const mediaId of c.mediaAttachmentIds) {
+          const att = attachmentById.get(mediaId);
+          if (att) {
+            commentAttachments.push({
+              id: att.id,
+              filename: att.filename,
+              mimeType: att.mimeType,
+              size: att.size,
+              url: att.content,
+            });
+          }
+        }
+
+        if (commentAttachments.length === 0 && !isUserComment) {
+          const commentTime = new Date(c.created).getTime();
+          for (const att of issueAttachments) {
+            const attTime = new Date(att.created).getTime();
+            if (Math.abs(attTime - commentTime) < 10_000) {
+              if (!commentAttachments.some(a => a.id === att.id)) {
+                commentAttachments.push({
+                  id: att.id,
+                  filename: att.filename,
+                  mimeType: att.mimeType,
+                  size: att.size,
+                  url: att.content,
+                });
+              }
+            }
+          }
+        }
+
+        return {
+          id: c.id,
+          author: isUserComment ? 'You' : (c.author.toLowerCase().includes('system') ? 'System' : 'Support Team'),
+          body: sanitizeDescription(c.body),
+          created: c.created,
+          isStaff: !isUserComment,
+          attachments: commentAttachments.length > 0 ? commentAttachments : undefined,
+        };
+      }),
+    };
+
+    return { ticket, discordUserId };
+  }
+
   async addComment(input: AddCommentInput): Promise<boolean> {
     // Verify ownership first
     const issue = await this.client.getIssue(input.ticketId);
