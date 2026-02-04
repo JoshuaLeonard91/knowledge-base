@@ -317,21 +317,29 @@ export async function refreshTicketDM(
     };
 
     try {
-      // Edit using REST API directly — discord.js message.edit() may not
-      // properly serialize Components V2 containers (wraps in ActionRow)
+      // Edit via REST API directly — must explicitly clear content/embeds
+      // and pass flags:32768 for CV2 edits per Discord API requirements
       const user = await client.users.fetch(discordUserId);
       const dmChannel = await user.createDM();
 
+      const serialized = {
+        content: null,
+        embeds: [],
+        components: [container.toJSON()],
+        flags: Number(MessageFlags.IsComponentsV2),
+      };
+
       if (discordFiles.length > 0) {
-        // When files are involved, use message.edit() which handles multipart
+        // With files, use message.edit() for multipart handling but include cleared fields
         const message = await dmChannel.messages.fetch(tracker.dmMessageId);
-        await message.edit(sendPayload);
+        await message.edit({
+          content: null,
+          embeds: [],
+          components: [container],
+          flags: [MessageFlags.IsComponentsV2] as const,
+          files: discordFiles,
+        });
       } else {
-        // Use REST API directly to ensure V2 components are serialized correctly
-        const serialized = {
-          components: [container.toJSON()],
-          flags: Number(MessageFlags.IsComponentsV2),
-        };
         await client.rest.patch(
           Routes.channelMessage(dmChannel.id, tracker.dmMessageId),
           { body: serialized }
