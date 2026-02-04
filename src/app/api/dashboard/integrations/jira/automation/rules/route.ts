@@ -1,23 +1,16 @@
 /**
- * Jira Automation Rule Creation API
+ * Jira Automation Rules List API
  *
- * POST - Creates a project-level Jira Automation rule that sends webhook
- * notifications when comments are added to tickets.
- *
- * Uses a one-time admin API token (not stored) to call the Automation API,
- * since the Automation API does not support OAuth 2.0 tokens.
- *
- * Also generates and stores a webhook secret in TenantWebhookConfig.
+ * POST - Lists automation rules for the tenant's project.
+ * Uses one-time admin credentials (not stored).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { randomBytes } from 'crypto';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { JiraAutomationClient, AutomationApiError } from '@/lib/atlassian/automation-client';
-import { buildCommentWebhookRule } from '@/lib/atlassian/automation-rules';
 
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
@@ -87,13 +80,9 @@ export async function POST(request: NextRequest) {
 
     const client = new JiraAutomationClient(config.cloudId, email, apiToken);
 
-    // Validate the admin API token first
-    let ownerAccountId: string;
-    let authorAccountId: string;
+    // Validate credentials
     try {
-      const myself = await client.validateCredentials(config.cloudId);
-      ownerAccountId = myself.accountId;
-      authorAccountId = myself.accountId;
+      await client.validateCredentials(config.cloudId);
     } catch (err) {
       if (err instanceof AutomationApiError && err.status === 401) {
         return NextResponse.json(
@@ -107,67 +96,35 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Generate webhook secret
-    const webhookSecret = randomBytes(32).toString('hex');
-
-    // Build the webhook URL
-    const appUrl = process.env.AUTH_URL || 'https://helpportal.app';
-    const webhookUrl = `${appUrl.replace(/\/+$/, '')}/api/webhooks/jira?secret=${webhookSecret}&tenant=${tenant.id}`;
-
-    // Build the automation rule payload
-    const rulePayload = buildCommentWebhookRule({
-      webhookUrl,
-      cloudId: config.cloudId,
-      projectId: config.projectId,
-      ownerAccountId,
-      authorAccountId,
-    });
-
-    // Create the rule via Automation API
-    console.log('[Jira Automation] Creating rule for project', config.projectKey);
+    // List rules filtered to this tenant's project
+    const projectAri = `ari:cloud:jira:${config.cloudId}:project/${config.projectId}`;
 
     try {
-      await client.createRule(rulePayload);
+      const rules = await client.listRules(projectAri);
+      return NextResponse.json({
+        rules: rules.map((r) => ({
+          uuid: r.uuid,
+          name: r.name,
+          state: r.state,
+          created: r.created,
+          updated: r.updated,
+          ruleScopeARIs: r.ruleScopeARIs,
+        })),
+      }, { headers: securityHeaders });
     } catch (err) {
       if (err instanceof AutomationApiError) {
-        console.error('[Jira Automation] Rule creation failed:', err.status, err.body);
+        console.error('[Jira Automation] List rules failed:', err.status, err.body);
         return NextResponse.json(
-          { error: `Failed to create automation rule (${err.status}). Ensure the account has Jira admin permissions.` },
+          { error: `Failed to list automation rules (${err.status})` },
           { status: 502, headers: securityHeaders }
         );
       }
       throw err;
     }
-
-    // Store webhook secret
-    await prisma.tenantWebhookConfig.upsert({
-      where: { tenantId: tenant.id },
-      create: {
-        tenantId: tenant.id,
-        webhookSecret,
-        webhookEnabled: true,
-      },
-      update: {
-        webhookSecret,
-        webhookEnabled: true,
-        webhookFailureCount: 0,
-      },
-    });
-
-    // Mark automation as created
-    await prisma.tenantJiraConfig.update({
-      where: { tenantId: tenant.id },
-      data: { automationRuleCreated: true },
-    });
-
-    console.log(`[Jira Automation] Rule created for tenant ${tenant.id} (project: ${config.projectKey})`);
-
-    // API token is NOT stored — it was used once and is now discarded
-    return NextResponse.json({ success: true }, { headers: securityHeaders });
   } catch (error) {
-    console.error('[Jira Automation] Error:', error);
+    console.error('[Jira Automation] Error listing rules:', error);
     return NextResponse.json(
-      { error: 'Failed to create automation rule' },
+      { error: 'Failed to list automation rules' },
       { status: 500, headers: securityHeaders }
     );
   }
