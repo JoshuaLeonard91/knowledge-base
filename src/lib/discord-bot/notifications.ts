@@ -224,7 +224,10 @@ export async function sendTicketUpdateDM(
 
     console.log('[Notifications] No tracker found, checking tenantUser opt-in...');
 
-    // No tracker — only send a new DM if user has opted in to notifications
+    // No tracker — only send a new DM if user has opted in to notifications.
+    // If a tracker existed, that means we already sent a DM for this ticket
+    // (i.e. the user is in an active conversation), so we always update it.
+    // No tracker = user never got a DM for this ticket, so respect opt-in preference.
     const isMainDomain = notification.tenantId === MAIN_DOMAIN_BOT_ID;
     const tenantUser = await prisma.tenantUser.findFirst({
       where: {
@@ -234,7 +237,10 @@ export async function sendTicketUpdateDM(
       },
     });
 
-    if (!tenantUser) return false;
+    if (!tenantUser) {
+      console.log(`[Notifications] Skipped: user ${notification.discordUserId} has not opted in to notifications`);
+      return false;
+    }
 
     // Send a new DM with just this update
     const client = botManager.getBot(notification.tenantId);
