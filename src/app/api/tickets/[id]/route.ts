@@ -30,7 +30,7 @@ export async function GET(
     }
 
     // Tenant-aware provider
-    const { provider, error: providerError } = await resolveProviderFromRequest();
+    const { provider, tenantId, error: providerError } = await resolveProviderFromRequest();
     if (!provider) {
       return NextResponse.json(
         { success: false, error: providerError || 'Ticketing is not configured.' },
@@ -47,6 +47,12 @@ export async function GET(
         { status: 404 }
       );
     }
+
+    // Fire-and-forget: refresh the Discord DM with latest data from Jira
+    const botId = tenantId || MAIN_DOMAIN_BOT_ID;
+    refreshTicketDM(botId, ticketId, user.id).catch(err =>
+      console.error('[API] DM refresh on ticket view failed:', err)
+    );
 
     return NextResponse.json({
       success: true,
