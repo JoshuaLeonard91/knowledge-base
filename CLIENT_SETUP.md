@@ -51,11 +51,13 @@ Generate a webhook secret:
 node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
+**Cloudflare prerequisite**: If the domain is behind Cloudflare, disable Bot Fight Mode (Security > Bots) or exclude `/api/webhooks/` from it. Jira Automation requests are blocked by Bot Fight Mode.
+
 Set up the automation rule in Jira:
 
-1. Go to **Project** > **Project settings** > **Automation**
+1. Go to **Project** > **Project settings** > **Automation** (must be project-level, not global)
 2. Click **Create rule**
-3. **Trigger**: "Comment added" (optionally filter to public comments only)
+3. **Trigger**: "Comment added"
 4. **Action**: "Send web request"
    - **URL**: `https://helpportal.app/api/webhooks/jira?secret=GENERATED_SECRET`
      - For tenants: append `&tenant=TENANT_ID`
@@ -65,29 +67,20 @@ Set up the automation rule in Jira:
      ```json
      {
        "webhookEvent": "comment_created",
-       "comment": {
-         "body": "{{comment.body}}",
-         "author": {
-           "displayName": "{{comment.author.displayName}}",
-           "accountId": "{{comment.author.accountId}}"
-         }
-       },
-       "issue": {
-         "key": "{{issue.key}}",
-         "fields": {
-           "summary": "{{issue.summary}}",
-           "status": {"name": "{{issue.status.name}}"},
-           "description": "{{issue.description}}"
-         }
-       }
+       "issueKey": "{{issue.key}}"
      }
      ```
    - **Headers**: `Content-Type: application/json`
-5. Name it and turn it on
+5. Name it "Webhook - Comment Notification" and turn it on
+
+Optional additional rules (same URL and headers, different trigger + payload):
+- **Status changes**: Trigger "When: status changes", payload: `{"webhookEvent": "issue_transitioned", "issueKey": "{{issue.key}}"}`
+- **Assignment changes**: Trigger "When: field value changed" > Assignee, payload: `{"webhookEvent": "issue_transitioned", "issueKey": "{{issue.key}}"}`
 
 Collect / generate:
 
 - [ ] Jira Webhook Secret (set as `JIRA_WEBHOOK_SECRET` env var for main domain, or store in `TenantWebhookConfig` for tenants)
+- [ ] Cloudflare Bot Fight Mode disabled or excluded for webhook path
 
 ### 4. Hygraph CMS
 
