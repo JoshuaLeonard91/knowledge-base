@@ -96,10 +96,14 @@ export async function POST(request: NextRequest) {
       webhookSecret = tenant.webhookConfig.webhookSecret;
     }
 
-    // Verify signature
+    // Verify auth: HMAC signature (classic webhook) OR ?secret= token (Jira Automation)
     const signature = request.headers.get('x-hub-signature');
-    if (!verifyJiraSignature(rawBody, signature, webhookSecret)) {
-      console.log(`[Jira Webhook] Rejected: invalid signature for bot=${botId}`);
+    const urlSecret = request.nextUrl.searchParams.get('secret');
+    const hasValidSignature = signature && verifyJiraSignature(rawBody, signature, webhookSecret);
+    const hasValidToken = urlSecret && urlSecret === webhookSecret;
+
+    if (!hasValidSignature && !hasValidToken) {
+      console.log(`[Jira Webhook] Rejected: invalid auth for bot=${botId} (sig=${!!signature}, token=${!!urlSecret})`);
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 401 }

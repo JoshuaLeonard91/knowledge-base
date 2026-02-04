@@ -74,3 +74,4 @@ prisma/migrations/20260202_remove_zendesk/migration.sql
 prisma/schema.prisma
 nul
 TESTING_CLAIM_FEATURE.md
+CLIENT_SETUP.md

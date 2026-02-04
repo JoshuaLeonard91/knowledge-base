@@ -40,6 +40,55 @@ Collect from client:
 - [ ] Service Desk ID (from URL: `/servicedesk/project/[ID]`)
 - [ ] Request Type ID (from Service Desk settings)
 
+### 3b. Jira Webhook (Comment Notifications)
+
+For Discord DM notifications when agents reply in Jira, set up a Jira Automation rule.
+
+> **Why Automation instead of classic webhooks?** Classic Jira webhooks have a known bug where they don't fire for team-managed (next-gen) JSM projects. Jira Automation works reliably on all project types.
+
+Generate a webhook secret:
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+Set up the automation rule in Jira:
+
+1. Go to **Project** > **Project settings** > **Automation**
+2. Click **Create rule**
+3. **Trigger**: "Comment added" (optionally filter to public comments only)
+4. **Action**: "Send web request"
+   - **URL**: `https://helpportal.app/api/webhooks/jira?secret=GENERATED_SECRET`
+     - For tenants: append `&tenant=TENANT_ID`
+   - **Method**: `POST`
+   - **Body**: `Custom data`
+   - **Custom data**:
+     ```json
+     {
+       "webhookEvent": "comment_created",
+       "comment": {
+         "body": "{{comment.body}}",
+         "author": {
+           "displayName": "{{comment.author.displayName}}",
+           "accountId": "{{comment.author.accountId}}"
+         }
+       },
+       "issue": {
+         "key": "{{issue.key}}",
+         "fields": {
+           "summary": "{{issue.summary}}",
+           "status": {"name": "{{issue.status.name}}"},
+           "description": "{{issue.description}}"
+         }
+       }
+     }
+     ```
+   - **Headers**: `Content-Type: application/json`
+5. Name it and turn it on
+
+Collect / generate:
+
+- [ ] Jira Webhook Secret (set as `JIRA_WEBHOOK_SECRET` env var for main domain, or store in `TenantWebhookConfig` for tenants)
+
 ### 4. Hygraph CMS
 
 Client sets up their documentation in Hygraph:
