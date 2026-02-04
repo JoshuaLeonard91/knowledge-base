@@ -16,12 +16,15 @@ const ATLASSIAN_AUTH_URL = 'https://auth.atlassian.com/authorize';
 const ATLASSIAN_TOKEN_URL = 'https://auth.atlassian.com/oauth/token';
 const ATLASSIAN_RESOURCES_URL = 'https://api.atlassian.com/oauth/token/accessible-resources';
 
+// Classic scopes only — do NOT mix classic and granular scopes.
+// Atlassian generates separate authorization flows for each type
+// and mixing them causes token exchange failures.
 const SCOPES = [
   'offline_access',
   'read:jira-work',
   'write:jira-work',
   'manage:jira-configuration',
-  'read:servicedesk:jira-service-management',
+  'read:servicedesk-request',
 ].join(' ');
 
 function getClientCredentials() {
@@ -62,6 +65,37 @@ export function getAuthorizeUrl(state: string, callbackUrl: string): string {
 }
 
 /**
+ * Post to Atlassian token endpoint.
+ * Tries JSON first (per Atlassian docs), falls back to form-encoded
+ * if JSON returns 401 (some Atlassian environments enforce RFC 6749).
+ */
+async function postTokenEndpoint(body: Record<string, string>): Promise<Response> {
+  // Try JSON first (Atlassian's documented format)
+  const jsonResponse = await fetch(ATLASSIAN_TOKEN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (jsonResponse.ok) {
+    return jsonResponse;
+  }
+
+  // If JSON fails with 401, try form-encoded (OAuth 2.0 RFC standard)
+  if (jsonResponse.status === 401) {
+    console.log('[Atlassian OAuth] JSON request returned 401, retrying with form-encoded');
+    const formResponse = await fetch(ATLASSIAN_TOKEN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(body).toString(),
+    });
+    return formResponse;
+  }
+
+  return jsonResponse;
+}
+
+/**
  * Exchange an authorization code for access + refresh tokens
  */
 export async function exchangeCodeForTokens(
@@ -82,16 +116,12 @@ export async function exchangeCodeForTokens(
     code_length: code.length,
   });
 
-  const response = await fetch(ATLASSIAN_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'authorization_code',
-      client_id: clientId,
-      client_secret: clientSecret,
-      code,
-      redirect_uri: redirectUri,
-    }),
+  const response = await postTokenEndpoint({
+    grant_type: 'authorization_code',
+    client_id: clientId,
+    client_secret: clientSecret,
+    code,
+    redirect_uri: redirectUri,
   });
 
   if (!response.ok) {
@@ -114,15 +144,11 @@ export async function refreshAccessToken(encryptedRefreshToken: string): Promise
   const { clientId, clientSecret } = getClientCredentials();
   const refreshToken = decryptFromString(encryptedRefreshToken);
 
-  const response = await fetch(ATLASSIAN_TOKEN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      grant_type: 'refresh_token',
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-    }),
+  const response = await postTokenEndpoint({
+    grant_type: 'refresh_token',
+    client_id: clientId,
+    client_secret: clientSecret,
+    refresh_token: refreshToken,
   });
 
   if (!response.ok) {
