@@ -148,18 +148,29 @@ model TenantJiraConfig {
   tenantId  String   @id
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // OAuth tokens (encrypted)
+  // Connection state
   connected       Boolean  @default(false)
+  authMode        String   @default("api_token")  // "oauth" or "api_token"
+
+  // Atlassian Cloud identifiers
   cloudId         String?  // Jira site identifier for API calls
   cloudUrl        String?  // e.g., "https://acme.atlassian.net"
-  accessToken     String?  // Encrypted
-  refreshToken    String?  // Encrypted
+
+  // Tokens (encrypted) — interpretation depends on authMode:
+  //   oauth:     accessToken = OAuth access token, refreshToken = OAuth refresh token
+  //   api_token: accessToken = API token, refreshToken = email
+  accessToken     String?
+  refreshToken    String?
   tokenExpiry     DateTime?
 
-  // Service desk configuration
+  // Project selection
+  projectKey      String?
+  projectId       String?  // Jira project ID (needed for Automation ARI)
   serviceDeskId   String?
   requestTypeId   String?
-  projectKey      String?
+
+  // Automation rule setup
+  automationRuleCreated Boolean @default(false)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

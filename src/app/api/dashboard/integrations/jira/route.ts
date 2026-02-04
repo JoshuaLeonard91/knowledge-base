@@ -17,6 +17,7 @@ import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
+import { revokeToken } from '@/lib/atlassian/oauth';
 
 // Security headers
 const securityHeaders = {
@@ -74,11 +75,18 @@ export async function GET() {
       : user.tenants[0];
     const config = tenant.jiraConfig;
 
-    // Return status only - NEVER return credentials
+    // Return status and onboarding progress — NEVER return credentials
     return NextResponse.json(
       {
         configured: config?.connected || false,
         hasTenant: true,
+        authMode: config?.authMode || 'api_token',
+        cloudUrl: config?.cloudUrl || null,
+        projectKey: config?.projectKey || null,
+        projectId: config?.projectId || null,
+        serviceDeskId: config?.serviceDeskId || null,
+        requestTypeId: config?.requestTypeId || null,
+        automationRuleCreated: config?.automationRuleCreated || false,
         connectedAt: config?.createdAt || null,
       },
       { headers: securityHeaders }
@@ -297,6 +305,14 @@ export async function DELETE(request: NextRequest) {
         { error: 'Tenant access denied' },
         { status: 403, headers: securityHeaders }
       );
+    }
+
+    // Revoke OAuth token if using OAuth mode
+    const existingConfig = await prisma.tenantJiraConfig.findUnique({
+      where: { tenantId: tenant.id },
+    });
+    if (existingConfig?.authMode === 'oauth' && existingConfig.refreshToken) {
+      await revokeToken(existingConfig.refreshToken);
     }
 
     // Delete configuration

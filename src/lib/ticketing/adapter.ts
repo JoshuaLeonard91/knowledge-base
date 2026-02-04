@@ -4,6 +4,10 @@
  * Factory that returns the correct ticket provider based on
  * tenant configuration. Currently supports Jira.
  *
+ * Supports two auth modes per tenant:
+ * - "oauth": Uses Atlassian OAuth 2.0 (3LO) tokens with automatic refresh
+ * - "api_token": Uses email + API token via Basic Auth (legacy / main domain)
+ *
  * Usage:
  *   const provider = getTicketProvider();                    // Default (Jira via env vars)
  *   const provider = await getTicketProviderForTenant(id);   // Per-tenant lookup
@@ -12,7 +16,8 @@
 import type { TicketProvider } from './types';
 import { JiraTicketProvider } from './providers/jira';
 import { JiraServiceDeskClient } from '@/lib/atlassian/client';
-import { decryptFromString } from '@/lib/security/crypto';
+import { decryptFromString, encryptToString } from '@/lib/security/crypto';
+import { refreshAccessToken } from '@/lib/atlassian/oauth';
 import { prisma } from '@/lib/db/client';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
 
@@ -22,6 +27,7 @@ const defaultProvider = new JiraTicketProvider();
 // Cache per-tenant providers so we don't decrypt + instantiate on every request
 const tenantProviderCache = new Map<string, { provider: JiraTicketProvider; expiresAt: number }>();
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const OAUTH_CACHE_TTL_MS = 4 * 60 * 1000; // 4 minutes (shorter for OAuth — tokens expire hourly)
 
 /**
  * Get the default ticket provider (Jira via environment config).
@@ -33,8 +39,8 @@ export function getTicketProvider(): TicketProvider {
 
 /**
  * Get the ticket provider for a specific tenant.
- * Decrypts the tenant's stored Jira credentials and returns
- * a provider instance pointing to their Jira workspace.
+ * Handles both OAuth and API token auth modes.
+ * For OAuth, transparently refreshes expired tokens.
  *
  * Returns null if no provider is configured or connected.
  */
@@ -57,33 +63,87 @@ export async function getTicketProviderForTenant(
   if (!tenant) return null;
 
   const config = tenant.jiraConfig;
-  if (!config?.connected || !config.cloudUrl || !config.accessToken || !config.refreshToken) {
+  if (!config?.connected || !config.accessToken || !config.refreshToken) {
     return null;
   }
 
   try {
-    // Decrypt stored credentials
-    // accessToken = encrypted API token, refreshToken = encrypted email
-    const apiToken = decryptFromString(config.accessToken);
-    const email = decryptFromString(config.refreshToken);
+    let client: JiraServiceDeskClient;
+    let cacheTtl: number;
 
-    // Normalize domain from cloudUrl (e.g., "https://acme.atlassian.net" → "acme.atlassian.net")
-    const domain = config.cloudUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+    if (config.authMode === 'oauth') {
+      // --- OAuth path ---
+      if (!config.cloudId) return null;
 
-    const client = new JiraServiceDeskClient({
-      domain,
-      email,
-      apiToken,
-      serviceDeskId: config.serviceDeskId || undefined,
-      requestTypeId: config.requestTypeId || undefined,
-    });
+      let accessToken = decryptFromString(config.accessToken);
+
+      // Check if token is expired or about to expire (5-minute buffer)
+      const isExpired = config.tokenExpiry &&
+        new Date(config.tokenExpiry) <= new Date(Date.now() + 5 * 60 * 1000);
+
+      if (isExpired) {
+        try {
+          const refreshed = await refreshAccessToken(config.refreshToken);
+          accessToken = refreshed.access_token;
+
+          // Persist new tokens
+          await prisma.tenantJiraConfig.update({
+            where: { tenantId },
+            data: {
+              accessToken: encryptToString(refreshed.access_token),
+              refreshToken: encryptToString(refreshed.refresh_token),
+              tokenExpiry: new Date(Date.now() + refreshed.expires_in * 1000),
+            },
+          });
+
+          console.log(`[Adapter] Refreshed OAuth token for tenant ${tenantId}`);
+        } catch (refreshError) {
+          console.error(`[Adapter] Token refresh failed for tenant ${tenantId}:`, refreshError);
+          // Mark as disconnected so UI can prompt reconnection
+          await prisma.tenantJiraConfig.update({
+            where: { tenantId },
+            data: { connected: false },
+          });
+          tenantProviderCache.delete(tenantId);
+          return null;
+        }
+      }
+
+      client = new JiraServiceDeskClient({
+        cloudId: config.cloudId,
+        oauthAccessToken: accessToken,
+        serviceDeskId: config.serviceDeskId || undefined,
+        requestTypeId: config.requestTypeId || undefined,
+        projectKey: config.projectKey || undefined,
+      });
+
+      cacheTtl = OAUTH_CACHE_TTL_MS;
+    } else {
+      // --- Legacy API token path ---
+      if (!config.cloudUrl) return null;
+
+      const apiToken = decryptFromString(config.accessToken);
+      const email = decryptFromString(config.refreshToken);
+      const domain = config.cloudUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
+
+      client = new JiraServiceDeskClient({
+        domain,
+        email,
+        apiToken,
+        serviceDeskId: config.serviceDeskId || undefined,
+        requestTypeId: config.requestTypeId || undefined,
+        projectKey: config.projectKey || undefined,
+      });
+
+      cacheTtl = CACHE_TTL_MS;
+    }
 
     const provider = new JiraTicketProvider(client);
 
     // Cache it
     tenantProviderCache.set(tenantId, {
       provider,
-      expiresAt: Date.now() + CACHE_TTL_MS,
+      expiresAt: Date.now() + cacheTtl,
     });
 
     return provider;

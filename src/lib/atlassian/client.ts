@@ -98,15 +98,24 @@ const JIRA_SERVICE_DESK_ID = process.env.JIRA_SERVICE_DESK_ID || '';
 const JIRA_REQUEST_TYPE_ID = process.env.JIRA_REQUEST_TYPE_ID || '';
 
 /**
- * Optional config for creating a per-tenant client instead of
- * using environment variables.
+ * Config for creating a client instance.
+ *
+ * Two auth modes:
+ * - Basic auth: domain + email + apiToken (env-var fallback for main domain)
+ * - OAuth: cloudId + oauthAccessToken (for tenant OAuth connections)
  */
 export interface JiraClientConfig {
-  domain: string;       // e.g. "acme.atlassian.net"
-  email: string;
-  apiToken: string;
+  // Basic auth mode
+  domain?: string;       // e.g. "acme.atlassian.net"
+  email?: string;
+  apiToken?: string;
+  // OAuth mode
+  cloudId?: string;
+  oauthAccessToken?: string;
+  // Shared
   serviceDeskId?: string;
   requestTypeId?: string;
+  projectKey?: string;
 }
 
 export class JiraServiceDeskClient {
@@ -116,27 +125,41 @@ export class JiraServiceDeskClient {
   private isConfigured: boolean;
   private serviceDeskId: string;
   private requestTypeId: string;
+  private configProjectKey: string;
+  private authMode: 'basic' | 'oauth';
 
   constructor(config?: JiraClientConfig) {
-    const domain = config?.domain || ATLASSIAN_DOMAIN;
-    const email = config?.email || ATLASSIAN_EMAIL;
-    const apiToken = config?.apiToken || ATLASSIAN_API_TOKEN;
     const sdId = config?.serviceDeskId || JIRA_SERVICE_DESK_ID;
     const rtId = config?.requestTypeId || JIRA_REQUEST_TYPE_ID;
-
-    this.isConfigured = Boolean(domain && email && apiToken && sdId);
-    this.baseUrl = domain ? `https://${domain}/rest/api/3` : '';
-    this.serviceDeskApiUrl = domain
-      ? `https://${domain}/rest/servicedeskapi`
-      : '';
     this.serviceDeskId = sdId;
     this.requestTypeId = rtId;
+    this.configProjectKey = config?.projectKey || '';
 
-    // Atlassian uses email:api_token for authentication (Basic Auth)
-    const credentials = `${email}:${apiToken}`;
-    this.authHeader = this.isConfigured
-      ? `Basic ${Buffer.from(credentials).toString('base64')}`
-      : '';
+    if (config?.oauthAccessToken && config?.cloudId) {
+      // OAuth mode: route through api.atlassian.com proxy
+      this.authMode = 'oauth';
+      this.baseUrl = `https://api.atlassian.com/ex/jira/${config.cloudId}/rest/api/3`;
+      this.serviceDeskApiUrl = `https://api.atlassian.com/ex/jira/${config.cloudId}/rest/servicedeskapi`;
+      this.authHeader = `Bearer ${config.oauthAccessToken}`;
+      this.isConfigured = true;
+    } else {
+      // Basic auth mode (existing behavior, env-var fallback)
+      this.authMode = 'basic';
+      const domain = config?.domain || ATLASSIAN_DOMAIN;
+      const email = config?.email || ATLASSIAN_EMAIL;
+      const apiToken = config?.apiToken || ATLASSIAN_API_TOKEN;
+
+      this.isConfigured = Boolean(domain && email && apiToken && sdId);
+      this.baseUrl = domain ? `https://${domain}/rest/api/3` : '';
+      this.serviceDeskApiUrl = domain
+        ? `https://${domain}/rest/servicedeskapi`
+        : '';
+
+      const credentials = `${email}:${apiToken}`;
+      this.authHeader = this.isConfigured
+        ? `Basic ${Buffer.from(credentials).toString('base64')}`
+        : '';
+    }
   }
 
   /**
@@ -284,8 +307,8 @@ export class JiraServiceDeskClient {
     input: CreateRequestInput,
     description: string
   ): Promise<CreateRequestResponse> {
-    // Get project key from service desk ID or use default
-    const projectKey = process.env.JIRA_PROJECT_KEY || 'SUPPORT';
+    // Get project key from config, then env var, then default
+    const projectKey = this.configProjectKey || process.env.JIRA_PROJECT_KEY || 'SUPPORT';
 
     const payload = {
       fields: {
@@ -609,7 +632,7 @@ export class JiraServiceDeskClient {
       return [];
     }
 
-    const projectKey = process.env.JIRA_PROJECT_KEY || 'SUPPORT';
+    const projectKey = this.configProjectKey || process.env.JIRA_PROJECT_KEY || 'SUPPORT';
 
     // Escape user inputs to prevent JQL injection
     const escapedUserId = this.escapeJqlText(discordUserId);

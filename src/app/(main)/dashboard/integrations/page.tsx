@@ -13,15 +13,38 @@
  * - Only delete action available after setup
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { usePlatform } from '../../PlatformProvider';
 
 interface IntegrationStatus {
   configured: boolean;
   hasTenant: boolean;
   connectedAt?: string;
+}
+
+interface JiraStatus extends IntegrationStatus {
+  authMode?: string;
+  cloudUrl?: string;
+  projectKey?: string;
+  projectId?: string;
+  serviceDeskId?: string;
+  requestTypeId?: string;
+  automationRuleCreated?: boolean;
+}
+
+interface JiraProject {
+  id: string;
+  key: string;
+  name: string;
+  style: string;
+}
+
+interface JiraRequestType {
+  id: string;
+  name: string;
+  description: string;
 }
 
 interface DiscordBotStatus {
@@ -42,6 +65,7 @@ interface StaffMappingItem {
 
 export default function IntegrationsPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { siteName } = usePlatform();
 
   // Loading states
@@ -49,12 +73,24 @@ export default function IntegrationsPage() {
 
   // Integration statuses
   const [hygraphStatus, setHygraphStatus] = useState<IntegrationStatus | null>(null);
-  const [jiraStatus, setJiraStatus] = useState<IntegrationStatus | null>(null);
+  const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null);
   const [discordBotStatus, setDiscordBotStatus] = useState<DiscordBotStatus | null>(null);
 
   // Form states
   const [hygraphForm, setHygraphForm] = useState({ endpoint: '', token: '' });
   const [jiraForm, setJiraForm] = useState({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' });
+
+  // Jira OAuth onboarding state
+  const [jiraProjects, setJiraProjects] = useState<JiraProject[]>([]);
+  const [jiraRequestTypes, setJiraRequestTypes] = useState<JiraRequestType[]>([]);
+  const [selectedProject, setSelectedProject] = useState<JiraProject | null>(null);
+  const [selectedServiceDeskId, setSelectedServiceDeskId] = useState('');
+  const [selectedRequestType, setSelectedRequestType] = useState('');
+  const [isLoadingProjects, setIsLoadingProjects] = useState(false);
+  const [isLoadingRequestTypes, setIsLoadingRequestTypes] = useState(false);
+  const [isSavingProject, setIsSavingProject] = useState(false);
+  const [automationForm, setAutomationForm] = useState({ email: '', apiToken: '' });
+  const [isCreatingRule, setIsCreatingRule] = useState(false);
   const [discordBotForm, setDiscordBotForm] = useState({ botToken: '', guildId: '' });
   const [staffMappings, setStaffMappings] = useState<StaffMappingItem[]>([]);
   const [staffForm, setStaffForm] = useState({ displayName: '', discordUserId: '', jiraAccountId: '' });
@@ -411,6 +447,127 @@ export default function IntegrationsPage() {
     }
   }, [discordBotStatus?.configured, jiraStatus?.configured]);
 
+  // Handle OAuth callback redirect (?jira=connected)
+  useEffect(() => {
+    if (searchParams.get('jira') === 'connected') {
+      setSuccess('Jira connected via Atlassian OAuth!');
+      fetchStatuses();
+      // Clean URL without reload
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, [searchParams]);
+
+  // Jira OAuth wizard helpers
+  const getJiraOnboardingStep = useCallback((): number => {
+    if (!jiraStatus?.configured) return 0; // Not connected
+    if (jiraStatus.authMode !== 'oauth') return 4; // Legacy API token mode — fully configured
+    if (!jiraStatus.projectKey) return 1; // Connected, needs project selection
+    if (!jiraStatus.automationRuleCreated) return 2; // Project selected, needs automation
+    return 3; // Complete
+  }, [jiraStatus]);
+
+  const fetchJiraProjects = async () => {
+    setIsLoadingProjects(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/dashboard/integrations/jira/projects');
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to load projects');
+        return;
+      }
+      setJiraProjects(data);
+    } catch {
+      setError('Failed to load Jira projects');
+    } finally {
+      setIsLoadingProjects(false);
+    }
+  };
+
+  const fetchRequestTypes = async (projectKey: string) => {
+    setIsLoadingRequestTypes(true);
+    setJiraRequestTypes([]);
+    setSelectedRequestType('');
+    setError(null);
+    try {
+      const res = await fetch(`/api/dashboard/integrations/jira/projects/${encodeURIComponent(projectKey)}`);
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || 'Failed to load project details');
+        return;
+      }
+      setSelectedServiceDeskId(data.serviceDeskId);
+      setJiraRequestTypes(data.requestTypes || []);
+    } catch {
+      setError('Failed to load project details');
+    } finally {
+      setIsLoadingRequestTypes(false);
+    }
+  };
+
+  const saveProjectSelection = async () => {
+    if (!selectedProject || !selectedServiceDeskId || !selectedRequestType) return;
+    setIsSavingProject(true);
+    setError(null);
+    try {
+      const csrf = await getCsrfToken();
+      const res = await fetch('/api/dashboard/integrations/jira/projects/select', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify({
+          projectKey: selectedProject.key,
+          projectId: selectedProject.id,
+          serviceDeskId: selectedServiceDeskId,
+          requestTypeId: selectedRequestType,
+        }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to save project selection');
+        return;
+      }
+      setSuccess('Project configured!');
+      fetchStatuses();
+    } catch {
+      setError('Failed to save project selection');
+    } finally {
+      setIsSavingProject(false);
+    }
+  };
+
+  const createAutomationRule = async () => {
+    if (!automationForm.email || !automationForm.apiToken) return;
+    setIsCreatingRule(true);
+    setError(null);
+    try {
+      const csrf = await getCsrfToken();
+      const res = await fetch('/api/dashboard/integrations/jira/automation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+        body: JSON.stringify(automationForm),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setError(data.error || 'Failed to create automation rule');
+        return;
+      }
+      setSuccess('Automation rule created! Webhook notifications are now active.');
+      setAutomationForm({ email: '', apiToken: '' });
+      fetchStatuses();
+    } catch {
+      setError('Failed to create automation rule');
+    } finally {
+      setIsCreatingRule(false);
+    }
+  };
+
+  // Auto-fetch projects when reaching step 1
+  useEffect(() => {
+    if (getJiraOnboardingStep() === 1 && jiraProjects.length === 0 && !isLoadingProjects) {
+      fetchJiraProjects();
+    }
+  }, [getJiraOnboardingStep, jiraProjects.length, isLoadingProjects]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gradient-to-b from-[#0a0a0f] to-[#12121a] flex items-center justify-center">
@@ -579,12 +736,248 @@ export default function IntegrationsPage() {
               </span>
             </div>
 
-            {/* Connected State */}
-            {jiraStatus?.configured && activeForm !== 'jira' && (
-              <div className="px-6 pb-6">
-                <p className="text-sm text-white/60 mb-4">
-                  Connected on {jiraStatus.connectedAt ? new Date(jiraStatus.connectedAt).toLocaleDateString() : 'Unknown'}
-                </p>
+            {/* Onboarding progress steps (OAuth mode) */}
+            {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && (
+              <div className="px-6 pb-2">
+                <div className="flex items-center gap-2 text-xs">
+                  {['Connect', 'Select Project', 'Notifications'].map((label, i) => {
+                    const step = getJiraOnboardingStep();
+                    const done = i < step || step === 3;
+                    const active = i === step - 1 && step < 3;
+                    return (
+                      <div key={label} className="flex items-center gap-2">
+                        {i > 0 && <div className={`w-6 h-px ${done ? 'bg-green-500/40' : 'bg-white/10'}`} />}
+                        <span className={`flex items-center gap-1.5 ${done ? 'text-green-400' : active ? 'text-blue-400' : 'text-white/30'}`}>
+                          {done ? (
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          ) : (
+                            <span className={`w-3.5 h-3.5 rounded-full border ${active ? 'border-blue-400' : 'border-white/20'} flex items-center justify-center text-[8px]`}>{i + 1}</span>
+                          )}
+                          {label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Step 0: Not connected — show Connect button */}
+            {!jiraStatus?.configured && (
+              <div className="px-6 pb-6 space-y-3">
+                <a
+                  href="/api/auth/atlassian"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z" /></svg>
+                  Connect with Atlassian
+                </a>
+                <p className="text-xs text-white/40">You&apos;ll be redirected to Atlassian to authorize access.</p>
+
+                {/* Fallback: manual API token setup */}
+                {activeForm !== 'jira' && (
+                  <button
+                    onClick={() => { setActiveForm('jira'); setError(null); setSuccess(null); }}
+                    className="text-xs text-white/30 hover:text-white/50 transition underline"
+                  >
+                    Or configure manually with API token
+                  </button>
+                )}
+
+                {activeForm === 'jira' && (
+                  <div className="space-y-4 pt-2 border-t border-white/5">
+                    <div>
+                      <label className="block text-sm text-white/60 mb-2">Jira URL</label>
+                      <input type="text" value={jiraForm.jiraUrl} onChange={(e) => setJiraForm({ ...jiraForm, jiraUrl: e.target.value })} placeholder="yoursite.atlassian.net" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-white/60 mb-2">Email</label>
+                      <input type="email" value={jiraForm.email} onChange={(e) => setJiraForm({ ...jiraForm, email: e.target.value })} placeholder="you@example.com" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50" />
+                    </div>
+                    <div>
+                      <label className="block text-sm text-white/60 mb-2">API Token</label>
+                      <input type="password" value={jiraForm.apiToken} onChange={(e) => setJiraForm({ ...jiraForm, apiToken: e.target.value })} placeholder="Your Atlassian API token" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50" />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm text-white/60 mb-2">Service Desk ID</label>
+                        <input type="text" value={jiraForm.serviceDeskId} onChange={(e) => setJiraForm({ ...jiraForm, serviceDeskId: e.target.value })} placeholder="1" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50" />
+                      </div>
+                      <div>
+                        <label className="block text-sm text-white/60 mb-2">Project Key</label>
+                        <input type="text" value={jiraForm.projectKey} onChange={(e) => setJiraForm({ ...jiraForm, projectKey: e.target.value })} placeholder="SUPPORT" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50" />
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <button onClick={saveJira} disabled={isSaving || !jiraForm.jiraUrl || !jiraForm.email || !jiraForm.apiToken} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50">
+                        {isSaving ? 'Saving...' : 'Save'}
+                      </button>
+                      <button onClick={() => { setActiveForm(null); setJiraForm({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' }); setError(null); }} className="px-4 py-2 text-white/60 hover:text-white text-sm transition">
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Step 1: Connected via OAuth, select project */}
+            {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && !jiraStatus.projectKey && (
+              <div className="px-6 pb-6 space-y-4">
+                <div className="flex items-center gap-2 text-sm text-white/60">
+                  <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  Connected to <span className="text-white/80 font-medium">{jiraStatus.cloudUrl || 'Atlassian'}</span>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">Select a JSM Project</label>
+                  {isLoadingProjects ? (
+                    <div className="flex items-center gap-2 text-sm text-white/40 py-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
+                      Loading projects...
+                    </div>
+                  ) : (
+                    <select
+                      value={selectedProject?.key || ''}
+                      onChange={(e) => {
+                        const project = jiraProjects.find(p => p.key === e.target.value);
+                        setSelectedProject(project || null);
+                        if (project) fetchRequestTypes(project.key);
+                      }}
+                      className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
+                    >
+                      <option value="">Choose a project...</option>
+                      {jiraProjects.map(p => (
+                        <option key={p.id} value={p.key}>{p.name} ({p.key})</option>
+                      ))}
+                    </select>
+                  )}
+                  {jiraProjects.length === 0 && !isLoadingProjects && (
+                    <button onClick={fetchJiraProjects} className="mt-2 text-xs text-blue-400 hover:text-blue-300 transition">
+                      Reload projects
+                    </button>
+                  )}
+                </div>
+
+                {selectedProject && (
+                  <div>
+                    <label className="block text-sm text-white/60 mb-2">Request Type</label>
+                    {isLoadingRequestTypes ? (
+                      <div className="flex items-center gap-2 text-sm text-white/40 py-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
+                        Loading request types...
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedRequestType}
+                        onChange={(e) => setSelectedRequestType(e.target.value)}
+                        className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
+                      >
+                        <option value="">Choose a request type...</option>
+                        {jiraRequestTypes.map(rt => (
+                          <option key={rt.id} value={rt.id}>{rt.name}{rt.description ? ` — ${rt.description}` : ''}</option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )}
+
+                {selectedProject && selectedRequestType && (
+                  <button
+                    onClick={saveProjectSelection}
+                    disabled={isSavingProject}
+                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  >
+                    {isSavingProject ? 'Saving...' : 'Save Project Selection'}
+                  </button>
+                )}
+              </div>
+            )}
+
+            {/* Step 2: Project selected, create automation rule */}
+            {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && jiraStatus.projectKey && !jiraStatus.automationRuleCreated && (
+              <div className="px-6 pb-6 space-y-4">
+                <div className="space-y-1 text-sm text-white/60">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    Connected to <span className="text-white/80 font-medium">{jiraStatus.cloudUrl}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                    Project: <span className="text-white/80 font-medium">{jiraStatus.projectKey}</span>
+                  </div>
+                </div>
+
+                <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
+                  <p className="text-xs text-white/50">
+                    <strong className="text-white/70">One-time setup:</strong> Enter a Jira admin API token to create an automation rule that sends webhook notifications when comments are added to tickets. The token is used once and is not stored.
+                  </p>
+                  <p className="text-xs text-white/40 mt-1">
+                    Generate a token at{' '}
+                    <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                      id.atlassian.com/manage-profile/security/api-tokens
+                    </a>
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">Admin Email</label>
+                  <input
+                    type="email"
+                    value={automationForm.email}
+                    onChange={(e) => setAutomationForm({ ...automationForm, email: e.target.value })}
+                    placeholder="admin@example.com"
+                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm text-white/60 mb-2">API Token (one-time use)</label>
+                  <input
+                    type="password"
+                    value={automationForm.apiToken}
+                    onChange={(e) => setAutomationForm({ ...automationForm, apiToken: e.target.value })}
+                    placeholder="Your Atlassian API token"
+                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
+                  />
+                </div>
+
+                <button
+                  onClick={createAutomationRule}
+                  disabled={isCreatingRule || !automationForm.email || !automationForm.apiToken}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {isCreatingRule ? 'Creating Rule...' : 'Create Automation Rule'}
+                </button>
+              </div>
+            )}
+
+            {/* Step 3 / Legacy: Fully configured */}
+            {jiraStatus?.configured && (getJiraOnboardingStep() === 3 || getJiraOnboardingStep() === 4) && (
+              <div className="px-6 pb-6 space-y-3">
+                <div className="space-y-1 text-sm text-white/60">
+                  {jiraStatus.cloudUrl && (
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Connected to <span className="text-white/80 font-medium">{jiraStatus.cloudUrl}</span>
+                    </div>
+                  )}
+                  {jiraStatus.projectKey && (
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Project: <span className="text-white/80 font-medium">{jiraStatus.projectKey}</span>
+                    </div>
+                  )}
+                  {jiraStatus.automationRuleCreated && (
+                    <div className="flex items-center gap-2">
+                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                      Webhook notifications active
+                    </div>
+                  )}
+                  <p className="text-xs text-white/40 pt-1">
+                    Connected on {jiraStatus.connectedAt ? new Date(jiraStatus.connectedAt).toLocaleDateString() : 'Unknown'}
+                    {jiraStatus.authMode === 'oauth' ? ' via OAuth' : ' via API token'}
+                  </p>
+                </div>
                 <button
                   onClick={() => deleteIntegration('jira')}
                   disabled={isDeleting === 'jira'}
@@ -592,97 +985,6 @@ export default function IntegrationsPage() {
                 >
                   {isDeleting === 'jira' ? 'Disconnecting...' : 'Disconnect'}
                 </button>
-              </div>
-            )}
-
-            {/* Setup Form */}
-            {!jiraStatus?.configured && activeForm !== 'jira' && (
-              <div className="px-6 pb-6">
-                <button
-                  onClick={() => { setActiveForm('jira'); setError(null); setSuccess(null); }}
-                  className="px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition"
-                >
-                  Connect Jira
-                </button>
-              </div>
-            )}
-
-            {activeForm === 'jira' && (
-              <div className="px-6 pb-6 space-y-4">
-                <div>
-                  <label className="block text-sm text-white/60 mb-2">Jira URL</label>
-                  <input
-                    type="text"
-                    value={jiraForm.jiraUrl}
-                    onChange={(e) => setJiraForm({ ...jiraForm, jiraUrl: e.target.value })}
-                    placeholder="yoursite.atlassian.net"
-                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-white/60 mb-2">Email</label>
-                  <input
-                    type="email"
-                    value={jiraForm.email}
-                    onChange={(e) => setJiraForm({ ...jiraForm, email: e.target.value })}
-                    placeholder="you@example.com"
-                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-white/60 mb-2">API Token</label>
-                  <input
-                    type="password"
-                    value={jiraForm.apiToken}
-                    onChange={(e) => setJiraForm({ ...jiraForm, apiToken: e.target.value })}
-                    placeholder="Your Atlassian API token"
-                    className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm text-white/60 mb-2">Service Desk ID (optional)</label>
-                    <input
-                      type="text"
-                      value={jiraForm.serviceDeskId}
-                      onChange={(e) => setJiraForm({ ...jiraForm, serviceDeskId: e.target.value })}
-                      placeholder="1"
-                      className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm text-white/60 mb-2">Project Key (optional)</label>
-                    <input
-                      type="text"
-                      value={jiraForm.projectKey}
-                      onChange={(e) => setJiraForm({ ...jiraForm, projectKey: e.target.value })}
-                      placeholder="SUPPORT"
-                      className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
-                    />
-                  </div>
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={validateJira}
-                    disabled={isValidating || !jiraForm.jiraUrl || !jiraForm.email || !jiraForm.apiToken}
-                    className="px-4 py-2 bg-white/5 hover:bg-white/10 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {isValidating ? 'Testing...' : 'Test Connection'}
-                  </button>
-                  <button
-                    onClick={saveJira}
-                    disabled={isSaving || !jiraForm.jiraUrl || !jiraForm.email || !jiraForm.apiToken}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {isSaving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={() => { setActiveForm(null); setJiraForm({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' }); setError(null); }}
-                    className="px-4 py-2 text-white/60 hover:text-white text-sm transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
               </div>
             )}
           </div>

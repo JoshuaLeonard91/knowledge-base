@@ -11,11 +11,15 @@ export async function register() {
   // Only run on the server (not during build or on edge)
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     const { botManager } = await import('@/lib/discord-bot/manager');
+    const { startTokenRefresh } = await import('@/lib/atlassian/token-refresh');
 
     console.log('[Instrumentation] Starting Discord bot manager...');
     botManager.initialize().catch((error) => {
       console.error('[Instrumentation] Bot manager init failed:', error);
     });
+
+    // Background OAuth token refresh (prevents 90-day expiry)
+    startTokenRefresh();
 
     // Graceful shutdown
     const shutdown = async () => {
