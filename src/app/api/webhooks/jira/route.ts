@@ -1,11 +1,16 @@
 /**
  * Jira Webhook Handler
  *
- * Receives Jira webhooks when comments are added to tickets.
- * Looks up the ticket owner's Discord ID from the ticket metadata,
- * checks their notification preference, and sends a DM via the bot.
+ * Receives lightweight webhook payloads from Jira Automation rules.
+ * On receiving an event, fetches the full ticket data from Jira's API
+ * to get accurate comments, status, and description.
  *
- * Webhook events: jira:issue_updated (filtered for comment_created)
+ * Supports:
+ * - comment_created: Staff replied → notify user via Discord DM
+ * - issue_transitioned: Status changed → refresh Discord DM
+ *
+ * Auth: ?secret= URL token (Jira Automation) or HMAC-SHA256 (classic webhook)
+ * Routing: main domain (no ?tenant) or tenant-specific (?tenant=id)
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -13,7 +18,9 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db/client';
 import { sendTicketUpdateDM } from '@/lib/discord-bot/notifications';
 import { logTicketComment } from '@/lib/discord-bot/log';
+import { refreshTicketDM } from '@/lib/discord-bot/helpers';
 import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
+import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 
 /**
  * Verify Jira webhook signature (HMAC-SHA256)
@@ -53,7 +60,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log(`[Jira Webhook] Received webhook, event=${payload.webhookEvent || 'unknown'}`);
+    const webhookEvent = payload.webhookEvent || 'unknown';
+    console.log(`[Jira Webhook] Received event=${webhookEvent}, payload keys=${Object.keys(payload).join(',')}`);
 
     // Resolve context: main domain (no ?tenant) or tenant-specific (?tenant=id)
     const tenantParam = request.nextUrl.searchParams.get('tenant');
@@ -110,93 +118,151 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Only process comment_created events
-    const webhookEvent = payload.webhookEvent;
-    if (webhookEvent !== 'comment_created' && webhookEvent !== 'jira:issue_updated') {
+    // Extract issue key from payload — supports multiple formats:
+    // Lightweight: { issueKey: "KBT-18" }
+    // Classic webhook: { issue: { key: "KBT-18" } }
+    const issueKey = payload.issueKey || payload.issue?.key;
+    if (!issueKey) {
+      console.log(`[Jira Webhook] Skipped: no issueKey in payload`);
+      return NextResponse.json({ ok: true, skipped: true });
+    }
+
+    // Only process known event types
+    if (webhookEvent !== 'comment_created' && webhookEvent !== 'issue_transitioned' && webhookEvent !== 'jira:issue_updated') {
       console.log(`[Jira Webhook] Skipped: unhandled event type "${webhookEvent}"`);
       return NextResponse.json({ ok: true, skipped: true });
     }
 
-    // For issue_updated, check if a comment was added
-    const comment = payload.comment;
-    if (!comment) {
-      console.log(`[Jira Webhook] Skipped: ${webhookEvent} but no comment in payload`);
-      return NextResponse.json({ ok: true, skipped: true });
+    // Get the ticket provider to fetch full data from Jira
+    const provider = botId === MAIN_DOMAIN_BOT_ID
+      ? getTicketProvider()
+      : await getTicketProviderForTenant(botId);
+
+    if (!provider) {
+      console.log(`[Jira Webhook] Error: no ticket provider for bot=${botId}`);
+      return NextResponse.json(
+        { error: 'Ticket provider not available' },
+        { status: 503 }
+      );
     }
 
-    // Extract ticket info
-    const issue = payload.issue;
-    if (!issue) {
-      console.log(`[Jira Webhook] Skipped: no issue in payload`);
-      return NextResponse.json({ ok: true, skipped: true });
-    }
+    // Fetch the full ticket from Jira to get accurate data
+    // Pass a dummy userId — getTicket verifies ownership via description metadata,
+    // but we need to extract the Discord user ID from the ticket itself.
+    // Use the provider's underlying method if available, or fetch without ownership check.
+    console.log(`[Jira Webhook] Fetching ticket ${issueKey} from Jira...`);
 
-    const ticketId = issue.key;
-    const ticketSummary = issue.fields?.summary || 'Support Ticket';
-    const status = issue.fields?.status?.name || 'Unknown';
+    // We need to find the Discord user ID from the ticket description.
+    // Use listTickets won't work here. Instead, we'll get the raw ticket data.
+    // The provider's getTicket requires a discordUserId for ownership verification,
+    // but we don't know it yet. We need a way to fetch without ownership check.
+    //
+    // Workaround: use getTicket with a wildcard-like approach — pass '*' and
+    // the provider will still return the ticket data. The ownership check in
+    // the Jira provider matches Discord User ID in the description, so if we
+    // pass a non-matching ID, it returns null.
+    //
+    // Better approach: extract Discord ID from ticket description directly via Jira API.
+    // The provider has the Jira client — let's call it through a lower-level method.
 
-    // Extract Discord user ID from ticket description metadata
-    // Description may be a plain string or ADF (Atlassian Document Format) object
-    let description = '';
-    if (typeof issue.fields?.description === 'string') {
-      description = issue.fields.description;
-    } else if (issue.fields?.description?.content) {
-      description = extractAdfText(issue.fields.description.content);
-    }
-    console.log(`[Jira Webhook] ticket=${ticketId}, descriptionType=${typeof issue.fields?.description}, extractedLen=${description.length}, preview="${description.substring(0, 150)}"`);
+    // For now, use a direct Jira API call through the provider's client
+    // by leveraging the getTicket method with a special flag, or just
+    // fetch the ticket ignoring ownership.
+    let discordUserId: string | null = null;
+    let ticket;
 
-    const discordIdMatch = description.match(/Discord User ID:\s*(\d{17,19})/i);
-
-    if (!discordIdMatch) {
-      console.log(`[Jira Webhook] Skipped: no Discord User ID found in description for ${ticketId}`);
-      return NextResponse.json({ ok: true, skipped: true });
-    }
-
-    const discordUserId = discordIdMatch[1];
-
-    // Extract comment body
-    let commentBody = '';
-    if (typeof comment.body === 'string') {
-      commentBody = comment.body;
-    } else if (comment.body?.content) {
-      // ADF format — extract text nodes
-      commentBody = extractAdfText(comment.body.content);
-    }
-    console.log(`[Jira Webhook] ticket=${ticketId}, commentBodyLen=${commentBody.length}, commentPreview="${commentBody.substring(0, 100)}"`);
-
-    // Don't notify for comments by the ticket author (self-replies)
-    const commentAuthorId =
-      comment.author?.accountId || comment.author?.name || '';
-    const commentAuthor = comment.author?.displayName || 'Support Team';
-
-    // Skip if this looks like a user comment (contains their Discord metadata)
-    if (commentBody.includes(`Discord User ID: ${discordUserId}`)) {
-      console.log(`[Jira Webhook] Skipped: comment on ${ticketId} is user's own reply (contains Discord metadata)`);
-      return NextResponse.json({ ok: true, skipped: true });
-    }
-
-    // Send DM notification
-    console.log(`[Jira Webhook] Processing comment for ticket=${ticketId}, discordUser=${discordUserId}, author=${commentAuthor}, bot=${botId}`);
-    await sendTicketUpdateDM({
-      tenantId: botId,
-      tenantSlug,
-      tenantName,
-      ticketId,
-      ticketSummary,
-      status,
-      commentBody,
-      commentAuthor,
-      discordUserId,
+    // Try to get the ticket — we'll iterate over known Discord users for this ticket
+    // from the DM tracker first (most common case: we already sent them a DM)
+    const trackers = await prisma.ticketDMTracker.findMany({
+      where: {
+        tenantId: botId,
+        ticketId: issueKey,
+      },
     });
 
-    // Fire-and-forget: log to admin log channel
-    logTicketComment({
-      botId,
-      ticketId,
-      commentAuthor,
-      commentPreview: commentBody.substring(0, 200),
-      isStaff: true,
-    }).catch(err => console.error('[Jira Webhook] Log channel failed:', err));
+    if (trackers.length > 0) {
+      // We know the Discord user(s) for this ticket
+      discordUserId = trackers[0].discordUserId;
+      ticket = await provider.getTicket(issueKey, discordUserId);
+      console.log(`[Jira Webhook] Found tracker: discordUser=${discordUserId}, ticket=${ticket ? 'loaded' : 'null'}`);
+    }
+
+    if (!ticket) {
+      // No tracker — try to fetch ticket by searching all tenantUsers
+      // who have tickets (fallback for first-time webhook before any DM was sent)
+      const tenantUsers = await prisma.tenantUser.findMany({
+        where: {
+          ...(botId === MAIN_DOMAIN_BOT_ID ? { tenantId: null } : { tenant: { id: botId } }),
+          discordId: { not: '' },
+        },
+        select: { discordId: true },
+      });
+
+      for (const tu of tenantUsers) {
+        if (!tu.discordId) continue;
+        const t = await provider.getTicket(issueKey, tu.discordId);
+        if (t) {
+          ticket = t;
+          discordUserId = tu.discordId;
+          console.log(`[Jira Webhook] Found ticket owner via tenantUser scan: discordUser=${discordUserId}`);
+          break;
+        }
+      }
+    }
+
+    if (!ticket || !discordUserId) {
+      console.log(`[Jira Webhook] Skipped: could not find ticket owner for ${issueKey}`);
+      return NextResponse.json({ ok: true, skipped: true });
+    }
+
+    console.log(`[Jira Webhook] ticket=${issueKey}, status=${ticket.status}, comments=${ticket.comments.length}, discordUser=${discordUserId}`);
+
+    // For comment_created: check if the latest comment is from staff
+    if (webhookEvent === 'comment_created' || webhookEvent === 'jira:issue_updated') {
+      const latestStaffComment = [...ticket.comments]
+        .reverse()
+        .find(c => c.isStaff);
+
+      if (!latestStaffComment) {
+        console.log(`[Jira Webhook] Skipped: no staff comment found for ${issueKey}`);
+        return NextResponse.json({ ok: true, skipped: true });
+      }
+
+      // Check if this comment is recent (within last 2 minutes) to avoid processing old comments
+      const commentAge = Date.now() - new Date(latestStaffComment.created).getTime();
+      if (commentAge > 2 * 60 * 1000) {
+        console.log(`[Jira Webhook] Skipped: latest staff comment on ${issueKey} is ${Math.round(commentAge / 1000)}s old`);
+        return NextResponse.json({ ok: true, skipped: true });
+      }
+
+      console.log(`[Jira Webhook] Processing staff comment on ${issueKey}: author=${latestStaffComment.author}, age=${Math.round(commentAge / 1000)}s`);
+
+      // Send/refresh DM notification
+      await sendTicketUpdateDM({
+        tenantId: botId,
+        tenantSlug,
+        tenantName,
+        ticketId: issueKey,
+        ticketSummary: ticket.summary,
+        status: ticket.status,
+        commentBody: latestStaffComment.body,
+        commentAuthor: latestStaffComment.author,
+        discordUserId,
+      });
+
+      // Fire-and-forget: log to admin log channel
+      logTicketComment({
+        botId,
+        ticketId: issueKey,
+        commentAuthor: latestStaffComment.author,
+        commentPreview: latestStaffComment.body.substring(0, 200),
+        isStaff: true,
+      }).catch(err => console.error('[Jira Webhook] Log channel failed:', err));
+    } else if (webhookEvent === 'issue_transitioned') {
+      // Status change — just refresh the DM
+      console.log(`[Jira Webhook] Processing status change for ${issueKey}: status=${ticket.status}`);
+      await refreshTicketDM(botId, issueKey, discordUserId);
+    }
 
     // Update last webhook timestamp (only for tenants with DB config)
     if (tenantParam) {
@@ -231,30 +297,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-/** Extract plain text from Jira ADF content nodes (recursive) */
-function extractAdfText(
-  content: Array<{ type: string; text?: string; content?: unknown[]; attrs?: Record<string, unknown> }>
-): string {
-  return content
-    .map((node) => {
-      if (node.type === 'text') return node.text || '';
-      if (node.type === 'hardBreak') return '\n';
-      if (node.type === 'rule') return '\n---\n';
-      // Skip media nodes (attachments handled separately)
-      if (node.type === 'media' || node.type === 'mediaSingle') return '';
-      if (node.content) {
-        const inner = extractAdfText(node.content as typeof content);
-        // Block-level nodes get trailing newlines
-        if (['paragraph', 'heading', 'blockquote', 'codeBlock', 'listItem'].includes(node.type)) {
-          return inner + '\n';
-        }
-        return inner;
-      }
-      return '';
-    })
-    .join('')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
 }
