@@ -336,5 +336,13 @@ class BotManager {
   }
 }
 
-// Singleton
-export const botManager = new BotManager();
+// Singleton — use globalThis to survive Next.js module re-instantiation
+// (same pattern as the Prisma client singleton)
+const globalForBotManager = globalThis as unknown as {
+  botManager: BotManager | undefined;
+};
+
+export const botManager =
+  globalForBotManager.botManager ?? new BotManager();
+
+globalForBotManager.botManager = botManager;
