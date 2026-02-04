@@ -476,7 +476,7 @@ export default function IntegrationsPage() {
         setError(data.error || 'Failed to load projects');
         return;
       }
-      setJiraProjects(data);
+      setJiraProjects(data.projects || data);
     } catch {
       setError('Failed to load Jira projects');
     } finally {
