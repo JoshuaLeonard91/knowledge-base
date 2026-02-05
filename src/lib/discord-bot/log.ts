@@ -177,12 +177,13 @@ function buildTicketCreatedContainer(params: {
   const container = new ContainerBuilder()
     .setAccentColor(accentColor);
 
-  // Header with avatar and title
+  // Header with avatar, ticket ID as title, summary as subtitle
+  const headerContent = `## ${params.ticketId}\n${params.summary}`;
   if (params.avatarUrl) {
     container.addSectionComponents(
       new SectionBuilder()
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`## ${params.summary}`)
+          new TextDisplayBuilder().setContent(headerContent)
         )
         .setThumbnailAccessory(
           new ThumbnailBuilder().setURL(params.avatarUrl)
@@ -190,7 +191,7 @@ function buildTicketCreatedContainer(params: {
     );
   } else {
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`## ${params.summary}`)
+      new TextDisplayBuilder().setContent(headerContent)
     );
   }
 
@@ -1179,8 +1180,10 @@ export async function refreshTicketLogMessage(params: {
     // Extract original data from the message
     const originalTexts = extractTextFromMessage(message);
 
-    // Find the heading (## Summary)
-    const heading = originalTexts.find(t => t.startsWith('##')) || `## ${params.summary}`;
+    // Find the heading (## TicketID\nSummary) - new format shows ticket ID as title, summary below
+    const existingHeading = originalTexts.find(t => t.startsWith('##'));
+    // Use existing heading if present (preserves ticket ID + summary), otherwise build new one
+    const heading = existingHeading || `## ${params.ticketId}\n${params.summary}`;
 
     // Find the info block with all the fields
     const infoBlock = originalTexts.find(t => t.includes('**Category:**')) || '';
