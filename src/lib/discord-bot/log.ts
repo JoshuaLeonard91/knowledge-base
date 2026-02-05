@@ -708,11 +708,12 @@ function buildAssignedContainer(params: {
   const createdByMatch = metaText.match(/<@(\d{17,19})>/);
   const creatorId = createdByMatch ? createdByMatch[1] : '';
   let metaContent = `**Created by:** <@${creatorId}>`;
+  metaContent += `\n**Assigned to:** <@${params.assignedTo.userId}>`;
   if (serverName) {
     metaContent += `\n**Server:** ${serverName}`;
   }
   if (!params.assignedInJira) {
-    metaContent += '\n-# Jira assignment skipped (no Jira account)';
+    metaContent += '\n-# Assigned via Discord (no Jira account linked)';
   }
 
   const container = new ContainerBuilder()
@@ -959,8 +960,12 @@ export async function handleResolveButton(
         '```',
       ].join('\n');
 
-      // Build metadata
+      // Build metadata - preserve "Assigned to" if present
+      const assignedToMatch = metaText.match(/\*\*Assigned to:\*\*\s*<@(\d{17,19})>/);
       let metaContent = `**Created by:** <@${creatorId}>`;
+      if (assignedToMatch) {
+        metaContent += `\n**Assigned to:** <@${assignedToMatch[1]}>`;
+      }
       if (serverName) {
         metaContent += `\n**Server:** ${serverName}`;
       }
