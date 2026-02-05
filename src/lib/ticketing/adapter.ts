@@ -30,6 +30,15 @@ const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const OAUTH_CACHE_TTL_MS = 4 * 60 * 1000; // 4 minutes (shorter for OAuth — tokens expire hourly)
 
 /**
+ * Invalidate the cached provider for a tenant.
+ * Call this when credentials are updated (OAuth reconnect, token rotation, disconnect).
+ */
+export function invalidateTenantProviderCache(tenantId: string): void {
+  tenantProviderCache.delete(tenantId);
+  console.log(`[Adapter] Cache invalidated for tenant ${tenantId}`);
+}
+
+/**
  * Get the default ticket provider (Jira via environment config).
  * Used by the main domain (no tenant context).
  */

@@ -18,6 +18,7 @@ import { encryptToString } from '@/lib/security/crypto';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { revokeToken } from '@/lib/atlassian/oauth';
+import { invalidateTenantProviderCache } from '@/lib/ticketing/adapter';
 
 // Security headers
 const securityHeaders = {
@@ -251,6 +252,9 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Invalidate cached provider so new credentials are used immediately
+    invalidateTenantProviderCache(tenant.id);
+
     console.log('[Jira Config] Configuration saved');
 
     return NextResponse.json(
@@ -337,6 +341,9 @@ export async function DELETE(request: NextRequest) {
     await prisma.tenantJiraConfig.deleteMany({
       where: { tenantId: tenant.id },
     });
+
+    // Invalidate cached provider
+    invalidateTenantProviderCache(tenant.id);
 
     console.log('[Jira Config] Configuration deleted');
 

@@ -19,6 +19,7 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { exchangeCodeForTokens, getAccessibleResources } from '@/lib/atlassian/oauth';
 import { encryptToString } from '@/lib/security/crypto';
 import { prisma } from '@/lib/db/client';
+import { invalidateTenantProviderCache } from '@/lib/ticketing/adapter';
 
 const STATE_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes (matches cookie maxAge)
 
@@ -129,6 +130,9 @@ export async function GET(request: NextRequest) {
     });
 
     console.log(`[Atlassian OAuth] Connected tenant ${tenantId} to ${site.url} (cloudId: ${site.id})`);
+
+    // Invalidate cached provider so new credentials are used immediately
+    invalidateTenantProviderCache(tenantId);
 
     // Clear OAuth cookies
     const oauthCookieDomain = process.env.AUTH_COOKIE_DOMAIN;

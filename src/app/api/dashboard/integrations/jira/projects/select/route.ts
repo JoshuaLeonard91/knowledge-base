@@ -9,6 +9,7 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
+import { invalidateTenantProviderCache } from '@/lib/ticketing/adapter';
 
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
@@ -70,6 +71,9 @@ export async function POST(request: NextRequest) {
         requestTypeId: String(requestTypeId),
       },
     });
+
+    // Invalidate cached provider so new project settings are used immediately
+    invalidateTenantProviderCache(tenant.id);
 
     console.log(`[Jira Config] Project selected: ${projectKey} (SD: ${serviceDeskId}, RT: ${requestTypeId})`);
 

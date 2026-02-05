@@ -217,19 +217,18 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    // Ensure the mapping belongs to this tenant
-    const existing = await prisma.staffMapping.findFirst({
+    // Delete with tenant verification in the query itself (defense-in-depth)
+    // This ensures even if the ID was somehow swapped, the delete won't affect other tenants
+    const deleted = await prisma.staffMapping.deleteMany({
       where: { id: mappingId, botId: result.tenant.id },
     });
 
-    if (!existing) {
+    if (deleted.count === 0) {
       return NextResponse.json(
         { error: 'Mapping not found' },
         { status: 404, headers: securityHeaders }
       );
     }
-
-    await prisma.staffMapping.delete({ where: { id: mappingId } });
 
     return NextResponse.json({ success: true }, { headers: securityHeaders });
   } catch (error) {
