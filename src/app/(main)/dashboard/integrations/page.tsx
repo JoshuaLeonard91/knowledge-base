@@ -63,6 +63,13 @@ interface StaffMappingItem {
   displayName: string | null;
 }
 
+interface JiraUser {
+  accountId: string;
+  displayName: string;
+  email: string | null;
+  avatar: string | null;
+}
+
 export default function IntegrationsPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -96,6 +103,8 @@ export default function IntegrationsPage() {
   const [staffForm, setStaffForm] = useState({ displayName: '', discordUserId: '', jiraAccountId: '' });
   const [isSavingStaff, setIsSavingStaff] = useState(false);
   const [isDeletingStaff, setIsDeletingStaff] = useState<string | null>(null);
+  const [jiraUsers, setJiraUsers] = useState<JiraUser[]>([]);
+  const [isLoadingJiraUsers, setIsLoadingJiraUsers] = useState(false);
 
   // UI states
   const [activeForm, setActiveForm] = useState<'hygraph' | 'jira' | 'discord-bot' | null>(null);
@@ -380,6 +389,23 @@ export default function IntegrationsPage() {
     }
   };
 
+  // Fetch Jira users for staff mapping dropdown
+  const fetchJiraUsers = async () => {
+    if (isLoadingJiraUsers) return;
+    setIsLoadingJiraUsers(true);
+    try {
+      const res = await fetch('/api/dashboard/integrations/jira/users');
+      if (res.ok) {
+        const data = await res.json();
+        setJiraUsers(data.users || []);
+      }
+    } catch {
+      // Silently fail — will fall back to manual input
+    } finally {
+      setIsLoadingJiraUsers(false);
+    }
+  };
+
   // Add staff mapping
   const addStaffMapping = async () => {
     setIsSavingStaff(true);
@@ -440,12 +466,16 @@ export default function IntegrationsPage() {
     }
   };
 
-  // Fetch staff mappings when both discord + jira are connected
+  // Fetch staff mappings and Jira users when both discord + jira are connected
   useEffect(() => {
     if (discordBotStatus?.configured && jiraStatus?.configured) {
       fetchStaffMappings();
+      // Fetch Jira users if a project is selected (for dropdown)
+      if (jiraStatus.projectKey && jiraStatus.authMode === 'oauth') {
+        fetchJiraUsers();
+      }
     }
-  }, [discordBotStatus?.configured, jiraStatus?.configured]);
+  }, [discordBotStatus?.configured, jiraStatus?.configured, jiraStatus?.projectKey, jiraStatus?.authMode]);
 
   // Handle OAuth callback redirect (?jira=connected)
   useEffect(() => {
@@ -551,7 +581,7 @@ export default function IntegrationsPage() {
         setError(data.error || 'Failed to create automation rule');
         return;
       }
-      setSuccess('Automation rule created! Webhook notifications are now active.');
+      setSuccess('Automation rules created! Verify at: Jira → Project Settings → Automation');
       setAutomationForm({ email: '', apiToken: '' });
       fetchStatuses();
     } catch {
@@ -910,7 +940,7 @@ export default function IntegrationsPage() {
 
                 <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
                   <p className="text-xs text-white/50">
-                    <strong className="text-white/70">One-time setup:</strong> Enter a Jira admin API token to create an automation rule that sends webhook notifications when comments are added to tickets. The token is used once and is not stored.
+                    <strong className="text-white/70">One-time setup:</strong> Enter your Atlassian email and API token to create automation rules. This creates two rules: one for comment notifications and one for status change notifications. The token is used once and is not stored.
                   </p>
                   <p className="text-xs text-white/40 mt-1">
                     Generate a token at{' '}
@@ -921,12 +951,12 @@ export default function IntegrationsPage() {
                 </div>
 
                 <div>
-                  <label className="block text-sm text-white/60 mb-2">Admin Email</label>
+                  <label className="block text-sm text-white/60 mb-2">Atlassian Email</label>
                   <input
                     type="email"
                     value={automationForm.email}
                     onChange={(e) => setAutomationForm({ ...automationForm, email: e.target.value })}
-                    placeholder="admin@example.com"
+                    placeholder="you@example.com"
                     className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
                   />
                 </div>
@@ -953,7 +983,7 @@ export default function IntegrationsPage() {
 
             {/* Step 3 / Legacy: Fully configured */}
             {jiraStatus?.configured && (getJiraOnboardingStep() === 3 || getJiraOnboardingStep() === 4) && (
-              <div className="px-6 pb-6 space-y-3">
+              <div className="px-6 pb-6 space-y-4">
                 <div className="space-y-1 text-sm text-white/60">
                   {jiraStatus.cloudUrl && (
                     <div className="flex items-center gap-2">
@@ -967,17 +997,38 @@ export default function IntegrationsPage() {
                       Project: <span className="text-white/80 font-medium">{jiraStatus.projectKey}</span>
                     </div>
                   )}
-                  {jiraStatus.automationRuleCreated && (
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      Webhook notifications active
-                    </div>
-                  )}
                   <p className="text-xs text-white/40 pt-1">
                     Connected on {jiraStatus.connectedAt ? new Date(jiraStatus.connectedAt).toLocaleDateString() : 'Unknown'}
                     {jiraStatus.authMode === 'oauth' ? ' via OAuth' : ' via API token'}
                   </p>
                 </div>
+
+                {/* Automation Rules Section */}
+                {jiraStatus.authMode === 'oauth' && (
+                  <div className="p-4 bg-[#0a0a0f] rounded-lg border border-white/5">
+                    <h4 className="text-sm font-medium text-white/80 mb-2">Automation Rules</h4>
+                    {jiraStatus.automationRuleCreated ? (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 text-sm text-white/60">
+                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Comment notification rule active
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-white/60">
+                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          Status change notification rule active
+                        </div>
+                        <p className="text-xs text-white/40 mt-2">
+                          Verify rules at: Jira → Project Settings → Automation
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-yellow-400/80">
+                        Automation rules not configured. Webhook notifications disabled.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 <button
                   onClick={() => deleteIntegration('jira')}
                   disabled={isDeleting === 'jira'}
@@ -1087,28 +1138,64 @@ export default function IntegrationsPage() {
                 )}
 
                 {/* Add new mapping form */}
-                <div className="grid grid-cols-3 gap-2">
-                  <input
-                    type="text"
-                    value={staffForm.displayName}
-                    onChange={(e) => setStaffForm({ ...staffForm, displayName: e.target.value })}
-                    placeholder="Display name"
-                    className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
-                  />
-                  <input
-                    type="text"
-                    value={staffForm.discordUserId}
-                    onChange={(e) => setStaffForm({ ...staffForm, discordUserId: e.target.value })}
-                    placeholder="Discord User ID"
-                    className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
-                  />
-                  <input
-                    type="text"
-                    value={staffForm.jiraAccountId}
-                    onChange={(e) => setStaffForm({ ...staffForm, jiraAccountId: e.target.value })}
-                    placeholder="Jira Account ID"
-                    className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
-                  />
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="text"
+                      value={staffForm.displayName}
+                      onChange={(e) => setStaffForm({ ...staffForm, displayName: e.target.value })}
+                      placeholder="Display name (optional)"
+                      className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
+                    />
+                    <input
+                      type="text"
+                      value={staffForm.discordUserId}
+                      onChange={(e) => setStaffForm({ ...staffForm, discordUserId: e.target.value })}
+                      placeholder="Discord User ID"
+                      className="px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
+                    />
+                  </div>
+                  <div>
+                    {isLoadingJiraUsers ? (
+                      <div className="flex items-center gap-2 text-sm text-white/40 py-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-500" />
+                        Loading Jira users...
+                      </div>
+                    ) : jiraUsers.length > 0 ? (
+                      <select
+                        value={staffForm.jiraAccountId}
+                        onChange={(e) => {
+                          const selectedUser = jiraUsers.find(u => u.accountId === e.target.value);
+                          setStaffForm({
+                            ...staffForm,
+                            jiraAccountId: e.target.value,
+                            displayName: staffForm.displayName || selectedUser?.displayName || '',
+                          });
+                        }}
+                        className="w-full px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500/50"
+                      >
+                        <option value="">Select a Jira user...</option>
+                        {jiraUsers.map(u => (
+                          <option key={u.accountId} value={u.accountId}>
+                            {u.displayName}{u.email ? ` (${u.email})` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      <input
+                        type="text"
+                        value={staffForm.jiraAccountId}
+                        onChange={(e) => setStaffForm({ ...staffForm, jiraAccountId: e.target.value })}
+                        placeholder="Jira Account ID"
+                        className="w-full px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
+                      />
+                    )}
+                    {jiraUsers.length === 0 && !isLoadingJiraUsers && jiraStatus?.authMode === 'oauth' && (
+                      <button onClick={fetchJiraUsers} className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 transition">
+                        Load Jira users
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <button
                   onClick={addStaffMapping}
