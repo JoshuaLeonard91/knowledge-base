@@ -479,15 +479,30 @@ export async function handlePanelModal(
       discordUserId: interaction.user.id,
     }).catch(err => console.error('[Panel] DM failed:', err));
 
+    // Collect attachment info for the log
+    const attachmentInfos = fileField?.attachments
+      ? Array.from(fileField.attachments.values()).map(a => ({
+          name: a.name,
+          url: a.url,
+          size: a.size,
+          contentType: a.contentType || undefined,
+        }))
+      : [];
+
+    const portalUrl = `https://${slug}.helpportal.app/support/tickets/${result.ticketId}`;
+
     logTicketCreated({
       botId,
       ticketId: result.ticketId!,
       summary,
+      description,
       category: categoryName,
       severity,
       discordUserId: interaction.user.id,
       discordUsername: interaction.user.username,
       avatarUrl: interaction.user.displayAvatarURL({ size: 64 }),
+      attachments: attachmentInfos,
+      portalUrl,
     }).catch(err => console.error('[Panel] Log failed:', err));
 
     // Auto-dismiss after 15 seconds

@@ -347,10 +347,23 @@ export async function handleTicketModal(
       discordUserId: interaction.user.id,
     }).catch(err => console.error('[TicketCommand] DM failed:', err));
 
+    // Collect attachment info for the log
+    const attachmentInfos = fileField?.attachments
+      ? Array.from(fileField.attachments.values()).map(a => ({
+          name: a.name,
+          url: a.url,
+          size: a.size,
+          contentType: a.contentType || undefined,
+        }))
+      : [];
+
+    const portalUrl = `https://${slug}.helpportal.app/support/tickets/${result.ticketId}`;
+
     logTicketCreated({
       botId: tenantId,
       ticketId: result.ticketId!,
       summary,
+      description,
       category: categoryName,
       severity,
       discordUserId: interaction.user.id,
@@ -358,6 +371,8 @@ export async function handleTicketModal(
       avatarUrl: interaction.user.displayAvatarURL({ size: 64 }),
       guildName: interaction.guild?.name,
       guildId: interaction.guildId || undefined,
+      attachments: attachmentInfos,
+      portalUrl,
     }).catch(err => console.error('[TicketCommand] Log failed:', err));
 
     // Auto-dismiss after 15 seconds

@@ -80,10 +80,18 @@ function assignmentKey(botId: string, ticketId: string): string {
 // LOG: TICKET CREATED (V2 Container)
 // ==========================================
 
+export interface TicketAttachmentInfo {
+  name: string;
+  url: string;
+  size: number;
+  contentType?: string;
+}
+
 export async function logTicketCreated(params: {
   botId: string;
   ticketId: string;
   summary: string;
+  description: string;
   category: string;
   severity: string;
   discordUserId: string;
@@ -91,6 +99,8 @@ export async function logTicketCreated(params: {
   avatarUrl?: string;
   guildName?: string;
   guildId?: string;
+  attachments?: TicketAttachmentInfo[];
+  portalUrl?: string;
 }): Promise<void> {
   try {
     const setup = await getBotSetup(params.botId);
@@ -143,6 +153,7 @@ function buildTicketCreatedContainer(params: {
   botId: string;
   ticketId: string;
   summary: string;
+  description: string;
   category: string;
   severity: string;
   status: string;
@@ -152,6 +163,8 @@ function buildTicketCreatedContainer(params: {
   guildName?: string;
   guildId?: string;
   assignedTo: { username: string; userId: string } | null;
+  attachments?: TicketAttachmentInfo[];
+  portalUrl?: string;
 }): ContainerBuilder {
   const accentColor = severityAccentColors[params.severity] || 0x5865f2;
   const sevLabel = params.severity.charAt(0).toUpperCase() + params.severity.slice(1);
@@ -161,12 +174,12 @@ function buildTicketCreatedContainer(params: {
   const container = new ContainerBuilder()
     .setAccentColor(accentColor);
 
-  // Top: user avatar + ticket heading (Section + Thumbnail)
+  // Header with avatar and title
   if (params.avatarUrl) {
     container.addSectionComponents(
       new SectionBuilder()
         .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(`# ${params.ticketId}\n${params.summary}`)
+          new TextDisplayBuilder().setContent(`## ${params.summary}`)
         )
         .setThumbnailAccessory(
           new ThumbnailBuilder().setURL(params.avatarUrl)
@@ -174,45 +187,77 @@ function buildTicketCreatedContainer(params: {
     );
   } else {
     container.addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(`# ${params.ticketId}\n${params.summary}`)
+      new TextDisplayBuilder().setContent(`## ${params.summary}`)
     );
   }
-
-  container
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large)
-    )
-    .addTextDisplayComponents(
-      new TextDisplayBuilder().setContent(
-        `${statusEmoji} **${params.status}**  \u00b7  ${sevEmoji} **${sevLabel}**  \u00b7  ${params.category}`
-      )
-    )
-    .addSeparatorComponents(
-      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
-    );
-
-  // Metadata block
-  const metaLines = [`**Created by:** <@${params.discordUserId}>`];
-  if (params.guildName) {
-    metaLines.push(`**Server:** ${params.guildName}`);
-  }
-  if (params.assignedTo) {
-    metaLines.push(`**Assigned to:** <@${params.assignedTo.userId}>`);
-  }
-
-  container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(metaLines.join('\n'))
-  );
 
   container.addSeparatorComponents(
     new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
   );
 
-  // Timestamp
-  const timestamp = Math.floor(Date.now() / 1000);
+  // Info fields in a clean format
+  const ticketLink = params.portalUrl
+    ? `[${params.ticketId}](${params.portalUrl})`
+    : `**${params.ticketId}**`;
+
+  const infoLines = [
+    `**Category:**\u2003${params.category}`,
+    `**Ticket:**\u2003${ticketLink}`,
+    `**Status:**\u2003${statusEmoji} ${params.status}`,
+    `**Priority:**\u2003${sevEmoji} ${sevLabel}`,
+    `**Assignee:**\u2003${params.assignedTo ? `<@${params.assignedTo.userId}>` : '*Unassigned*'}`,
+    `**Created by:**\u2003<@${params.discordUserId}>`,
+  ];
+
+  if (params.guildName) {
+    infoLines.push(`**Server:**\u2003${params.guildName}`);
+  }
+
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(`-# <t:${timestamp}:R>`)
+    new TextDisplayBuilder().setContent(infoLines.join('\n'))
   );
+
+  // Description preview (truncated)
+  if (params.description && params.description.trim()) {
+    const descPreview = params.description.length > 300
+      ? params.description.substring(0, 297) + '...'
+      : params.description;
+
+    container
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**Description:**\n> ${descPreview.replace(/\n/g, '\n> ')}`)
+      );
+  }
+
+  // Attachments list
+  if (params.attachments && params.attachments.length > 0) {
+    const attachmentList = params.attachments
+      .slice(0, 5) // Max 5 attachments shown
+      .map(a => `\u{1F4CE} [${a.name}](${a.url})`)
+      .join('\n');
+
+    const moreCount = params.attachments.length > 5 ? ` *(+${params.attachments.length - 5} more)*` : '';
+
+    container
+      .addSeparatorComponents(
+        new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+      )
+      .addTextDisplayComponents(
+        new TextDisplayBuilder().setContent(`**Attachments:**\n${attachmentList}${moreCount}`)
+      );
+  }
+
+  // Timestamp
+  container
+    .addSeparatorComponents(
+      new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+    )
+    .addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`-# Created <t:${Math.floor(Date.now() / 1000)}:R>`)
+    );
 
   // Action buttons: Assign + Resolve/Reopen
   const assignLabel = params.assignedTo ? 'Reassign to me' : 'Assign to me';
@@ -948,45 +993,59 @@ export async function refreshTicketLogMessage(params: {
 
     // Extract original data from the message
     const originalTexts = extractTextFromMessage(message);
-    const heading = originalTexts[0] || `# ${params.ticketId}`;
-    const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
-    const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
+
+    // Find the heading (## Summary)
+    const heading = originalTexts.find(t => t.startsWith('##')) || `## ${params.summary}`;
+
+    // Find the info block with all the fields
+    const infoBlock = originalTexts.find(t => t.includes('**Category:**')) || '';
+
+    // Extract category and priority from original
+    const categoryMatch = infoBlock.match(/\*\*Category:\*\*\s*(.+)/);
+    const category = categoryMatch ? categoryMatch[1].split('\n')[0].trim() : 'General';
+
+    const priorityMatch = infoBlock.match(/\*\*Priority:\*\*\s*[^\s]*\s*(\w+)/);
+    const priority = priorityMatch ? priorityMatch[1] : 'Medium';
+
+    // Extract portal URL if present
+    const ticketMatch = infoBlock.match(/\*\*Ticket:\*\*\s*\[([^\]]+)\]\(([^)]+)\)/);
+    const portalUrl = ticketMatch ? ticketMatch[2] : null;
+
+    // Extract server name if present
+    const serverMatch = infoBlock.match(/\*\*Server:\*\*\s*(.+)/);
+    const serverName = serverMatch ? serverMatch[1].split('\n')[0].trim() : null;
+
+    // Find description block if present
+    const descBlock = originalTexts.find(t => t.includes('**Description:**'));
+    const description = descBlock ? descBlock.replace('**Description:**', '').replace(/^[\s>]+/gm, '').trim() : null;
 
     // Determine status display
     const isDone = params.statusCategory === 'done';
     const isInProgress = params.statusCategory === 'indeterminate';
     let statusEmoji = '\u{1F7E2}'; // 🟢 Open
     let statusLabel = 'Open';
-    let accentColor = 0x5865f2;
 
     if (isDone) {
       statusEmoji = '\u2705'; // ✅
       statusLabel = 'Resolved';
-      accentColor = 0x57f287;
     } else if (isInProgress) {
       statusEmoji = '\u{1F7E1}'; // 🟡
       statusLabel = 'In Progress';
-      accentColor = 0xfee75c;
     }
 
-    // Detect severity from original info line for accent color (if not done)
-    if (!isDone) {
-      if (infoLine.includes('Critical')) accentColor = 0xed4245;
-      else if (infoLine.includes('High')) accentColor = 0xe67e22;
-      else if (infoLine.includes('Medium')) accentColor = 0xfee75c;
-      else if (infoLine.includes('Low')) accentColor = 0x57f287;
+    // Determine accent color from priority
+    let accentColor = 0x5865f2;
+    if (isDone) {
+      accentColor = 0x57f287; // green for resolved
+    } else {
+      const priorityLower = priority.toLowerCase();
+      if (priorityLower === 'critical') accentColor = 0xed4245;
+      else if (priorityLower === 'high') accentColor = 0xe67e22;
+      else if (priorityLower === 'medium') accentColor = 0xfee75c;
+      else if (priorityLower === 'low') accentColor = 0x57f287;
     }
 
-    // Replace status in info line
-    const updatedInfoLine = infoLine.replace(/[^\s]+ \*\*[\w\s]+\*\*/, `${statusEmoji} **${statusLabel}**`);
-
-    // Build metadata lines
-    const metaLines = metaText.split('\n').filter(l =>
-      l.includes('**Created by:**') || l.includes('**Server:**')
-    );
-    if (params.assignee) {
-      metaLines.push(`**Assigned to:** ${params.assignee}`);
-    }
+    const sevEmoji = getSeverityEmoji(priority.toLowerCase());
 
     // Fetch creator avatar
     let avatarUrl: string | undefined;
@@ -994,6 +1053,25 @@ export async function refreshTicketLogMessage(params: {
       const creatorUser = await client.users.fetch(tracker.discordUserId);
       avatarUrl = creatorUser.displayAvatarURL({ size: 64 });
     } catch { /* proceed without avatar */ }
+
+    // Build ticket link
+    const ticketLink = portalUrl
+      ? `[${params.ticketId}](${portalUrl})`
+      : `**${params.ticketId}**`;
+
+    // Build info fields
+    const infoLines = [
+      `**Category:**\u2003${category}`,
+      `**Ticket:**\u2003${ticketLink}`,
+      `**Status:**\u2003${statusEmoji} ${statusLabel}`,
+      `**Priority:**\u2003${sevEmoji} ${priority}`,
+      `**Assignee:**\u2003${params.assignee || '*Unassigned*'}`,
+      `**Created by:**\u2003<@${tracker.discordUserId}>`,
+    ];
+
+    if (serverName) {
+      infoLines.push(`**Server:**\u2003${serverName}`);
+    }
 
     // Build updated container
     const container = new ContainerBuilder()
@@ -1010,10 +1088,24 @@ export async function refreshTicketLogMessage(params: {
     }
 
     container
-      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(updatedInfoLine || `${statusEmoji} **${statusLabel}**`))
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(infoLines.join('\n')));
+
+    // Add description if present
+    if (description) {
+      const descPreview = description.length > 300
+        ? description.substring(0, 297) + '...'
+        : description;
+
+      container
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(
+          new TextDisplayBuilder().setContent(`**Description:**\n> ${descPreview.replace(/\n/g, '\n> ')}`)
+        );
+    }
+
+    // Timestamp
+    container
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
       .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Updated <t:${Math.floor(Date.now() / 1000)}:R>`));
 
