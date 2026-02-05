@@ -26,6 +26,7 @@ const SCOPES = [
   'read:jira-user',
   'manage:jira-configuration',
   'read:servicedesk-request',
+  'write:servicedesk-request',
 ].join(' ');
 
 function getClientCredentials() {
