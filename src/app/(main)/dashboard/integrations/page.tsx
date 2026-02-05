@@ -527,12 +527,7 @@ export default function IntegrationsPage() {
         return;
       }
       setSelectedServiceDeskId(data.serviceDeskId);
-      const requestTypes = data.requestTypes || [];
-      setJiraRequestTypes(requestTypes);
-      // Auto-select first request type (generic)
-      if (requestTypes.length > 0) {
-        setSelectedRequestType(requestTypes[0].id);
-      }
+      setJiraRequestTypes(data.requestTypes || []);
     } catch {
       setError('Failed to load project details');
     } finally {
@@ -900,14 +895,30 @@ export default function IntegrationsPage() {
                   )}
                 </div>
 
-                {selectedProject && isLoadingRequestTypes && (
-                  <div className="flex items-center gap-2 text-sm text-white/40 py-2">
-                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
-                    Loading project details...
+                {selectedProject && (
+                  <div>
+                    <label className="block text-sm text-white/60 mb-2">Request Type</label>
+                    {isLoadingRequestTypes ? (
+                      <div className="flex items-center gap-2 text-sm text-white/40 py-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
+                        Loading request types...
+                      </div>
+                    ) : (
+                      <select
+                        value={selectedRequestType}
+                        onChange={(e) => setSelectedRequestType(e.target.value)}
+                        className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white focus:outline-none focus:border-blue-500/50"
+                      >
+                        <option value="">Choose a request type...</option>
+                        {jiraRequestTypes.map(rt => (
+                          <option key={rt.id} value={rt.id}>{rt.name}{rt.description ? ` — ${rt.description}` : ''}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
                 )}
 
-                {selectedProject && !isLoadingRequestTypes && selectedRequestType && (
+                {selectedProject && selectedRequestType && (
                   <button
                     onClick={saveProjectSelection}
                     disabled={isSavingProject}

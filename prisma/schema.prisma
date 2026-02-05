@@ -250,6 +250,22 @@ model TicketDMTracker {
   @@index([discordUserId])
 }
 
+// Tracks the log channel message for each ticket (for editing on status/assignment changes)
+model TicketLogMessage {
+  id            String   @id @default(cuid())
+  tenantId      String   // botIdentifier
+  ticketId      String   // Jira issue key e.g. "SUPPORT-142"
+  channelId     String   // Log channel ID
+  messageId     String   // Discord message ID
+  discordUserId String   // Ticket creator's Discord ID (for rebuilding the panel)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([tenantId, ticketId])
+  @@index([ticketId])
+}
+
 // ==========================================
 // BRANDING (Per Tenant)
 // ==========================================

@@ -108,9 +108,31 @@ export async function logTicketCreated(params: {
       assignedTo: null,
     });
 
-    await (channel as { send: Function }).send({
+    const message = await (channel as { send: Function }).send({
       components: [container],
       flags: MessageFlags.IsComponentsV2,
+    });
+
+    // Save message ID for later updates (status changes, assignments via webhook)
+    await prisma.ticketLogMessage.upsert({
+      where: {
+        tenantId_ticketId: {
+          tenantId: params.botId,
+          ticketId: params.ticketId,
+        },
+      },
+      create: {
+        tenantId: params.botId,
+        ticketId: params.ticketId,
+        channelId: setup.logChannelId,
+        messageId: message.id,
+        discordUserId: params.discordUserId,
+      },
+      update: {
+        channelId: setup.logChannelId,
+        messageId: message.id,
+        discordUserId: params.discordUserId,
+      },
     });
   } catch (error) {
     console.error('[Log] Failed to log ticket created:', error);
@@ -869,4 +891,167 @@ async function sendStatusNotification(
   setTimeout(async () => {
     try { await sent.delete(); } catch { /* Already deleted */ }
   }, 30_000);
+}
+
+// ==========================================
+// REFRESH LOG MESSAGE (from webhook)
+// ==========================================
+
+/**
+ * Refresh the ticket log channel message when status/assignment changes via webhook.
+ * Looks up the stored message ID and edits it with updated info.
+ */
+export async function refreshTicketLogMessage(params: {
+  botId: string;
+  ticketId: string;
+  status: string;
+  statusCategory: string;
+  assignee?: string | null;
+  summary: string;
+}): Promise<void> {
+  try {
+    // Look up the stored log message
+    const tracker = await prisma.ticketLogMessage.findUnique({
+      where: {
+        tenantId_ticketId: {
+          tenantId: params.botId,
+          ticketId: params.ticketId,
+        },
+      },
+    });
+
+    if (!tracker) {
+      console.log(`[Log] refreshTicketLogMessage: no tracker for ${params.ticketId}`);
+      return;
+    }
+
+    const client = botManager.getBot(params.botId);
+    if (!client) {
+      console.log(`[Log] refreshTicketLogMessage: no bot client for ${params.botId}`);
+      return;
+    }
+
+    const channel = await client.channels.fetch(tracker.channelId);
+    if (!channel || !channel.isTextBased()) {
+      console.log(`[Log] refreshTicketLogMessage: channel not found or not text-based`);
+      return;
+    }
+
+    // Fetch the existing message
+    let message;
+    try {
+      message = await (channel as { messages: { fetch: Function } }).messages.fetch(tracker.messageId);
+    } catch {
+      console.log(`[Log] refreshTicketLogMessage: message ${tracker.messageId} not found (deleted?)`);
+      return;
+    }
+
+    // Extract original data from the message
+    const originalTexts = extractTextFromMessage(message);
+    const heading = originalTexts[0] || `# ${params.ticketId}`;
+    const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
+    const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
+
+    // Determine status display
+    const isDone = params.statusCategory === 'done';
+    const isInProgress = params.statusCategory === 'indeterminate';
+    let statusEmoji = '\u{1F7E2}'; // 🟢 Open
+    let statusLabel = 'Open';
+    let accentColor = 0x5865f2;
+
+    if (isDone) {
+      statusEmoji = '\u2705'; // ✅
+      statusLabel = 'Resolved';
+      accentColor = 0x57f287;
+    } else if (isInProgress) {
+      statusEmoji = '\u{1F7E1}'; // 🟡
+      statusLabel = 'In Progress';
+      accentColor = 0xfee75c;
+    }
+
+    // Detect severity from original info line for accent color (if not done)
+    if (!isDone) {
+      if (infoLine.includes('Critical')) accentColor = 0xed4245;
+      else if (infoLine.includes('High')) accentColor = 0xe67e22;
+      else if (infoLine.includes('Medium')) accentColor = 0xfee75c;
+      else if (infoLine.includes('Low')) accentColor = 0x57f287;
+    }
+
+    // Replace status in info line
+    const updatedInfoLine = infoLine.replace(/[^\s]+ \*\*[\w\s]+\*\*/, `${statusEmoji} **${statusLabel}**`);
+
+    // Build metadata lines
+    const metaLines = metaText.split('\n').filter(l =>
+      l.includes('**Created by:**') || l.includes('**Server:**')
+    );
+    if (params.assignee) {
+      metaLines.push(`**Assigned to:** ${params.assignee}`);
+    }
+
+    // Fetch creator avatar
+    let avatarUrl: string | undefined;
+    try {
+      const creatorUser = await client.users.fetch(tracker.discordUserId);
+      avatarUrl = creatorUser.displayAvatarURL({ size: 64 });
+    } catch { /* proceed without avatar */ }
+
+    // Build updated container
+    const container = new ContainerBuilder()
+      .setAccentColor(accentColor);
+
+    if (avatarUrl) {
+      container.addSectionComponents(
+        new SectionBuilder()
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+          .setThumbnailAccessory(new ThumbnailBuilder().setURL(avatarUrl))
+      );
+    } else {
+      container.addTextDisplayComponents(new TextDisplayBuilder().setContent(heading));
+    }
+
+    container
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(updatedInfoLine || `${statusEmoji} **${statusLabel}**`))
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Updated <t:${Math.floor(Date.now() / 1000)}:R>`));
+
+    // Add appropriate buttons based on status
+    if (isDone) {
+      container.addActionRowComponents(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`assign_ticket:${params.botId}:${params.ticketId}`)
+            .setLabel('Reassign to me')
+            .setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder()
+            .setCustomId(`reopen_staff:${params.botId}:${params.ticketId}`)
+            .setLabel('Reopen')
+            .setStyle(ButtonStyle.Secondary)
+        )
+      );
+    } else {
+      container.addActionRowComponents(
+        new ActionRowBuilder<ButtonBuilder>().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`assign_ticket:${params.botId}:${params.ticketId}`)
+            .setLabel(params.assignee ? 'Reassign to me' : 'Assign to me')
+            .setStyle(params.assignee ? ButtonStyle.Secondary : ButtonStyle.Primary),
+          new ButtonBuilder()
+            .setCustomId(`resolve_ticket:${params.botId}:${params.ticketId}`)
+            .setLabel('Resolve')
+            .setStyle(ButtonStyle.Success)
+        )
+      );
+    }
+
+    await message.edit({
+      components: [container],
+    });
+
+    console.log(`[Log] refreshTicketLogMessage: updated ${params.ticketId} to ${statusLabel}`);
+  } catch (error) {
+    console.error('[Log] refreshTicketLogMessage error:', error);
+  }
 }

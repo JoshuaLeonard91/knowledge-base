@@ -17,7 +17,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { prisma } from '@/lib/db/client';
 import { sendTicketUpdateDM } from '@/lib/discord-bot/notifications';
-import { logTicketComment } from '@/lib/discord-bot/log';
+import { refreshTicketLogMessage } from '@/lib/discord-bot/log';
 import { refreshTicketDM } from '@/lib/discord-bot/helpers';
 import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
@@ -211,20 +211,31 @@ export async function POST(request: NextRequest) {
         discordUserId,
       });
 
-      // Fire-and-forget: log to admin log channel
-      logTicketComment({
+      // Refresh the log channel message (status/assignee may have changed)
+      refreshTicketLogMessage({
         botId,
         ticketId: issueKey,
-        commentAuthor: latestStaffComment.author,
-        commentPreview: latestStaffComment.body.substring(0, 200),
-        isStaff: true,
-      }).catch(err => console.error('[Jira Webhook] Log channel failed:', err));
+        status: ticket.status,
+        statusCategory: ticket.statusCategory,
+        assignee: ticket.assignee || null,
+        summary: ticket.summary,
+      }).catch(err => console.error('[Jira Webhook] Log message refresh failed:', err));
     } else if (webhookEvent === 'issue_transitioned' || webhookEvent === 'status_changed') {
-      // Status change — refresh the DM with new status
+      // Status change — refresh the DM and log channel message
       const fromStatus = payload.fromStatus || 'unknown';
       const toStatus = payload.toStatus || ticket.status;
       console.log(`[Jira Webhook] Processing status change for ${issueKey}: ${fromStatus} → ${toStatus}`);
       await refreshTicketDM(botId, issueKey, discordUserId);
+
+      // Also refresh the log channel message
+      refreshTicketLogMessage({
+        botId,
+        ticketId: issueKey,
+        status: ticket.status,
+        statusCategory: ticket.statusCategory,
+        assignee: ticket.assignee || null,
+        summary: ticket.summary,
+      }).catch(err => console.error('[Jira Webhook] Log message refresh failed:', err));
     }
 
     // Update last webhook timestamp (only for tenants with DB config)
