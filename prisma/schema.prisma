@@ -201,6 +201,7 @@ model DiscordBotSetup {
   guildId              String
   ticketChannelId      String?
   logChannelId         String?
+  supportCategoryId    String?  // Discord category ID for Support channels
   ticketPanelMessageId String?
   dmOnCreate           Boolean  @default(true)
   dmOnUpdate           Boolean  @default(true)
@@ -221,7 +222,7 @@ model StaffMapping {
   id            String   @id @default(cuid())
   botId         String   // Bot identifier (tenantId or '__main__')
   discordUserId String
-  jiraAccountId String
+  jiraAccountId String?  // Optional - staff can work without Jira account
   displayName   String?  // Friendly label, e.g. "John (Mod)"
 
   createdAt     DateTime @default(now())
@@ -264,6 +265,22 @@ model TicketLogMessage {
 
   @@unique([tenantId, ticketId])
   @@index([ticketId])
+}
+
+// Tracks private ticket channels created when staff assigns a ticket
+model TicketChannel {
+  id            String   @id @default(cuid())
+  tenantId      String   // botIdentifier
+  ticketId      String   // Jira issue key e.g. "SUPPORT-142"
+  channelId     String   // Discord channel ID
+  assignedModId String   // Discord user ID of assigned mod
+  discordUserId String   // Ticket creator's Discord ID
+
+  createdAt     DateTime @default(now())
+
+  @@unique([tenantId, ticketId])
+  @@index([ticketId])
+  @@index([channelId])
 }
 
 // ==========================================

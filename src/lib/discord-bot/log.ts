@@ -7,6 +7,7 @@
 
 import {
   type ButtonInteraction,
+  type TextChannel,
   ContainerBuilder,
   TextDisplayBuilder,
   SeparatorBuilder,
@@ -17,6 +18,8 @@ import {
   ButtonBuilder,
   ButtonStyle,
   MessageFlags,
+  ChannelType,
+  PermissionFlagsBits,
 } from 'discord.js';
 import { prisma } from '@/lib/db/client';
 import { botManager } from './manager';
@@ -357,7 +360,8 @@ export async function handleAssignButton(
         discordUsername: interaction.user.username,
       });
 
-      if (provider.assignTicket) {
+      // Only assign in Jira if staff has a Jira account ID
+      if (provider.assignTicket && staffMapping.jiraAccountId) {
         assignedInJira = await provider.assignTicket(ticketId, staffMapping.jiraAccountId);
       }
 
@@ -373,6 +377,151 @@ export async function handleAssignButton(
       username: interaction.user.username,
       assignedAt: Date.now(),
     });
+
+    // --- Create private ticket channel for assigned mod ---
+    const setup = await getBotSetup(botId);
+    const guild = interaction.guild;
+    const client = botManager.getBot(botId);
+
+    if (setup?.supportCategoryId && guild && client?.user) {
+      // Check if channel already exists for this ticket
+      const existingChannel = await prisma.ticketChannel.findUnique({
+        where: {
+          tenantId_ticketId: {
+            tenantId: botId,
+            ticketId,
+          },
+        },
+      });
+
+      if (!existingChannel) {
+        try {
+          // Create private channel under Support category
+          const privateChannel = await guild.channels.create({
+            name: `ticket-${ticketId.toLowerCase().replace(/[^a-z0-9-]/g, '-')}`,
+            type: ChannelType.GuildText,
+            parent: setup.supportCategoryId,
+            permissionOverwrites: [
+              {
+                id: guild.id, // @everyone: hidden
+                deny: [PermissionFlagsBits.ViewChannel],
+              },
+              {
+                id: interaction.user.id, // assigned mod: full access
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.ReadMessageHistory,
+                ],
+              },
+              {
+                id: guild.ownerId, // server owner: full access
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.ReadMessageHistory,
+                ],
+              },
+              {
+                id: client.user.id, // bot: full access
+                allow: [
+                  PermissionFlagsBits.ViewChannel,
+                  PermissionFlagsBits.SendMessages,
+                  PermissionFlagsBits.ManageMessages,
+                  PermissionFlagsBits.EmbedLinks,
+                ],
+              },
+            ],
+          });
+
+          // Extract original message data to post in the channel
+          const originalMessage = interaction.message;
+          const originalTexts = extractTextFromMessage(originalMessage);
+          const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+
+          // Get ticket description from message
+          const descBlock = originalTexts.find(t => t.includes('**Description:**'));
+          const description = descBlock ? descBlock.replace('**Description:**', '').replace(/^[\s>]+/gm, '').trim() : '';
+
+          // Get ticket summary from heading
+          const heading = originalTexts[0] || '';
+          const summary = heading.replace(/^#+\s*/, '');
+
+          // Get the ticket creator's username
+          let creatorUsername = 'User';
+          if (creatorId) {
+            try {
+              const creatorUser = await client.users.fetch(creatorId);
+              creatorUsername = creatorUser.username;
+            } catch { /* use default */ }
+          }
+
+          // Build initial message for the private channel
+          const ticketChannelContainer = new ContainerBuilder()
+            .setAccentColor(0xfee75c) // yellow for in progress
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(`# Ticket ${ticketId}`)
+            )
+            .addSeparatorComponents(
+              new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+            )
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(
+                `**Summary:** ${summary}\n` +
+                `**Status:** \u{1F7E1} In Progress\n` +
+                `**User:** <@${creatorId}>`
+              )
+            );
+
+          if (description) {
+            ticketChannelContainer
+              .addSeparatorComponents(
+                new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+              )
+              .addTextDisplayComponents(
+                new TextDisplayBuilder().setContent(`**Description:**\n> ${description.substring(0, 500).replace(/\n/g, '\n> ')}`)
+              );
+          }
+
+          ticketChannelContainer
+            .addSeparatorComponents(
+              new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
+            )
+            .addTextDisplayComponents(
+              new TextDisplayBuilder().setContent(`-# Use the button below to reply to <@${creatorId}>.`)
+            )
+            .addActionRowComponents(
+              new ActionRowBuilder<ButtonBuilder>().addComponents(
+                new ButtonBuilder()
+                  .setCustomId(`ticket_reply:${botId}:${ticketId}`)
+                  .setLabel(`Reply to @${creatorUsername}`)
+                  .setStyle(ButtonStyle.Primary)
+              )
+            );
+
+          await (privateChannel as TextChannel).send({
+            components: [ticketChannelContainer],
+            flags: MessageFlags.IsComponentsV2,
+          });
+
+          // Save to database for tracking
+          await prisma.ticketChannel.create({
+            data: {
+              tenantId: botId,
+              ticketId,
+              channelId: privateChannel.id,
+              assignedModId: interaction.user.id,
+              discordUserId: creatorId || '',
+            },
+          });
+
+          console.log(`[Log] Created private ticket channel ${privateChannel.id} for ${ticketId}`);
+        } catch (error) {
+          console.error('[Log] Failed to create private ticket channel:', error);
+          // Non-fatal: continue with assignment even if channel creation fails
+        }
+      }
+    }
 
     // Rebuild the container with updated status + assignee
     // We need to extract the original params from the message content
@@ -673,6 +822,37 @@ export async function handleResolveButton(
 
     console.log(`[Log] Resolve: transitioning ${ticketId} to Done`);
     await provider.transitionTicket(ticketId, 'Done');
+
+    // Delete the private ticket channel if it exists
+    const ticketChannelRecord = await prisma.ticketChannel.findUnique({
+      where: {
+        tenantId_ticketId: {
+          tenantId: botId,
+          ticketId,
+        },
+      },
+    });
+
+    if (ticketChannelRecord) {
+      try {
+        const client = botManager.getBot(botId);
+        if (client) {
+          const ticketChannel = await client.channels.fetch(ticketChannelRecord.channelId);
+          if (ticketChannel) {
+            await ticketChannel.delete();
+            console.log(`[Log] Deleted private ticket channel ${ticketChannelRecord.channelId} for ${ticketId}`);
+          }
+        }
+      } catch (error) {
+        console.error('[Log] Failed to delete private ticket channel:', error);
+        // Non-fatal: continue with resolution even if channel deletion fails
+      }
+
+      // Remove from database
+      await prisma.ticketChannel.delete({
+        where: { id: ticketChannelRecord.id },
+      });
+    }
 
     // Rebuild the log message with updated status
     const message = interaction.message;

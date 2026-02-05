@@ -20,6 +20,7 @@ import { sendTicketUpdateDM } from '@/lib/discord-bot/notifications';
 import { refreshTicketLogMessage } from '@/lib/discord-bot/log';
 import { refreshTicketDM } from '@/lib/discord-bot/helpers';
 import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
+import { botManager } from '@/lib/discord-bot/manager';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 
 /**
@@ -43,6 +44,52 @@ function verifyJiraSignature(
   } catch {
     return false;
   }
+}
+
+/**
+ * Sync updates to private ticket channel (if exists)
+ */
+async function syncToTicketChannel(
+  botId: string,
+  ticketId: string,
+  update: {
+    type: 'comment' | 'status';
+    author?: string;
+    body?: string;
+    fromStatus?: string;
+    toStatus?: string;
+    status: string;
+  }
+): Promise<void> {
+  const ticketChannel = await prisma.ticketChannel.findUnique({
+    where: {
+      tenantId_ticketId: {
+        tenantId: botId,
+        ticketId,
+      },
+    },
+  });
+
+  if (!ticketChannel) return;
+
+  const client = botManager.getBot(botId);
+  if (!client) return;
+
+  const channel = await client.channels.fetch(ticketChannel.channelId);
+  if (!channel?.isTextBased()) return;
+
+  let message: string;
+  if (update.type === 'comment') {
+    message = `**Update from Jira:**\n\n**${update.author || 'Staff'}** replied:\n> ${(update.body || '').substring(0, 500).replace(/\n/g, '\n> ')}\n\n-# Status: ${update.status}`;
+  } else {
+    message = `**Status Update:**\n\n${update.fromStatus || 'Unknown'} \u2192 **${update.toStatus || update.status}**`;
+  }
+
+  await (channel as { send: Function }).send({
+    content: message,
+  });
+
+  console.log(`[Jira Webhook] Synced update to ticket channel ${ticketChannel.channelId} for ${ticketId}`);
 }
 
 export async function POST(request: NextRequest) {
@@ -220,6 +267,14 @@ export async function POST(request: NextRequest) {
         assignee: ticket.assignee || null,
         summary: ticket.summary,
       }).catch(err => console.error('[Jira Webhook] Log message refresh failed:', err));
+
+      // Sync update to private ticket channel (if exists)
+      syncToTicketChannel(botId, issueKey, {
+        type: 'comment',
+        author: latestStaffComment.author,
+        body: latestStaffComment.body,
+        status: ticket.status,
+      }).catch(err => console.error('[Jira Webhook] Ticket channel sync failed:', err));
     } else if (webhookEvent === 'issue_transitioned' || webhookEvent === 'status_changed') {
       // Status change — refresh the DM and log channel message
       const fromStatus = payload.fromStatus || 'unknown';
@@ -236,6 +291,14 @@ export async function POST(request: NextRequest) {
         assignee: ticket.assignee || null,
         summary: ticket.summary,
       }).catch(err => console.error('[Jira Webhook] Log message refresh failed:', err));
+
+      // Sync update to private ticket channel (if exists)
+      syncToTicketChannel(botId, issueKey, {
+        type: 'status',
+        fromStatus: fromStatus,
+        toStatus: toStatus,
+        status: ticket.status,
+      }).catch(err => console.error('[Jira Webhook] Ticket channel sync failed:', err));
     }
 
     // Update last webhook timestamp (only for tenants with DB config)

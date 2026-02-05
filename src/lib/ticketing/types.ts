@@ -129,6 +129,18 @@ export interface TicketProvider {
   transitionTicket?(ticketId: string, targetStatus: string): Promise<boolean>;
 
   /**
+   * Add a comment to a ticket as a staff member (no ownership verification).
+   * Staff name is embedded in the comment content for attribution.
+   * Used by Discord bot for staff replies in private ticket channels.
+   */
+  addStaffComment?(
+    ticketId: string,
+    body: string,
+    staffName: string,
+    staffDiscordId: string
+  ): Promise<{ success: boolean; error?: string }>;
+
+  /**
    * Fetch a ticket without ownership verification.
    * Returns the ticket data + the Discord user ID found in the description metadata.
    * Used by webhook handlers that receive an issue key but don't know the owner.

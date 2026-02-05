@@ -176,6 +176,7 @@ function buildConfirmationContainer(
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
+        `**Support Category:** Created\n` +
         `**Ticket channel:** <#${ticketChannelId}>\n` +
         `**Log channel:** ${logLine}\n` +
         `**DM on create:** ${dmOnCreate ? 'On' : 'Off'} \u00b7 ` +
@@ -187,7 +188,7 @@ function buildConfirmationContainer(
     )
     .addTextDisplayComponents(
       new TextDisplayBuilder().setContent(
-        '-# Channels created with permissions. Run /setup again to reconfigure.'
+        '-# Support category with channels created. Private ticket channels will be created here when staff assigns tickets. Run /setup again to reconfigure.'
       )
     );
 }
@@ -414,7 +415,7 @@ export async function handleSetupDmToggle(
 }
 
 /**
- * Step 4: Confirm → create channels, post panel, save config
+ * Step 4: Confirm → create category + channels, post panel, save config
  */
 export async function handleSetupConfirmButton(
   interaction: ButtonInteraction,
@@ -443,15 +444,61 @@ export async function handleSetupConfirmButton(
       return;
     }
 
-    // --- Create ticket channel ---
+    // --- Create Support category ---
+    let supportCategory;
+    try {
+      // Build permission overwrites for the category
+      const categoryOverwrites = [
+        {
+          id: guild.id, // @everyone: hidden by default
+          deny: [PermissionFlagsBits.ViewChannel],
+        },
+        {
+          id: client.user.id, // bot: full access
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ManageChannels,
+            PermissionFlagsBits.ManageMessages,
+            PermissionFlagsBits.EmbedLinks,
+          ],
+        },
+        // Add mod roles if selected
+        ...state.modRoleIds.map(roleId => ({
+          id: roleId,
+          allow: [
+            PermissionFlagsBits.ViewChannel,
+            PermissionFlagsBits.SendMessages,
+            PermissionFlagsBits.ReadMessageHistory,
+          ],
+        })),
+      ];
+
+      supportCategory = await guild.channels.create({
+        name: 'Support',
+        type: ChannelType.GuildCategory,
+        permissionOverwrites: categoryOverwrites,
+      });
+    } catch (error) {
+      console.error('[Setup] Failed to create Support category:', error);
+      await interaction.editReply({
+        components: [buildErrorContainer('Failed to create the Support category. Make sure the bot has **Manage Channels** permission.')],
+      });
+      wizardState.delete(key);
+      return;
+    }
+
+    // --- Create ticket creation channel (public for viewing, button-only interaction) ---
     let ticketChannel;
     try {
       ticketChannel = await guild.channels.create({
         name: state.ticketChannelName,
         type: ChannelType.GuildText,
+        parent: supportCategory.id,
         permissionOverwrites: [
           {
-            id: guild.id, // @everyone
+            id: guild.id, // @everyone: can view but not send messages
+            allow: [PermissionFlagsBits.ViewChannel],
             deny: [PermissionFlagsBits.SendMessages],
           },
           {
@@ -474,40 +521,15 @@ export async function handleSetupConfirmButton(
       return;
     }
 
-    // --- Create log channel (if name provided) ---
+    // --- Create log channel (staff-only, inherits category permissions) ---
     let logChannel = null;
     if (state.logChannelName) {
       try {
-        const roleOverwrites = state.modRoleIds.map(roleId => ({
-          id: roleId,
-          allow: [
-            PermissionFlagsBits.ViewChannel,
-            PermissionFlagsBits.SendMessages,
-            PermissionFlagsBits.ReadMessageHistory,
-          ] as const,
-        }));
-
         logChannel = await guild.channels.create({
           name: state.logChannelName,
           type: ChannelType.GuildText,
-          permissionOverwrites: [
-            {
-              id: guild.id, // @everyone: hidden
-              deny: [PermissionFlagsBits.ViewChannel],
-            },
-            ...roleOverwrites.map(o => ({
-              id: o.id,
-              allow: [...o.allow],
-            })),
-            {
-              id: client.user.id, // bot
-              allow: [
-                PermissionFlagsBits.ViewChannel,
-                PermissionFlagsBits.SendMessages,
-                PermissionFlagsBits.EmbedLinks,
-              ],
-            },
-          ],
+          parent: supportCategory.id,
+          // Inherits category permissions (staff roles can view)
         });
       } catch (error) {
         console.error('[Setup] Failed to create log channel:', error);
@@ -553,6 +575,7 @@ export async function handleSetupConfirmButton(
         guildId: guild.id,
         ticketChannelId: ticketChannel.id,
         logChannelId: logChannel?.id || null,
+        supportCategoryId: supportCategory.id,
         ticketPanelMessageId: panelMessageId,
         dmOnCreate: state.dmOnCreate,
         dmOnUpdate: state.dmOnUpdate,
@@ -561,6 +584,7 @@ export async function handleSetupConfirmButton(
         guildId: guild.id,
         ticketChannelId: ticketChannel.id,
         logChannelId: logChannel?.id || null,
+        supportCategoryId: supportCategory.id,
         ticketPanelMessageId: panelMessageId,
         dmOnCreate: state.dmOnCreate,
         dmOnUpdate: state.dmOnUpdate,

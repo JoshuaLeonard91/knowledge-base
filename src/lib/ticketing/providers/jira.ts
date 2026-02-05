@@ -330,4 +330,33 @@ export class JiraTicketProvider implements TicketProvider {
   async transitionTicket(ticketId: string, targetStatus: string): Promise<boolean> {
     return this.client.transitionIssue(ticketId, targetStatus);
   }
+
+  async addStaffComment(
+    ticketId: string,
+    body: string,
+    staffName: string,
+    staffDiscordId: string
+  ): Promise<{ success: boolean; error?: string }> {
+    // Build comment with staff attribution visible in the content
+    // The comment will be posted via OAuth token, but the staff name is in the text
+    const commentText = [
+      `**Reply from ${staffName}** (via Discord):`,
+      '',
+      body.trim(),
+      '',
+      '----',
+      `Staff Discord ID: ${staffDiscordId}`,
+    ].join('\n');
+
+    try {
+      const success = await this.client.addComment(ticketId, commentText);
+      return { success };
+    } catch (error) {
+      console.error('[JiraProvider] addStaffComment failed:', error);
+      return {
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      };
+    }
+  }
 }

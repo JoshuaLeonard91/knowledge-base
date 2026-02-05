@@ -41,7 +41,7 @@ import {
 } from './commands/panel-config';
 import { handleAssignButton, handleResolveButton, handleReopenStaffButton } from './log';
 import { handleCloseTicketButton, handleReopenTicketButton } from './helpers';
-import { handleButtonInteraction } from './interactions/reply';
+import { handleReplyButton, handleReplyModal } from './commands/reply';
 
 import { MAIN_DOMAIN_BOT_ID } from './constants';
 
@@ -284,8 +284,8 @@ class BotManager {
         await handleResolveButton(interaction, tenantId);
       } else if (cid.startsWith('reopen_staff:')) {
         await handleReopenStaffButton(interaction, tenantId);
-      } else if (cid.startsWith('reply:')) {
-        await handleButtonInteraction(interaction, tenantId);
+      } else if (cid.startsWith('ticket_reply:')) {
+        await handleReplyButton(interaction, tenantId);
       }
     }
     // === Modals ===
@@ -300,8 +300,8 @@ class BotManager {
         await handlePanelModal(interaction);
       } else if (cid.startsWith('panel_edit_modal:')) {
         await handlePanelEditModal(interaction);
-      } else if (cid.startsWith('reply-modal:')) {
-        await handleButtonInteraction(interaction, tenantId);
+      } else if (cid.startsWith('ticket_reply_modal:')) {
+        await handleReplyModal(interaction);
       }
     }
   }
