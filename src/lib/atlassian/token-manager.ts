@@ -24,12 +24,19 @@ const refreshLocks = new Map<string, Promise<string | null>>();
  * Uses a per-tenant lock so concurrent requests share a single refresh.
  */
 export async function getValidAccessToken(config: TokenConfig): Promise<string | null> {
+  console.log('[TokenManager] getValidAccessToken called for tenant:', config.tenantId);
+  console.log('[TokenManager] Token expiry:', config.tokenExpiry, 'Now:', new Date());
+
   const accessToken = decryptFromString(config.accessToken);
+  console.log('[TokenManager] Decrypted token length:', accessToken?.length || 0);
 
   const isExpired = config.tokenExpiry &&
     new Date(config.tokenExpiry) <= new Date(Date.now() + 5 * 60 * 1000);
 
+  console.log('[TokenManager] Is expired:', isExpired);
+
   if (!isExpired) {
+    console.log('[TokenManager] Token valid, returning');
     return accessToken;
   }
 
