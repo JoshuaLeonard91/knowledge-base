@@ -23,6 +23,7 @@ const SCOPES = [
   'offline_access',
   'read:jira-work',
   'write:jira-work',
+  'read:jira-user',
   'manage:jira-configuration',
   'read:servicedesk-request',
 ].join(' ');
