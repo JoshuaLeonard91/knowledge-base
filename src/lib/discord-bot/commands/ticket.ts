@@ -271,6 +271,7 @@ export async function handleTicketModal(
     });
 
     if (!result.success) {
+      console.error('[Ticket] Ticket creation failed:', result.error);
       await interaction.editReply({
         content: 'Failed to create ticket. Please try again later or use the support portal.',
       });

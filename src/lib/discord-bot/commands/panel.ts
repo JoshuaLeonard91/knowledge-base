@@ -410,6 +410,7 @@ export async function handlePanelModal(
     });
 
     if (!result.success) {
+      console.error('[Panel] Ticket creation failed:', result.error);
       await interaction.editReply({
         content: 'Failed to create ticket. Please try again later.',
       });

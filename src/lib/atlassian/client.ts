@@ -193,10 +193,17 @@ export class JiraServiceDeskClient {
       });
 
       if (!response.ok) {
-        // Don't log error body - may contain sensitive data
+        // Log status but not body (may contain sensitive data)
+        const errorBody = await response.text().catch(() => '(failed to read body)');
+        console.error('[Jira Client] Request failed:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: url.replace(/\/rest\/.*/, '/rest/...'), // Truncate for privacy
+          body: errorBody,
+        });
         return {
           data: null,
-          error: 'External service error',
+          error: `External service error (${response.status})`,
         };
       }
 

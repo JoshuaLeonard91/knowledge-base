@@ -58,19 +58,6 @@ export async function GET() {
     }
 
     const config = tenant.jiraConfig;
-
-    // Detailed config logging
-    console.log('[Jira Users] Config check:', {
-      connected: config?.connected,
-      authMode: config?.authMode,
-      hasCloudId: !!config?.cloudId,
-      cloudId: config?.cloudId,
-      hasAccessToken: !!config?.accessToken,
-      hasRefreshToken: !!config?.refreshToken,
-      tokenExpiry: config?.tokenExpiry,
-      projectKey: config?.projectKey,
-    });
-
     if (!config?.connected || config.authMode !== 'oauth' || !config.cloudId || !config.accessToken || !config.refreshToken) {
       return NextResponse.json(
         { error: 'Jira not connected via OAuth' },
@@ -85,7 +72,6 @@ export async function GET() {
       );
     }
 
-    console.log('[Jira Users] Calling getValidAccessToken...');
     const accessToken = await getValidAccessToken({
       tenantId: tenant.id,
       accessToken: config.accessToken,
@@ -94,34 +80,25 @@ export async function GET() {
     });
 
     if (!accessToken) {
-      console.error('[Jira Users] getValidAccessToken returned null - token refresh likely failed');
       return NextResponse.json(
         { error: 'Failed to authenticate with Jira. Please reconnect.' },
         { status: 401, headers: securityHeaders }
       );
     }
 
-    console.log('[Jira Users] Got access token, length:', accessToken.length, 'prefix:', accessToken.substring(0, 10) + '...');
-
     // Fetch users assignable to issues in this project
-    const url = `https://api.atlassian.com/ex/jira/${config.cloudId}/rest/api/3/user/assignable/search?project=${encodeURIComponent(config.projectKey)}&maxResults=100`;
-    console.log(`[Jira Users] Fetching: ${url}`);
-
-    const response = await fetch(url, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        Accept: 'application/json',
-      },
-    });
+    const response = await fetch(
+      `https://api.atlassian.com/ex/jira/${config.cloudId}/rest/api/3/user/assignable/search?project=${encodeURIComponent(config.projectKey)}&maxResults=100`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          Accept: 'application/json',
+        },
+      }
+    );
 
     if (!response.ok) {
-      const errorBody = await response.text();
-      console.error('[Jira Users] Failed to fetch:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries()),
-        body: errorBody,
-      });
+      console.error('[Jira Users] Failed to fetch:', response.status);
       return NextResponse.json(
         { error: 'Failed to fetch users from Jira' },
         { status: 502, headers: securityHeaders }
