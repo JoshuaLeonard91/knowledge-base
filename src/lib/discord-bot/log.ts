@@ -177,8 +177,8 @@ function buildTicketCreatedContainer(params: {
   const container = new ContainerBuilder()
     .setAccentColor(accentColor);
 
-  // Header with avatar, ticket ID as title, summary as subtitle
-  const headerContent = `## ${params.ticketId}\n${params.summary}`;
+  // Header with avatar, ticket ID as title, italicized summary below
+  const headerContent = `## ${params.ticketId}\n*Summary: ${params.summary}*`;
   if (params.avatarUrl) {
     container.addSectionComponents(
       new SectionBuilder()
@@ -199,31 +199,29 @@ function buildTicketCreatedContainer(params: {
     new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
   );
 
-  // Info fields - using figure spaces (U+2007) to align values
-  // Figure space has consistent width in most fonts
-  const ticketLink = params.portalUrl
-    ? `[${params.ticketId}](${params.portalUrl})`
-    : `**${params.ticketId}**`;
+  // Info fields - using monospace code block for proper alignment
+  // Pad labels to 11 chars (longest is "Created by:")
+  const ticketDisplay = params.ticketId;
+  const assigneeDisplay = params.assignedTo ? params.assignedTo.username : 'Unassigned';
+  const serverLine = params.guildName ? `\nServer:     ${params.guildName}` : '';
 
-  const assigneeText = params.assignedTo ? `<@${params.assignedTo.userId}>` : '*Unassigned*';
-
-  // Pad labels to align values (longest is "Created by" at 10 chars)
-  // Using a mix of regular and figure spaces for alignment
-  const infoLines = [
-    `**Category:**\u2007\u2007\u2007${params.category}`,
-    `**Ticket:**\u2007\u2007\u2007\u2007\u2007\u2007${ticketLink}`,
-    `**Status:**\u2007\u2007\u2007\u2007\u2007\u2007${statusEmoji} ${params.status}`,
-    `**Priority:**\u2007\u2007\u2007\u2007${sevEmoji} ${sevLabel}`,
-    `**Assignee:**\u2007\u2007\u2007${assigneeText}`,
-    `**Created by:**\u2007<@${params.discordUserId}>`,
-  ];
-
-  if (params.guildName) {
-    infoLines.push(`**Server:**\u2007\u2007\u2007\u2007\u2007\u2007${params.guildName}`);
-  }
+  const codeBlock = [
+    '```',
+    `Category:   ${params.category}`,
+    `Ticket:     ${ticketDisplay}`,
+    `Status:     ${params.status}`,
+    `Priority:   ${sevLabel}`,
+    `Assignee:   ${assigneeDisplay}`,
+    '```',
+  ].join('\n');
 
   container.addTextDisplayComponents(
-    new TextDisplayBuilder().setContent(infoLines.join('\n'))
+    new TextDisplayBuilder().setContent(codeBlock)
+  );
+
+  // Created by outside code block so mention works
+  container.addTextDisplayComponents(
+    new TextDisplayBuilder().setContent(`**Created by:** <@${params.discordUserId}>${serverLine ? `\n**Server:** ${params.guildName}` : ''}`)
   );
 
   // Description preview (truncated)
@@ -657,32 +655,56 @@ function buildAssignedContainer(params: {
   assignedInJira: boolean;
   avatarUrl?: string;
 }): ContainerBuilder {
-  // Try to find severity from original text to keep accent color
-  let accentColor = 0xfee75c; // default to yellow (in progress)
-  const severityMatch = params.originalTexts.find(t => t.includes('**'));
-  if (severityMatch) {
-    if (severityMatch.includes('Critical')) accentColor = 0xed4245;
-    else if (severityMatch.includes('High')) accentColor = 0xe67e22;
-    else if (severityMatch.includes('Medium')) accentColor = 0xfee75c;
-    else if (severityMatch.includes('Low')) accentColor = 0x57f287;
+  // Extract data from code block (new format) or markdown (old format)
+  const codeBlock = params.originalTexts.find(t => t.startsWith('```'));
+  const markdownBlock = params.originalTexts.find(t => t.includes('**Category:**'));
+
+  let category = 'General';
+  let priority = 'Medium';
+
+  if (codeBlock) {
+    const categoryMatch = codeBlock.match(/Category:\s+(.+)/);
+    category = categoryMatch ? categoryMatch[1].trim() : 'General';
+    const priorityMatch = codeBlock.match(/Priority:\s+(.+)/);
+    priority = priorityMatch ? priorityMatch[1].trim() : 'Medium';
+  } else if (markdownBlock) {
+    const categoryMatch = markdownBlock.match(/\*\*Category:\*\*\s*(.+)/);
+    category = categoryMatch ? categoryMatch[1].split('\n')[0].trim() : 'General';
+    const priorityMatch = markdownBlock.match(/\*\*Priority:\*\*\s*[^\s]*\s*(\w+)/);
+    priority = priorityMatch ? priorityMatch[1] : 'Medium';
   }
 
-  // Get original heading (ticket ID + summary)
-  const heading = params.originalTexts[0] || `# ${params.ticketId}`;
+  // Determine accent color from priority (yellow for in progress)
+  const accentColor = 0xfee75c;
 
-  // Get the status/severity/category info line (contains · separators)
-  const infoLine = params.originalTexts.find(t => t.includes('\u00b7')) || '';
-  // Replace the old status with In Progress
-  const updatedInfoLine = infoLine.replace(/[^\s]+ \*\*\w+\*\*/, '\u{1F7E1} **In Progress**');
+  // Get original heading (ticket ID + summary)
+  const heading = params.originalTexts[0] || `## ${params.ticketId}`;
 
   // Get original metadata text (created by, server)
   const metaText = params.originalTexts.find(t => t.includes('**Created by:**')) || '';
+  const serverMatch = metaText.match(/\*\*Server:\*\*\s*(.+)/);
+  const serverName = serverMatch ? serverMatch[1].split('\n')[0].trim() : null;
 
-  // Build metadata with assignee
-  const metaLines = metaText.split('\n').filter(l => l.includes('**Created by:**') || l.includes('**Server:**'));
-  metaLines.push(`**Assigned to:** <@${params.assignedTo.userId}>`);
+  // Build code block for aligned info fields
+  const codeBlockContent = [
+    '```',
+    `Category:   ${category}`,
+    `Ticket:     ${params.ticketId}`,
+    `Status:     In Progress`,
+    `Priority:   ${priority}`,
+    `Assignee:   ${params.assignedTo.username}`,
+    '```',
+  ].join('\n');
+
+  // Build metadata lines
+  const createdByMatch = metaText.match(/<@(\d{17,19})>/);
+  const creatorId = createdByMatch ? createdByMatch[1] : '';
+  let metaContent = `**Created by:** <@${creatorId}>`;
+  if (serverName) {
+    metaContent += `\n**Server:** ${serverName}`;
+  }
   if (!params.assignedInJira) {
-    metaLines.push('-# Jira assignment failed \u2014 check account ID in dashboard.');
+    metaContent += '\n-# Jira assignment skipped (no Jira account)';
   }
 
   const container = new ContainerBuilder()
@@ -692,22 +714,17 @@ function buildAssignedContainer(params: {
   if (params.avatarUrl) {
     container.addSectionComponents(
       new SectionBuilder()
-        .addTextDisplayComponents(
-          new TextDisplayBuilder().setContent(heading)
-        )
-        .setThumbnailAccessory(
-          new ThumbnailBuilder().setURL(params.avatarUrl)
-        )
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(heading))
+        .setThumbnailAccessory(new ThumbnailBuilder().setURL(params.avatarUrl))
     );
   } else {
     container.addTextDisplayComponents(new TextDisplayBuilder().setContent(heading));
   }
 
   container
-    .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(updatedInfoLine || '\u{1F7E1} **In Progress**'))
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(codeBlockContent))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent))
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Assigned <t:${Math.floor(Date.now() / 1000)}:R>`))
     .addActionRowComponents(
@@ -865,11 +882,36 @@ export async function handleResolveButton(
     if (message) {
       const originalTexts = extractTextFromMessage(message);
       console.log(`[Log] Resolve: extracted ${originalTexts.length} texts from message:`, originalTexts.map((t, i) => `[${i}] ${t.substring(0, 80)}`));
-      const heading = originalTexts[0] || `# ${ticketId}`;
-      const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
+      const heading = originalTexts[0] || `## ${ticketId}`;
       const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
       const creatorId = extractDiscordUserIdFromTexts(originalTexts);
       console.log(`[Log] Resolve: creatorId=${creatorId}, metaText=${metaText.substring(0, 100)}`);
+
+      // Extract data from code block or markdown
+      const codeBlock = originalTexts.find(t => t.startsWith('```'));
+      const markdownBlock = originalTexts.find(t => t.includes('**Category:**'));
+
+      let category = 'General';
+      let priority = 'Medium';
+      let assignee = 'Unassigned';
+
+      if (codeBlock) {
+        const categoryMatch = codeBlock.match(/Category:\s+(.+)/);
+        category = categoryMatch ? categoryMatch[1].trim() : 'General';
+        const priorityMatch = codeBlock.match(/Priority:\s+(.+)/);
+        priority = priorityMatch ? priorityMatch[1].trim() : 'Medium';
+        const assigneeMatch = codeBlock.match(/Assignee:\s+(.+)/);
+        assignee = assigneeMatch ? assigneeMatch[1].trim() : 'Unassigned';
+      } else if (markdownBlock) {
+        const categoryMatch = markdownBlock.match(/\*\*Category:\*\*\s*(.+)/);
+        category = categoryMatch ? categoryMatch[1].split('\n')[0].trim() : 'General';
+        const priorityMatch = markdownBlock.match(/\*\*Priority:\*\*\s*[^\s]*\s*(\w+)/);
+        priority = priorityMatch ? priorityMatch[1] : 'Medium';
+      }
+
+      // Extract server name
+      const serverMatch = metaText.match(/\*\*Server:\*\*\s*(.+)/);
+      const serverName = serverMatch ? serverMatch[1].split('\n')[0].trim() : null;
 
       // Fetch creator avatar for thumbnail
       let avatarUrl: string | undefined;
@@ -880,14 +922,23 @@ export async function handleResolveButton(
         } catch { /* proceed without avatar */ }
       }
 
-      // Replace status in info line
-      const resolvedInfoLine = infoLine.replace(/[^\s]+ \*\*[\w\s]+\*\*/, '\u2705 **Resolved**');
+      // Build code block for aligned info fields
+      const codeBlockContent = [
+        '```',
+        `Category:   ${category}`,
+        `Ticket:     ${ticketId}`,
+        `Status:     Resolved`,
+        `Priority:   ${priority}`,
+        `Assignee:   ${assignee}`,
+        '```',
+      ].join('\n');
 
       // Build metadata
-      const metaLines = metaText.split('\n').filter(l =>
-        l.includes('**Created by:**') || l.includes('**Server:**') || l.includes('**Assigned to:**')
-      );
-      metaLines.push(`**Resolved by:** <@${interaction.user.id}>`);
+      let metaContent = `**Created by:** <@${creatorId}>`;
+      if (serverName) {
+        metaContent += `\n**Server:** ${serverName}`;
+      }
+      metaContent += `\n**Resolved by:** <@${interaction.user.id}>`;
 
       const container = new ContainerBuilder()
         .setAccentColor(0x57f287); // green for resolved
@@ -904,10 +955,9 @@ export async function handleResolveButton(
       }
 
       container
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(resolvedInfoLine || '\u2705 **Resolved**'))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(codeBlockContent))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Resolved <t:${Math.floor(Date.now() / 1000)}:R>`))
         .addActionRowComponents(
@@ -996,10 +1046,32 @@ export async function handleReopenStaffButton(
     const message = interaction.message;
     if (message) {
       const originalTexts = extractTextFromMessage(message);
-      const heading = originalTexts[0] || `# ${ticketId}`;
-      const infoLine = originalTexts.find(t => t.includes('\u00b7')) || '';
+      const heading = originalTexts[0] || `## ${ticketId}`;
       const metaText = originalTexts.find(t => t.includes('**Created by:**')) || '';
       const creatorId = extractDiscordUserIdFromTexts(originalTexts);
+
+      // Extract data from code block or markdown
+      const codeBlock = originalTexts.find(t => t.startsWith('```'));
+      const markdownBlock = originalTexts.find(t => t.includes('**Category:**'));
+
+      let category = 'General';
+      let priority = 'Medium';
+
+      if (codeBlock) {
+        const categoryMatch = codeBlock.match(/Category:\s+(.+)/);
+        category = categoryMatch ? categoryMatch[1].trim() : 'General';
+        const priorityMatch = codeBlock.match(/Priority:\s+(.+)/);
+        priority = priorityMatch ? priorityMatch[1].trim() : 'Medium';
+      } else if (markdownBlock) {
+        const categoryMatch = markdownBlock.match(/\*\*Category:\*\*\s*(.+)/);
+        category = categoryMatch ? categoryMatch[1].split('\n')[0].trim() : 'General';
+        const priorityMatch = markdownBlock.match(/\*\*Priority:\*\*\s*[^\s]*\s*(\w+)/);
+        priority = priorityMatch ? priorityMatch[1] : 'Medium';
+      }
+
+      // Extract server name
+      const serverMatch = metaText.match(/\*\*Server:\*\*\s*(.+)/);
+      const serverName = serverMatch ? serverMatch[1].split('\n')[0].trim() : null;
 
       // Fetch creator avatar for thumbnail
       let avatarUrl: string | undefined;
@@ -1010,21 +1082,31 @@ export async function handleReopenStaffButton(
         } catch { /* proceed without avatar */ }
       }
 
-      // Detect severity for accent color
+      // Detect accent color from priority
       let accentColor = 0x5865f2;
-      if (infoLine.includes('Critical')) accentColor = 0xed4245;
-      else if (infoLine.includes('High')) accentColor = 0xe67e22;
-      else if (infoLine.includes('Medium')) accentColor = 0xfee75c;
-      else if (infoLine.includes('Low')) accentColor = 0x57f287;
+      const priorityLower = priority.toLowerCase();
+      if (priorityLower === 'critical') accentColor = 0xed4245;
+      else if (priorityLower === 'high') accentColor = 0xe67e22;
+      else if (priorityLower === 'medium') accentColor = 0xfee75c;
+      else if (priorityLower === 'low') accentColor = 0x57f287;
 
-      // Replace status in info line
-      const reopenedInfoLine = infoLine.replace(/[^\s]+ \*\*[\w\s]+\*\*/, '\u{1F7E2} **Open**');
+      // Build code block for aligned info fields
+      const codeBlockContent = [
+        '```',
+        `Category:   ${category}`,
+        `Ticket:     ${ticketId}`,
+        `Status:     Open`,
+        `Priority:   ${priority}`,
+        `Assignee:   Unassigned`,
+        '```',
+      ].join('\n');
 
       // Build metadata
-      const metaLines = metaText.split('\n').filter(l =>
-        l.includes('**Created by:**') || l.includes('**Server:**')
-      );
-      metaLines.push(`**Reopened by:** <@${interaction.user.id}>`);
+      let metaContent = `**Created by:** <@${creatorId}>`;
+      if (serverName) {
+        metaContent += `\n**Server:** ${serverName}`;
+      }
+      metaContent += `\n**Reopened by:** <@${interaction.user.id}>`;
 
       const container = new ContainerBuilder()
         .setAccentColor(accentColor);
@@ -1041,10 +1123,9 @@ export async function handleReopenStaffButton(
       }
 
       container
-        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Large))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(reopenedInfoLine || '\u{1F7E2} **Open**'))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaLines.join('\n')))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(codeBlockContent))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent))
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Reopened <t:${Math.floor(Date.now() / 1000)}:R>`))
         .addActionRowComponents(
@@ -1180,28 +1261,44 @@ export async function refreshTicketLogMessage(params: {
     // Extract original data from the message
     const originalTexts = extractTextFromMessage(message);
 
-    // Find the heading (## TicketID\nSummary) - new format shows ticket ID as title, summary below
+    // Find the heading (## TicketID\n*Summary: text*) - new format
     const existingHeading = originalTexts.find(t => t.startsWith('##'));
     // Use existing heading if present (preserves ticket ID + summary), otherwise build new one
-    const heading = existingHeading || `## ${params.ticketId}\n${params.summary}`;
+    const heading = existingHeading || `## ${params.ticketId}\n*Summary: ${params.summary}*`;
 
-    // Find the info block with all the fields
-    const infoBlock = originalTexts.find(t => t.includes('**Category:**')) || '';
+    // Find the info block - could be code block (new) or markdown (old)
+    const codeBlock = originalTexts.find(t => t.startsWith('```'));
+    const markdownBlock = originalTexts.find(t => t.includes('**Category:**'));
 
-    // Extract category and priority from original
-    const categoryMatch = infoBlock.match(/\*\*Category:\*\*\s*(.+)/);
-    const category = categoryMatch ? categoryMatch[1].split('\n')[0].trim() : 'General';
+    let category = 'General';
+    let priority = 'Medium';
+    let serverName: string | null = null;
 
-    const priorityMatch = infoBlock.match(/\*\*Priority:\*\*\s*[^\s]*\s*(\w+)/);
-    const priority = priorityMatch ? priorityMatch[1] : 'Medium';
+    if (codeBlock) {
+      // Extract from code block format: "Category:   Value"
+      const categoryMatch = codeBlock.match(/Category:\s+(.+)/);
+      category = categoryMatch ? categoryMatch[1].trim() : 'General';
 
-    // Extract portal URL if present
-    const ticketMatch = infoBlock.match(/\*\*Ticket:\*\*\s*\[([^\]]+)\]\(([^)]+)\)/);
-    const portalUrl = ticketMatch ? ticketMatch[2] : null;
+      const priorityMatch = codeBlock.match(/Priority:\s+(.+)/);
+      priority = priorityMatch ? priorityMatch[1].trim() : 'Medium';
+    } else if (markdownBlock) {
+      // Extract from old markdown format: "**Category:** Value"
+      const categoryMatch = markdownBlock.match(/\*\*Category:\*\*\s*(.+)/);
+      category = categoryMatch ? categoryMatch[1].split('\n')[0].trim() : 'General';
 
-    // Extract server name if present
-    const serverMatch = infoBlock.match(/\*\*Server:\*\*\s*(.+)/);
-    const serverName = serverMatch ? serverMatch[1].split('\n')[0].trim() : null;
+      const priorityMatch = markdownBlock.match(/\*\*Priority:\*\*\s*[^\s]*\s*(\w+)/);
+      priority = priorityMatch ? priorityMatch[1] : 'Medium';
+
+      const serverMatch = markdownBlock.match(/\*\*Server:\*\*\s*(.+)/);
+      serverName = serverMatch ? serverMatch[1].split('\n')[0].trim() : null;
+    }
+
+    // Check for server in Created by section (new format)
+    const createdByBlock = originalTexts.find(t => t.includes('**Created by:**'));
+    if (createdByBlock && !serverName) {
+      const serverMatch = createdByBlock.match(/\*\*Server:\*\*\s*(.+)/);
+      serverName = serverMatch ? serverMatch[1].split('\n')[0].trim() : null;
+    }
 
     // Find description block if present
     const descBlock = originalTexts.find(t => t.includes('**Description:**'));
@@ -1233,8 +1330,6 @@ export async function refreshTicketLogMessage(params: {
       else if (priorityLower === 'low') accentColor = 0x57f287;
     }
 
-    const sevEmoji = getSeverityEmoji(priority.toLowerCase());
-
     // Fetch creator avatar
     let avatarUrl: string | undefined;
     try {
@@ -1242,24 +1337,17 @@ export async function refreshTicketLogMessage(params: {
       avatarUrl = creatorUser.displayAvatarURL({ size: 64 });
     } catch { /* proceed without avatar */ }
 
-    // Build ticket link
-    const ticketLink = portalUrl
-      ? `[${params.ticketId}](${portalUrl})`
-      : `**${params.ticketId}**`;
-
-    // Build info fields
-    const infoLines = [
-      `**Category:**\u2003${category}`,
-      `**Ticket:**\u2003${ticketLink}`,
-      `**Status:**\u2003${statusEmoji} ${statusLabel}`,
-      `**Priority:**\u2003${sevEmoji} ${priority}`,
-      `**Assignee:**\u2003${params.assignee || '*Unassigned*'}`,
-      `**Created by:**\u2003<@${tracker.discordUserId}>`,
-    ];
-
-    if (serverName) {
-      infoLines.push(`**Server:**\u2003${serverName}`);
-    }
+    // Build code block for aligned info fields
+    const assigneeDisplay = params.assignee || 'Unassigned';
+    const codeBlockContent = [
+      '```',
+      `Category:   ${category}`,
+      `Ticket:     ${params.ticketId}`,
+      `Status:     ${statusLabel}`,
+      `Priority:   ${priority}`,
+      `Assignee:   ${assigneeDisplay}`,
+      '```',
+    ].join('\n');
 
     // Build updated container
     const container = new ContainerBuilder()
@@ -1277,7 +1365,12 @@ export async function refreshTicketLogMessage(params: {
 
     container
       .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
-      .addTextDisplayComponents(new TextDisplayBuilder().setContent(infoLines.join('\n')));
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(codeBlockContent));
+
+    // Created by outside code block so mention works
+    container.addTextDisplayComponents(
+      new TextDisplayBuilder().setContent(`**Created by:** <@${tracker.discordUserId}>${serverName ? `\n**Server:** ${serverName}` : ''}`)
+    );
 
     // Add description if present
     if (description) {
