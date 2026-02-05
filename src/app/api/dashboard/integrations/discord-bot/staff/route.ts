@@ -115,46 +115,44 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!jiraAccountId || typeof jiraAccountId !== 'string') {
-      return NextResponse.json(
-        { error: 'Jira Account ID is required' },
-        { status: 400, headers: securityHeaders }
+    // jiraAccountId is optional - staff can work without a Jira account
+    const trimmedJiraAccountId = jiraAccountId?.trim() || null;
+
+    // Only validate Jira account if one is provided
+    if (trimmedJiraAccountId) {
+      const jiraUser = await jiraServiceDesk.getUser(trimmedJiraAccountId);
+      if (!jiraUser) {
+        return NextResponse.json(
+          { error: 'Jira account not found. Check the account ID.' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+
+      if (!jiraUser.active) {
+        return NextResponse.json(
+          { error: 'Jira account is deactivated.' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+
+      // Validate the user has access to the Jira project
+      const projectKey = process.env.JIRA_PROJECT_KEY || 'SUPPORT';
+      const jiraConfig = await prisma.tenantJiraConfig.findUnique({
+        where: { tenantId: result.tenant.id },
+      });
+      const effectiveProjectKey = jiraConfig?.projectKey || projectKey;
+
+      const isAssignable = await jiraServiceDesk.isUserAssignableInProject(
+        trimmedJiraAccountId,
+        effectiveProjectKey
       );
-    }
 
-    // Validate the Jira account exists and is active
-    const jiraUser = await jiraServiceDesk.getUser(jiraAccountId.trim());
-    if (!jiraUser) {
-      return NextResponse.json(
-        { error: 'Jira account not found. Check the account ID.' },
-        { status: 400, headers: securityHeaders }
-      );
-    }
-
-    if (!jiraUser.active) {
-      return NextResponse.json(
-        { error: 'Jira account is deactivated.' },
-        { status: 400, headers: securityHeaders }
-      );
-    }
-
-    // Validate the user has access to the Jira project
-    const projectKey = process.env.JIRA_PROJECT_KEY || 'SUPPORT';
-    const jiraConfig = await prisma.tenantJiraConfig.findUnique({
-      where: { tenantId: result.tenant.id },
-    });
-    const effectiveProjectKey = jiraConfig?.projectKey || projectKey;
-
-    const isAssignable = await jiraServiceDesk.isUserAssignableInProject(
-      jiraAccountId.trim(),
-      effectiveProjectKey
-    );
-
-    if (!isAssignable) {
-      return NextResponse.json(
-        { error: `Jira user "${jiraUser.displayName}" does not have access to project ${effectiveProjectKey}.` },
-        { status: 400, headers: securityHeaders }
-      );
+      if (!isAssignable) {
+        return NextResponse.json(
+          { error: `Jira user "${jiraUser.displayName}" does not have access to project ${effectiveProjectKey}.` },
+          { status: 400, headers: securityHeaders }
+        );
+      }
     }
 
     const mapping = await prisma.staffMapping.upsert({
@@ -167,11 +165,11 @@ export async function POST(request: NextRequest) {
       create: {
         botId: result.tenant.id,
         discordUserId,
-        jiraAccountId: jiraAccountId.trim(),
+        jiraAccountId: trimmedJiraAccountId,
         displayName: displayName?.trim() || null,
       },
       update: {
-        jiraAccountId: jiraAccountId.trim(),
+        jiraAccountId: trimmedJiraAccountId,
         displayName: displayName?.trim() || null,
       },
     });

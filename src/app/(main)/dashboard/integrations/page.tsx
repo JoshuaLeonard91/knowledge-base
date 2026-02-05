@@ -1134,8 +1134,14 @@ export default function IntegrationsPage() {
                           <span className="text-white/70">{m.displayName || 'Unnamed'}</span>
                           <span className="text-white/30">|</span>
                           <span className="font-mono text-xs text-white/50">{m.discordUserId}</span>
-                          <span className="text-white/30">→</span>
-                          <span className="font-mono text-xs text-white/50">{m.jiraAccountId}</span>
+                          {m.jiraAccountId ? (
+                            <>
+                              <span className="text-white/30">→</span>
+                              <span className="font-mono text-xs text-white/50">{m.jiraAccountId}</span>
+                            </>
+                          ) : (
+                            <span className="text-xs text-amber-400/60">(Discord only)</span>
+                          )}
                         </div>
                         <button
                           onClick={() => deleteStaffMapping(m.id)}
@@ -1186,7 +1192,7 @@ export default function IntegrationsPage() {
                         }}
                         className="w-full px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white focus:outline-none focus:border-indigo-500/50"
                       >
-                        <option value="">Select a Jira user...</option>
+                        <option value="">No Jira account (optional)</option>
                         {jiraUsers.map(u => (
                           <option key={u.accountId} value={u.accountId}>
                             {u.displayName}{u.email ? ` (${u.email})` : ''}
@@ -1198,7 +1204,7 @@ export default function IntegrationsPage() {
                         type="text"
                         value={staffForm.jiraAccountId}
                         onChange={(e) => setStaffForm({ ...staffForm, jiraAccountId: e.target.value })}
-                        placeholder="Jira Account ID"
+                        placeholder="Jira Account ID (optional)"
                         className="w-full px-3 py-2 bg-[#0a0a0f] border border-white/10 rounded-lg text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
                       />
                     )}
@@ -1211,7 +1217,7 @@ export default function IntegrationsPage() {
                 </div>
                 <button
                   onClick={addStaffMapping}
-                  disabled={isSavingStaff || !staffForm.discordUserId || !staffForm.jiraAccountId}
+                  disabled={isSavingStaff || !staffForm.discordUserId}
                   className="mt-2 px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
                 >
                   {isSavingStaff ? 'Adding...' : 'Add Staff'}
