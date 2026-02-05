@@ -198,22 +198,27 @@ function buildTicketCreatedContainer(params: {
     new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small)
   );
 
-  // Info fields in a clean format
+  // Info fields - using figure spaces (U+2007) to align values
+  // Figure space has consistent width in most fonts
   const ticketLink = params.portalUrl
     ? `[${params.ticketId}](${params.portalUrl})`
     : `**${params.ticketId}**`;
 
+  const assigneeText = params.assignedTo ? `<@${params.assignedTo.userId}>` : '*Unassigned*';
+
+  // Pad labels to align values (longest is "Created by" at 10 chars)
+  // Using a mix of regular and figure spaces for alignment
   const infoLines = [
-    `**Category:**\u2003${params.category}`,
-    `**Ticket:**\u2003${ticketLink}`,
-    `**Status:**\u2003${statusEmoji} ${params.status}`,
-    `**Priority:**\u2003${sevEmoji} ${sevLabel}`,
-    `**Assignee:**\u2003${params.assignedTo ? `<@${params.assignedTo.userId}>` : '*Unassigned*'}`,
-    `**Created by:**\u2003<@${params.discordUserId}>`,
+    `**Category:**\u2007\u2007\u2007${params.category}`,
+    `**Ticket:**\u2007\u2007\u2007\u2007\u2007\u2007${ticketLink}`,
+    `**Status:**\u2007\u2007\u2007\u2007\u2007\u2007${statusEmoji} ${params.status}`,
+    `**Priority:**\u2007\u2007\u2007\u2007${sevEmoji} ${sevLabel}`,
+    `**Assignee:**\u2007\u2007\u2007${assigneeText}`,
+    `**Created by:**\u2007<@${params.discordUserId}>`,
   ];
 
   if (params.guildName) {
-    infoLines.push(`**Server:**\u2003${params.guildName}`);
+    infoLines.push(`**Server:**\u2007\u2007\u2007\u2007\u2007\u2007${params.guildName}`);
   }
 
   container.addTextDisplayComponents(
