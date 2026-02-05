@@ -20,6 +20,7 @@ import {
   MessageFlags,
   ChannelType,
   PermissionFlagsBits,
+  OverwriteType,
 } from 'discord.js';
 import { prisma } from '@/lib/db/client';
 import { botManager } from './manager';
@@ -177,8 +178,11 @@ function buildTicketCreatedContainer(params: {
   const container = new ContainerBuilder()
     .setAccentColor(accentColor);
 
+  // Strip category prefix from summary if present (format: "[Category] Title")
+  const cleanSummary = params.summary.replace(/^\[[^\]]+\]\s*/, '');
+
   // Header with avatar, ticket ID as title, italicized summary below
-  const headerContent = `## ${params.ticketId}\n*Summary: ${params.summary}*`;
+  const headerContent = `## ${params.ticketId}\n*Summary: ${cleanSummary}*`;
   if (params.avatarUrl) {
     container.addSectionComponents(
       new SectionBuilder()
@@ -408,10 +412,12 @@ export async function handleAssignButton(
             permissionOverwrites: [
               {
                 id: guild.id, // @everyone: hidden
+                type: OverwriteType.Role,
                 deny: [PermissionFlagsBits.ViewChannel],
               },
               {
                 id: interaction.user.id, // assigned mod: full access
+                type: OverwriteType.Member,
                 allow: [
                   PermissionFlagsBits.ViewChannel,
                   PermissionFlagsBits.SendMessages,
@@ -420,6 +426,7 @@ export async function handleAssignButton(
               },
               {
                 id: guild.ownerId, // server owner: full access
+                type: OverwriteType.Member,
                 allow: [
                   PermissionFlagsBits.ViewChannel,
                   PermissionFlagsBits.SendMessages,
@@ -428,6 +435,7 @@ export async function handleAssignButton(
               },
               {
                 id: client.user.id, // bot: full access
+                type: OverwriteType.Member,
                 allow: [
                   PermissionFlagsBits.ViewChannel,
                   PermissionFlagsBits.SendMessages,
@@ -724,7 +732,25 @@ function buildAssignedContainer(params: {
   container
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(codeBlockContent))
-    .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent))
+    .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent));
+
+  // Preserve description if present
+  const descBlock = params.originalTexts.find(t => t.includes('**Description:**'));
+  if (descBlock) {
+    container
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(descBlock));
+  }
+
+  // Preserve attachments if present
+  const attachBlock = params.originalTexts.find(t => t.includes('**Attachments:**'));
+  if (attachBlock) {
+    container
+      .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+      .addTextDisplayComponents(new TextDisplayBuilder().setContent(attachBlock));
+  }
+
+  container
     .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
     .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Assigned <t:${Math.floor(Date.now() / 1000)}:R>`))
     .addActionRowComponents(
@@ -957,7 +983,25 @@ export async function handleResolveButton(
       container
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(codeBlockContent))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent));
+
+      // Preserve description if present
+      const descBlock = originalTexts.find(t => t.includes('**Description:**'));
+      if (descBlock) {
+        container
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(descBlock));
+      }
+
+      // Preserve attachments if present
+      const attachBlock = originalTexts.find(t => t.includes('**Attachments:**'));
+      if (attachBlock) {
+        container
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(attachBlock));
+      }
+
+      container
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Resolved <t:${Math.floor(Date.now() / 1000)}:R>`))
         .addActionRowComponents(
@@ -1125,7 +1169,25 @@ export async function handleReopenStaffButton(
       container
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(codeBlockContent))
-        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(metaContent));
+
+      // Preserve description if present
+      const descBlock = originalTexts.find(t => t.includes('**Description:**'));
+      if (descBlock) {
+        container
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(descBlock));
+      }
+
+      // Preserve attachments if present
+      const attachBlock = originalTexts.find(t => t.includes('**Attachments:**'));
+      if (attachBlock) {
+        container
+          .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+          .addTextDisplayComponents(new TextDisplayBuilder().setContent(attachBlock));
+      }
+
+      container
         .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
         .addTextDisplayComponents(new TextDisplayBuilder().setContent(`-# Reopened <t:${Math.floor(Date.now() / 1000)}:R>`))
         .addActionRowComponents(
@@ -1318,11 +1380,14 @@ export async function refreshTicketLogMessage(params: {
       statusLabel = 'In Progress';
     }
 
-    // Determine accent color from priority
+    // Determine accent color based on status first, then priority
     let accentColor = 0x5865f2;
     if (isDone) {
       accentColor = 0x57f287; // green for resolved
+    } else if (isInProgress) {
+      accentColor = 0xfee75c; // yellow for in progress
     } else {
+      // Open status - use priority color
       const priorityLower = priority.toLowerCase();
       if (priorityLower === 'critical') accentColor = 0xed4245;
       else if (priorityLower === 'high') accentColor = 0xe67e22;
@@ -1383,6 +1448,14 @@ export async function refreshTicketLogMessage(params: {
         .addTextDisplayComponents(
           new TextDisplayBuilder().setContent(`**Description:**\n> ${descPreview.replace(/\n/g, '\n> ')}`)
         );
+    }
+
+    // Preserve attachments if present
+    const attachBlock = originalTexts.find(t => t.includes('**Attachments:**'));
+    if (attachBlock) {
+      container
+        .addSeparatorComponents(new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small))
+        .addTextDisplayComponents(new TextDisplayBuilder().setContent(attachBlock));
     }
 
     // Timestamp
