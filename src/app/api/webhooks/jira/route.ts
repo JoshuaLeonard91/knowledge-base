@@ -46,6 +46,10 @@ function verifyJiraSignature(
 }
 
 export async function POST(request: NextRequest) {
+  // Track authenticated tenant ID - only set after successful auth verification
+  // Used in error handler to ensure we only update failure count for authenticated requests
+  let authenticatedTenantId: string | null = null;
+
   try {
     const rawBody = await request.text();
 
@@ -118,6 +122,9 @@ export async function POST(request: NextRequest) {
         { status: 401 }
       );
     }
+
+    // Auth verified - safe to track failures for this tenant now
+    authenticatedTenantId = tenantParam;
 
     // Extract issue key from payload — supports multiple formats:
     // Lightweight: { issueKey: "KBT-18" }
@@ -235,12 +242,12 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[Jira Webhook] Error:', error);
 
-    // Increment failure count if we have a tenant with DB config
-    const tenantParam = request.nextUrl.searchParams.get('tenant');
-    if (tenantParam) {
+    // Only increment failure count if authentication was verified
+    // This prevents attackers from incrementing counts for arbitrary tenant IDs
+    if (authenticatedTenantId) {
       try {
         await prisma.tenantWebhookConfig.update({
-          where: { tenantId: tenantParam },
+          where: { tenantId: authenticatedTenantId },
           data: { webhookFailureCount: { increment: 1 } },
         });
       } catch {
