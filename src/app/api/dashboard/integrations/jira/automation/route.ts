@@ -17,7 +17,7 @@ import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { JiraAutomationClient, AutomationApiError } from '@/lib/atlassian/automation-client';
-import { buildCommentWebhookRule } from '@/lib/atlassian/automation-rules';
+import { buildCommentWebhookRule, buildStatusChangedWebhookRule } from '@/lib/atlassian/automation-rules';
 
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
@@ -114,29 +114,46 @@ export async function POST(request: NextRequest) {
     const appUrl = process.env.AUTH_URL || 'https://helpportal.app';
     const webhookUrl = `${appUrl.replace(/\/+$/, '')}/api/webhooks/jira?secret=${webhookSecret}&tenant=${tenant.id}`;
 
-    // Build the automation rule payload
-    const rulePayload = buildCommentWebhookRule({
+    // Build automation rule payloads
+    const ruleOptions = {
       webhookUrl,
       cloudId: config.cloudId,
       projectId: config.projectId,
       ownerAccountId,
       authorAccountId,
-    });
+    };
 
-    // Create the rule via Automation API
-    console.log('[Jira Automation] Creating rule for project', config.projectKey);
+    const commentRulePayload = buildCommentWebhookRule(ruleOptions);
+    const statusRulePayload = buildStatusChangedWebhookRule(ruleOptions);
+
+    // Create both rules via Automation API
+    console.log('[Jira Automation] Creating rules for project', config.projectKey);
 
     try {
-      await client.createRule(rulePayload);
+      await client.createRule(commentRulePayload);
+      console.log('[Jira Automation] Comment notification rule created');
     } catch (err) {
       if (err instanceof AutomationApiError) {
-        console.error('[Jira Automation] Rule creation failed:', err.status);
+        console.error('[Jira Automation] Comment rule creation failed:', err.status);
         return NextResponse.json(
-          { error: `Failed to create automation rule (${err.status}). Ensure the account has Jira admin permissions.` },
+          { error: `Failed to create comment notification rule (${err.status}). Ensure the account has Jira admin permissions.` },
           { status: 502, headers: securityHeaders }
         );
       }
       throw err;
+    }
+
+    try {
+      await client.createRule(statusRulePayload);
+      console.log('[Jira Automation] Status changed rule created');
+    } catch (err) {
+      if (err instanceof AutomationApiError) {
+        console.error('[Jira Automation] Status rule creation failed:', err.status);
+        // Don't fail completely - comment rule was already created
+        console.warn('[Jira Automation] Continuing without status change rule');
+      } else {
+        throw err;
+      }
     }
 
     // Store webhook secret

@@ -129,7 +129,11 @@ export async function POST(request: NextRequest) {
     }
 
     // Only process known event types
-    if (webhookEvent !== 'comment_created' && webhookEvent !== 'issue_transitioned' && webhookEvent !== 'jira:issue_updated') {
+    // - comment_created: from our automation rule
+    // - status_changed: from our automation rule
+    // - issue_transitioned / jira:issue_updated: legacy/classic webhook formats
+    const knownEvents = ['comment_created', 'status_changed', 'issue_transitioned', 'jira:issue_updated'];
+    if (!knownEvents.includes(webhookEvent)) {
       console.log(`[Jira Webhook] Skipped: unhandled event type "${webhookEvent}"`);
       return NextResponse.json({ ok: true, skipped: true });
     }
@@ -208,9 +212,11 @@ export async function POST(request: NextRequest) {
         commentPreview: latestStaffComment.body.substring(0, 200),
         isStaff: true,
       }).catch(err => console.error('[Jira Webhook] Log channel failed:', err));
-    } else if (webhookEvent === 'issue_transitioned') {
-      // Status change — just refresh the DM
-      console.log(`[Jira Webhook] Processing status change for ${issueKey}: status=${ticket.status}`);
+    } else if (webhookEvent === 'issue_transitioned' || webhookEvent === 'status_changed') {
+      // Status change — refresh the DM with new status
+      const fromStatus = payload.fromStatus || 'unknown';
+      const toStatus = payload.toStatus || ticket.status;
+      console.log(`[Jira Webhook] Processing status change for ${issueKey}: ${fromStatus} → ${toStatus}`);
       await refreshTicketDM(botId, issueKey, discordUserId);
     }
 

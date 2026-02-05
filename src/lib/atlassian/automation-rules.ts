@@ -27,11 +27,8 @@ interface WebhookRuleOptions extends AutomationRuleBase {
   webhookUrl: string;
 }
 
-interface StatusChangedRuleOptions extends WebhookRuleOptions {
-  /** Optional: filter to a specific status transition */
-  fromStatusId?: string;
-  toStatusId?: string;
-}
+// StatusChangedRuleOptions is same as WebhookRuleOptions for now
+// (filtering by specific status transitions not yet implemented)
 
 function buildProjectAri(cloudId: string, projectId: string): string {
   return `ari:cloud:jira:${cloudId}:project/${projectId}`;
@@ -118,40 +115,15 @@ export function buildCommentWebhookRule(opts: WebhookRuleOptions) {
 }
 
 /**
- * Issue created → Send webhook
- */
-export function buildIssueCreatedWebhookRule(opts: WebhookRuleOptions) {
-  const projectAri = buildProjectAri(opts.cloudId, opts.projectId);
-  const customBody = JSON.stringify({
-    webhookEvent: 'issue_created',
-    issueKey: '{{issue.key}}',
-    issueId: '{{issue.id}}',
-    summary: '{{issue.summary}}',
-  }, null, 2);
-
-  return buildRuleShell(
-    'Webhook - Issue Created',
-    opts,
-    {
-      type: 'jira.issue.event.trigger:created',
-      value: {
-        eventTypes: [],
-        eventFilters: [projectAri],
-      },
-    },
-    [buildWebhookAction(opts.webhookUrl, customBody)]
-  );
-}
-
-/**
  * Issue status changed → Send webhook
+ * Triggers when issue transitions between statuses (e.g., Open → In Progress → Resolved)
+ * Format verified from Jira UI-created rule.
  */
-export function buildStatusChangedWebhookRule(opts: StatusChangedRuleOptions) {
+export function buildStatusChangedWebhookRule(opts: WebhookRuleOptions) {
   const projectAri = buildProjectAri(opts.cloudId, opts.projectId);
   const customBody = JSON.stringify({
     webhookEvent: 'status_changed',
     issueKey: '{{issue.key}}',
-    issueId: '{{issue.id}}',
     fromStatus: '{{changelog.fromString}}',
     toStatus: '{{changelog.toString}}',
   }, null, 2);
@@ -162,36 +134,12 @@ export function buildStatusChangedWebhookRule(opts: StatusChangedRuleOptions) {
     {
       type: 'jira.issue.event.trigger:transitioned',
       value: {
-        eventTypes: [],
         eventFilters: [projectAri],
+        fromStatus: [],
+        toStatus: [],
       },
     },
     [buildWebhookAction(opts.webhookUrl, customBody)]
   );
 }
 
-/**
- * Issue assigned → Send webhook
- */
-export function buildIssueAssignedWebhookRule(opts: WebhookRuleOptions) {
-  const projectAri = buildProjectAri(opts.cloudId, opts.projectId);
-  const customBody = JSON.stringify({
-    webhookEvent: 'issue_assigned',
-    issueKey: '{{issue.key}}',
-    issueId: '{{issue.id}}',
-    assigneeId: '{{issue.assignee.accountId}}',
-  }, null, 2);
-
-  return buildRuleShell(
-    'Webhook - Issue Assigned',
-    opts,
-    {
-      type: 'jira.issue.event.trigger:assigned',
-      value: {
-        eventTypes: [],
-        eventFilters: [projectAri],
-      },
-    },
-    [buildWebhookAction(opts.webhookUrl, customBody)]
-  );
-}
