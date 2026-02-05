@@ -714,6 +714,12 @@ export default function IntegrationsPage() {
                     value={hygraphForm.token}
                     onChange={(e) => setHygraphForm({ ...hygraphForm, token: e.target.value })}
                     placeholder="eyJhbGciOiJSUzI1NiIs..."
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-1p-ignore="true"
                     className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-purple-500/50"
                   />
                 </div>
@@ -826,7 +832,7 @@ export default function IntegrationsPage() {
                     </div>
                     <div>
                       <label className="block text-sm text-white/60 mb-2">API Token</label>
-                      <input type="password" value={jiraForm.apiToken} onChange={(e) => setJiraForm({ ...jiraForm, apiToken: e.target.value })} placeholder="Your Atlassian API token" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50" />
+                      <input type="password" value={jiraForm.apiToken} onChange={(e) => setJiraForm({ ...jiraForm, apiToken: e.target.value })} placeholder="Your Atlassian API token" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div>
@@ -967,6 +973,12 @@ export default function IntegrationsPage() {
                     value={automationForm.apiToken}
                     onChange={(e) => setAutomationForm({ ...automationForm, apiToken: e.target.value })}
                     placeholder="Your Atlassian API token"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-1p-ignore="true"
                     className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-blue-500/50"
                   />
                 </div>
@@ -1225,6 +1237,12 @@ export default function IntegrationsPage() {
                     value={discordBotForm.botToken}
                     onChange={(e) => setDiscordBotForm({ ...discordBotForm, botToken: e.target.value })}
                     placeholder="Your Discord bot token"
+                    autoComplete="off"
+                    autoCorrect="off"
+                    autoCapitalize="off"
+                    spellCheck={false}
+                    data-lpignore="true"
+                    data-1p-ignore="true"
                     className="w-full px-4 py-3 bg-[#0a0a0f] border border-white/10 rounded-lg text-white placeholder:text-white/30 focus:outline-none focus:border-indigo-500/50"
                   />
                 </div>
