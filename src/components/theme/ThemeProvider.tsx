@@ -77,15 +77,15 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     setUIMode(newMode);
   }, [uiMode, setUIMode]);
 
-  // Prevent hydration mismatch - show nothing until mounted
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
   const contextValue = useMemo(
     () => ({ uiMode, setUIMode, toggleUIMode, isLoading }),
     [uiMode, setUIMode, toggleUIMode, isLoading]
   );
+
+  // Prevent hydration mismatch - show nothing until mounted
+  if (!mounted) {
+    return <>{children}</>;
+  }
 
   return (
     <ThemeContext.Provider value={contextValue}>
