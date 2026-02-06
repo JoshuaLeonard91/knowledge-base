@@ -158,7 +158,7 @@ export function LandingPageHeader({
 
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg py-1 z-50">
-              {isMainDomain ? (
+              {isMainDomain && (
                 <Link
                   href="/dashboard"
                   onClick={() => setShowUserMenu(false)}
@@ -166,24 +166,32 @@ export function LandingPageHeader({
                 >
                   Dashboard
                 </Link>
-              ) : (
+              )}
+              {!isMainDomain && (
+                <Link
+                  href="/support"
+                  onClick={() => setShowUserMenu(false)}
+                  className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                >
+                  Support Hub
+                </Link>
+              )}
+              {hasTicketing && (
                 <>
                   <Link
-                    href="/support"
+                    href="/support/tickets"
                     onClick={() => setShowUserMenu(false)}
                     className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
                   >
-                    Support Hub
+                    My Tickets
                   </Link>
-                  {hasTicketing && (
-                    <Link
-                      href="/support/ticket"
-                      onClick={() => setShowUserMenu(false)}
-                      className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
-                    >
-                      Submit Ticket
-                    </Link>
-                  )}
+                  <Link
+                    href="/support/ticket"
+                    onClick={() => setShowUserMenu(false)}
+                    className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                  >
+                    Submit Ticket
+                  </Link>
                 </>
               )}
               <hr className="my-1 border-[var(--border-primary)]" />
@@ -253,18 +261,6 @@ export function LandingPageHeader({
               }`}
             >
               Contact
-            </Link>
-          )}
-          {hasTicketing && (
-            <Link
-              href="/support/ticket"
-              className={`transition ${
-                pathname === '/support/ticket'
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Submit Ticket
             </Link>
           )}
           {/* Action button area (Login/User menu) */}
