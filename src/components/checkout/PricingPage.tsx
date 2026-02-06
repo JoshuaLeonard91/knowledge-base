@@ -48,12 +48,13 @@ export function PricingPage({
     const targetUrl = product.buttonUrl;
 
     if (targetUrl) {
-      // Check if it's an external URL (starts with http)
-      if (targetUrl.startsWith('http')) {
+      // Only allow HTTPS URLs or relative paths
+      if (targetUrl.startsWith('https://')) {
         window.location.href = targetUrl;
-      } else {
+      } else if (targetUrl.startsWith('/')) {
         router.push(targetUrl);
       }
+      // Ignore HTTP and other protocols
     } else {
       // No buttonUrl configured - redirect to contact page
       router.push('/support/contact');

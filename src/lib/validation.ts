@@ -1,4 +1,5 @@
 // Input validation and sanitization utilities
+import { randomBytes } from 'crypto';
 
 // Sanitize string input - removes HTML and trims
 export function sanitizeString(input: unknown): string {
@@ -100,12 +101,13 @@ export function validateSearchQuery(query: unknown): { valid: boolean; error?: s
   return { valid: true, sanitized };
 }
 
-// Generate a random ticket ID
+// Generate a random ticket ID using cryptographic randomness
 export function generateTicketId(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+  const bytes = randomBytes(8);
   let result = 'TKT-';
   for (let i = 0; i < 8; i++) {
-    result += chars.charAt(Math.floor(Math.random() * chars.length));
+    result += chars.charAt(bytes[i] % chars.length);
   }
   return result;
 }

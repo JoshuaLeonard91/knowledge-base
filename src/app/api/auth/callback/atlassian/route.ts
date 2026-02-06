@@ -30,7 +30,24 @@ export async function GET(request: NextRequest) {
   // Read stored cookies
   const storedState = cookieStore.get('jira_oauth_state')?.value;
   const tenantId = cookieStore.get('jira_oauth_tenant')?.value;
-  const tenantOrigin = cookieStore.get('jira_oauth_origin')?.value || authBaseUrl;
+  const rawOrigin = cookieStore.get('jira_oauth_origin')?.value || authBaseUrl;
+
+  // Validate tenantOrigin to prevent open redirect attacks
+  const appDomain = process.env.APP_DOMAIN || 'helpportal.app';
+  let tenantOrigin = authBaseUrl; // safe default
+  try {
+    const originUrl = new URL(rawOrigin);
+    const isAllowed =
+      originUrl.hostname === appDomain ||
+      originUrl.hostname.endsWith(`.${appDomain}`) ||
+      originUrl.hostname === 'localhost' ||
+      originUrl.hostname.startsWith('localhost');
+    if (isAllowed && (originUrl.protocol === 'https:' || originUrl.hostname === 'localhost')) {
+      tenantOrigin = originUrl.origin;
+    }
+  } catch {
+    // Invalid URL — use safe default
+  }
 
   // Get code and state from query params
   const code = request.nextUrl.searchParams.get('code');

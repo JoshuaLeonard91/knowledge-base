@@ -76,10 +76,26 @@ function sanitizeOnboardingData(data: Record<string, unknown>): Record<string, u
         continue;
       }
 
-      // Remove potential script tags and limit length
+      // Special handling for logoUrl - must be a valid HTTPS URL
+      if (key === 'logoUrl') {
+        try {
+          const url = new URL(value);
+          if (url.protocol === 'https:') {
+            sanitized[key] = url.toString().slice(0, 2048);
+          }
+          // Non-HTTPS URLs are silently dropped
+        } catch {
+          // Invalid URLs are silently dropped
+        }
+        continue;
+      }
+
+      // Strip all HTML tags and dangerous patterns, limit length
       sanitized[key] = value
-        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+        .replace(/<[^>]*>/g, '')
         .replace(/javascript:/gi, '')
+        .replace(/on\w+\s*=/gi, '')
+        .replace(/data:/gi, '')
         .slice(0, 1000); // Max 1000 chars per field
     } else if (typeof value === 'number' || typeof value === 'boolean') {
       sanitized[key] = value;

@@ -89,7 +89,7 @@ export async function GET(request: NextRequest) {
   } catch (err) {
     console.error('[Atlassian OAuth] Initiate failed:', err);
     return NextResponse.json(
-      { error: 'OAuth initiation failed', details: err instanceof Error ? err.message : 'Unknown error' },
+      { error: 'OAuth initiation failed' },
       { status: 500 }
     );
   }

@@ -253,18 +253,30 @@ export function RichTextRenderer({ content, className = '', headings = [] }: Ric
             <td className="px-4 py-3 text-[var(--text-secondary)]">{children}</td>
           ),
 
-          // Embed/iframe
-          iframe: ({ url, width, height }) => (
-            <div className="mb-6 aspect-video">
-              <iframe
-                src={url}
-                width={width || '100%'}
-                height={height || '100%'}
-                className="rounded-lg w-full h-full"
-                allowFullScreen
-              />
-            </div>
-          ),
+          // Embed/iframe - only allow HTTPS URLs
+          iframe: ({ url, width, height }) => {
+            let safeUrl: string | undefined;
+            try {
+              const parsed = new URL(url || '');
+              if (parsed.protocol === 'https:') {
+                safeUrl = parsed.toString();
+              }
+            } catch {
+              // Invalid URL — don't render
+            }
+            if (!safeUrl) return null;
+            return (
+              <div className="mb-6 aspect-video">
+                <iframe
+                  src={safeUrl}
+                  width={width || '100%'}
+                  height={height || '100%'}
+                  className="rounded-lg w-full h-full"
+                  allowFullScreen
+                />
+              </div>
+            );
+          },
 
           // Class wrapper (for custom styling via CMS)
           class: ({ children, className: customClass }) => (

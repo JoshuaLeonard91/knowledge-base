@@ -41,7 +41,10 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
   // - On tenant subdomains without buttonUrl, redirect to contact page
   const handleServiceClick = (service: Service) => {
     if (service.buttonUrl) {
-      window.location.href = service.buttonUrl;
+      // Only allow HTTPS URLs or relative paths
+      if (service.buttonUrl.startsWith('https://') || service.buttonUrl.startsWith('/')) {
+        window.location.href = service.buttonUrl;
+      }
     } else if (isMainSite) {
       router.push('/pricing');
     } else {
@@ -61,7 +64,10 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
 
     // Tenant subdomains: Use buttonUrl from CMS or redirect to contact page
     if (tier.buttonUrl) {
-      window.location.href = tier.buttonUrl;
+      // Only allow HTTPS URLs or relative paths
+      if (tier.buttonUrl.startsWith('https://') || tier.buttonUrl.startsWith('/')) {
+        window.location.href = tier.buttonUrl;
+      }
     } else {
       router.push('/support/contact');
     }

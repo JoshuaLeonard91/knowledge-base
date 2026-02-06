@@ -35,18 +35,20 @@ const SESSION_COOKIE_NAME = 'session';
 function extractTenantSubdomain(request: NextRequest): string | null {
   const hostname = request.headers.get('host') || '';
 
-  // Handle localhost development
+  // Handle localhost development - only allow dev tenant overrides in non-production
   if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
-    // Check for dev tenant override via query param
-    const devTenant = request.nextUrl.searchParams.get('tenant');
-    if (devTenant) {
-      return devTenant;
-    }
+    if (process.env.NODE_ENV !== 'production') {
+      // Check for dev tenant override via query param
+      const devTenant = request.nextUrl.searchParams.get('tenant');
+      if (devTenant) {
+        return devTenant;
+      }
 
-    // Check for dev tenant cookie
-    const tenantCookie = request.cookies.get('dev-tenant')?.value;
-    if (tenantCookie) {
-      return tenantCookie;
+      // Check for dev tenant cookie
+      const tenantCookie = request.cookies.get('dev-tenant')?.value;
+      if (tenantCookie) {
+        return tenantCookie;
+      }
     }
 
     return null;
