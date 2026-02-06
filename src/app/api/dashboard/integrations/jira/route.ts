@@ -2,7 +2,7 @@
  * Jira Integration API
  *
  * GET  - Returns configured status only (no credentials)
- * POST - Creates/updates config (validates → encrypts → stores)
+ * POST - Creates/updates config (validates -> encrypts -> stores)
  * DELETE - Removes config
  *
  * Security:
@@ -12,41 +12,21 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isAuthenticated, getSession } from '@/lib/auth';
+import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
-import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { revokeToken } from '@/lib/atlassian/oauth';
 import { invalidateTenantProviderCache } from '@/lib/ticketing/adapter';
-
-// Security headers
-const securityHeaders = {
-  'X-Content-Type-Options': 'nosniff',
-  'Cache-Control': 'no-store, private',
-};
 
 /**
  * GET - Return configuration status only
  */
 export async function GET() {
   try {
-    // Check authentication
-    const authenticated = await isAuthenticated();
-    if (!authenticated) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401, headers: securityHeaders }
-      );
-    }
-
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session invalid' },
-        { status: 401, headers: securityHeaders }
-      );
-    }
+    const auth = await requireAuth();
+    if ('response' in auth) return auth.response;
+    const { session } = auth;
 
     // Get tenant from request context (validates subdomain)
     const tenantContext = await getTenantFromRequest();
@@ -114,31 +94,9 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   try {
-    // Validate CSRF
-    const csrfResult = await validateCsrfRequest(request);
-    if (!csrfResult.valid) {
-      return NextResponse.json(
-        { error: 'Invalid request' },
-        { status: 403, headers: securityHeaders }
-      );
-    }
-
-    // Check authentication
-    const authenticated = await isAuthenticated();
-    if (!authenticated) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401, headers: securityHeaders }
-      );
-    }
-
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session invalid' },
-        { status: 401, headers: securityHeaders }
-      );
-    }
+    const auth = await requireTenantOwner(request);
+    if ('response' in auth) return auth.response;
+    const { tenant } = auth;
 
     // Parse body
     const body = await request.json();
@@ -191,34 +149,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Invalid email format' },
         { status: 400, headers: securityHeaders }
-      );
-    }
-
-    // Get tenant from request context (validates subdomain)
-    const tenantContext = await getTenantFromRequest();
-
-    // Get user's tenant and validate against request context
-    const user = await prisma.user.findUnique({
-      where: { discordId: session.id },
-      include: { tenants: true },
-    });
-
-    if (!user || user.tenants.length === 0) {
-      return NextResponse.json(
-        { error: 'No tenant found' },
-        { status: 404, headers: securityHeaders }
-      );
-    }
-
-    // Find the tenant matching the current request context
-    const tenant = tenantContext
-      ? user.tenants.find(t => t.slug === tenantContext.slug)
-      : user.tenants[0];
-
-    if (!tenant) {
-      return NextResponse.json(
-        { error: 'Tenant access denied' },
-        { status: 403, headers: securityHeaders }
       );
     }
 
@@ -275,59 +205,9 @@ export async function POST(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    // Validate CSRF
-    const csrfResult = await validateCsrfRequest(request);
-    if (!csrfResult.valid) {
-      return NextResponse.json(
-        { error: 'Invalid request' },
-        { status: 403, headers: securityHeaders }
-      );
-    }
-
-    // Check authentication
-    const authenticated = await isAuthenticated();
-    if (!authenticated) {
-      return NextResponse.json(
-        { error: 'Not authenticated' },
-        { status: 401, headers: securityHeaders }
-      );
-    }
-
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json(
-        { error: 'Session invalid' },
-        { status: 401, headers: securityHeaders }
-      );
-    }
-
-    // Get tenant from request context (validates subdomain)
-    const tenantContext = await getTenantFromRequest();
-
-    // Get user's tenant and validate against request context
-    const user = await prisma.user.findUnique({
-      where: { discordId: session.id },
-      include: { tenants: true },
-    });
-
-    if (!user || user.tenants.length === 0) {
-      return NextResponse.json(
-        { error: 'No tenant found' },
-        { status: 404, headers: securityHeaders }
-      );
-    }
-
-    // Find the tenant matching the current request context
-    const tenant = tenantContext
-      ? user.tenants.find(t => t.slug === tenantContext.slug)
-      : user.tenants[0];
-
-    if (!tenant) {
-      return NextResponse.json(
-        { error: 'Tenant access denied' },
-        { status: 403, headers: securityHeaders }
-      );
-    }
+    const auth = await requireTenantOwner(request);
+    if ('response' in auth) return auth.response;
+    const { tenant } = auth;
 
     // Revoke OAuth token if using OAuth mode
     const existingConfig = await prisma.tenantJiraConfig.findUnique({

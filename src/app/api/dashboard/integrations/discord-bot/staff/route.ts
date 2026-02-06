@@ -7,59 +7,18 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isAuthenticated, getSession } from '@/lib/auth';
+import { requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
-import { validateCsrfRequest } from '@/lib/security/csrf';
-import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { jiraServiceDesk } from '@/lib/atlassian/client';
-
-const securityHeaders = {
-  'X-Content-Type-Options': 'nosniff',
-  'Cache-Control': 'no-store, private',
-};
-
-/** Resolve the tenant for the current user */
-async function resolveTenant() {
-  const authenticated = await isAuthenticated();
-  if (!authenticated) return { error: 'Not authenticated', status: 401 };
-
-  const session = await getSession();
-  if (!session) return { error: 'Session invalid', status: 401 };
-
-  const tenantContext = await getTenantFromRequest();
-
-  const user = await prisma.user.findUnique({
-    where: { discordId: session.id },
-    include: { tenants: true },
-  });
-
-  if (!user || user.tenants.length === 0) {
-    return { error: 'No tenant found', status: 404 };
-  }
-
-  const tenant = tenantContext
-    ? user.tenants.find((t) => t.slug === tenantContext.slug) || user.tenants[0]
-    : user.tenants[0];
-
-  if (!tenant) {
-    return { error: 'Tenant access denied', status: 403 };
-  }
-
-  return { tenant };
-}
 
 export async function GET() {
   try {
-    const result = await resolveTenant();
-    if ('error' in result) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.status, headers: securityHeaders }
-      );
-    }
+    const auth = await requireTenantOwner();
+    if ('response' in auth) return auth.response;
+    const { tenant } = auth;
 
     const mappings = await prisma.staffMapping.findMany({
-      where: { botId: result.tenant.id },
+      where: { botId: tenant.id },
       orderBy: { createdAt: 'asc' },
       select: {
         id: true,
@@ -82,21 +41,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const csrfResult = await validateCsrfRequest(request);
-    if (!csrfResult.valid) {
-      return NextResponse.json(
-        { error: 'Invalid request' },
-        { status: 403, headers: securityHeaders }
-      );
-    }
-
-    const result = await resolveTenant();
-    if ('error' in result) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.status, headers: securityHeaders }
-      );
-    }
+    const auth = await requireTenantOwner(request);
+    if ('response' in auth) return auth.response;
+    const { tenant } = auth;
 
     const body = await request.json();
     const { discordUserId, jiraAccountId, displayName } = body;
@@ -138,7 +85,7 @@ export async function POST(request: NextRequest) {
       // Validate the user has access to the Jira project
       const projectKey = process.env.JIRA_PROJECT_KEY || 'SUPPORT';
       const jiraConfig = await prisma.tenantJiraConfig.findUnique({
-        where: { tenantId: result.tenant.id },
+        where: { tenantId: tenant.id },
       });
       const effectiveProjectKey = jiraConfig?.projectKey || projectKey;
 
@@ -158,12 +105,12 @@ export async function POST(request: NextRequest) {
     const mapping = await prisma.staffMapping.upsert({
       where: {
         botId_discordUserId: {
-          botId: result.tenant.id,
+          botId: tenant.id,
           discordUserId,
         },
       },
       create: {
-        botId: result.tenant.id,
+        botId: tenant.id,
         discordUserId,
         jiraAccountId: trimmedJiraAccountId,
         displayName: displayName?.trim() || null,
@@ -189,21 +136,9 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const csrfResult = await validateCsrfRequest(request);
-    if (!csrfResult.valid) {
-      return NextResponse.json(
-        { error: 'Invalid request' },
-        { status: 403, headers: securityHeaders }
-      );
-    }
-
-    const result = await resolveTenant();
-    if ('error' in result) {
-      return NextResponse.json(
-        { error: result.error },
-        { status: result.status, headers: securityHeaders }
-      );
-    }
+    const auth = await requireTenantOwner(request);
+    if ('response' in auth) return auth.response;
+    const { tenant } = auth;
 
     const { searchParams } = new URL(request.url);
     const mappingId = searchParams.get('id');
@@ -218,7 +153,7 @@ export async function DELETE(request: NextRequest) {
     // Delete with tenant verification in the query itself (defense-in-depth)
     // This ensures even if the ID was somehow swapped, the delete won't affect other tenants
     const deleted = await prisma.staffMapping.deleteMany({
-      where: { id: mappingId, botId: result.tenant.id },
+      where: { id: mappingId, botId: tenant.id },
     });
 
     if (deleted.count === 0) {

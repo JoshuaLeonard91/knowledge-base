@@ -6,33 +6,15 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isAuthenticated, getSession } from '@/lib/auth';
+import { requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
-import { validateCsrfRequest } from '@/lib/security/csrf';
-import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { JiraAutomationClient, AutomationApiError } from '@/lib/atlassian/automation-client';
-
-const securityHeaders = {
-  'X-Content-Type-Options': 'nosniff',
-  'Cache-Control': 'no-store, private',
-};
 
 export async function POST(request: NextRequest) {
   try {
-    const csrfResult = await validateCsrfRequest(request);
-    if (!csrfResult.valid) {
-      return NextResponse.json({ error: 'Invalid request' }, { status: 403, headers: securityHeaders });
-    }
-
-    const authenticated = await isAuthenticated();
-    if (!authenticated) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401, headers: securityHeaders });
-    }
-
-    const session = await getSession();
-    if (!session) {
-      return NextResponse.json({ error: 'Session invalid' }, { status: 401, headers: securityHeaders });
-    }
+    const auth = await requireTenantOwner(request);
+    if ('response' in auth) return auth.response;
+    const { tenant } = auth;
 
     const body = await request.json();
     const { email, apiToken } = body;
@@ -51,26 +33,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const tenantContext = await getTenantFromRequest();
-
-    const user = await prisma.user.findUnique({
-      where: { discordId: session.id },
-      include: { tenants: { include: { jiraConfig: true } } },
+    const config = await prisma.tenantJiraConfig.findUnique({
+      where: { tenantId: tenant.id },
     });
 
-    if (!user || user.tenants.length === 0) {
-      return NextResponse.json({ error: 'No tenant found' }, { status: 404, headers: securityHeaders });
-    }
-
-    const tenant = tenantContext
-      ? user.tenants.find(t => t.slug === tenantContext.slug)
-      : user.tenants[0];
-
-    if (!tenant) {
-      return NextResponse.json({ error: 'Tenant access denied' }, { status: 403, headers: securityHeaders });
-    }
-
-    const config = tenant.jiraConfig;
     if (!config?.cloudId || !config.projectId) {
       return NextResponse.json(
         { error: 'Jira must be connected and a project must be selected first' },
