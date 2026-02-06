@@ -10,7 +10,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
-import { getTenantFromRequest } from '@/lib/tenant/resolver';
+import { getTenantFromRequest, clearTenantCache } from '@/lib/tenant/resolver';
 import { botManager } from '@/lib/discord-bot/manager';
 
 export async function GET() {
@@ -158,6 +158,9 @@ export async function DELETE(request: NextRequest) {
     await prisma.tenantDiscordBotConfig.deleteMany({
       where: { tenantId: tenant.id },
     });
+
+    // Invalidate tenant cache so stale bot config isn't served
+    clearTenantCache(tenant.slug);
 
     console.log('[Discord Bot Config] Configuration deleted');
 

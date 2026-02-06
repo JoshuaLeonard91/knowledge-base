@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
-import { getTenantFromRequest } from '@/lib/tenant/resolver';
+import { getTenantFromRequest, clearTenantCache } from '@/lib/tenant/resolver';
 
 /**
  * GET - Return configuration status only
@@ -154,6 +154,9 @@ export async function DELETE(request: NextRequest) {
     await prisma.tenantHygraphConfig.deleteMany({
       where: { tenantId: tenant.id },
     });
+
+    // Invalidate tenant cache so stale hygraph config isn't served
+    clearTenantCache(tenant.slug);
 
     console.log('[Hygraph Config] Configuration deleted');
 

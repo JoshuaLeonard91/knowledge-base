@@ -15,7 +15,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
-import { getTenantFromRequest } from '@/lib/tenant/resolver';
+import { getTenantFromRequest, clearTenantCache } from '@/lib/tenant/resolver';
 import { revokeToken } from '@/lib/atlassian/oauth';
 import { invalidateTenantProviderCache } from '@/lib/ticketing/adapter';
 
@@ -222,8 +222,9 @@ export async function DELETE(request: NextRequest) {
       where: { tenantId: tenant.id },
     });
 
-    // Invalidate cached provider
+    // Invalidate cached provider and tenant cache
     invalidateTenantProviderCache(tenant.id);
+    clearTenantCache(tenant.slug);
 
     console.log('[Jira Config] Configuration deleted');
 

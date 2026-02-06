@@ -19,11 +19,8 @@ export async function GET() {
     const tenant = await getTenantFromRequest();
 
     if (!tenant) {
-      // Generic 404 - don't reveal whether tenant exists or not
-      return NextResponse.json({
-        success: false,
-        error: 'Not found',
-      }, { status: 404 });
+      // Return 200 with null tenant — don't leak whether a tenant exists via status code
+      return NextResponse.json({ success: true, tenant: null });
     }
 
     // Return ONLY public tenant info - no internal IDs or service status
