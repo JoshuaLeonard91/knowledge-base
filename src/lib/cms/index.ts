@@ -50,7 +50,7 @@ async function isTenantContext(): Promise<boolean> {
  * Returns tenant's client if configured, otherwise default client (main domain only)
  * Tenants without their own Hygraph config get null (empty/fallback content)
  */
-async function getHygraphClient(): Promise<HygraphClient | null> {
+const getHygraphClient = cache(async (): Promise<HygraphClient | null> => {
   try {
     const tenant = await getTenantFromRequest();
 
@@ -77,7 +77,7 @@ async function getHygraphClient(): Promise<HygraphClient | null> {
 
   console.log('[CMS] No Hygraph client available');
   return null;
-}
+});
 
 /**
  * Detect which CMS provider to use

@@ -191,12 +191,14 @@ export async function POST(
       );
     }
 
-    // Upload attachments if provider supports it
+    // Upload attachments in parallel if provider supports it
     if (files.length > 0 && provider.addAttachment) {
-      for (const file of files) {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        await provider.addAttachment(ticketId, buffer, file.name, file.type);
-      }
+      await Promise.all(
+        files.map(async (file) => {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          await provider.addAttachment!(ticketId, buffer, file.name, file.type);
+        })
+      );
     }
 
     // Fire-and-forget: refresh the Discord DM with the new comment

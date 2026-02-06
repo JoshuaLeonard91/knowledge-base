@@ -73,11 +73,32 @@ interface AssignmentRecord {
 }
 
 const assignmentMap = new Map<string, AssignmentRecord>();
+const ASSIGNMENT_MAX_ENTRIES = 1000;
 
 const REASSIGN_COOLDOWN_MS = 30 * 60 * 1000; // 30 minutes
 
+// Periodic eviction of expired assignments to prevent memory leaks
+function evictExpiredAssignments() {
+  if (assignmentMap.size <= ASSIGNMENT_MAX_ENTRIES) return;
+  const now = Date.now();
+  for (const [key, record] of assignmentMap) {
+    if (now - record.assignedAt > REASSIGN_COOLDOWN_MS) {
+      assignmentMap.delete(key);
+    }
+  }
+}
+
 function assignmentKey(botId: string, ticketId: string): string {
   return `${botId}:${ticketId}`;
+}
+
+/** Resolve ticket provider for a given bot/tenant ID */
+function resolveProvider(botId: string) {
+  if (botId === MAIN_DOMAIN_BOT_ID) {
+    const p = getTicketProvider();
+    return p.isAvailable() ? p : null;
+  }
+  return getTicketProviderForTenant(botId);
 }
 
 // ==========================================
@@ -353,9 +374,7 @@ export async function handleAssignButton(
     await interaction.deferUpdate();
 
     // Resolve ticket provider
-    const provider = botId === MAIN_DOMAIN_BOT_ID
-      ? (() => { const p = getTicketProvider(); return p.isAvailable() ? p : null; })()
-      : await getTicketProviderForTenant(botId);
+    const provider = await resolveProvider(botId);
 
     // Add comment + assign + transition in Jira
     let assignedInJira = false;
@@ -379,7 +398,8 @@ export async function handleAssignButton(
       }
     }
 
-    // Update assignment tracking
+    // Update assignment tracking (with eviction)
+    evictExpiredAssignments();
     assignmentMap.set(key, {
       userId: interaction.user.id,
       username: interaction.user.username,
@@ -861,9 +881,7 @@ export async function handleResolveButton(
 
     await interaction.deferUpdate();
 
-    const provider = botId === MAIN_DOMAIN_BOT_ID
-      ? (() => { const p = getTicketProvider(); return p.isAvailable() ? p : null; })()
-      : await getTicketProviderForTenant(botId);
+    const provider = await resolveProvider(botId);
 
     if (!provider || !provider.transitionTicket) {
       console.log(`[Log] Resolve: no provider or transitionTicket not supported`);
@@ -1083,9 +1101,7 @@ export async function handleReopenStaffButton(
 
     await interaction.deferUpdate();
 
-    const provider = botId === MAIN_DOMAIN_BOT_ID
-      ? (() => { const p = getTicketProvider(); return p.isAvailable() ? p : null; })()
-      : await getTicketProviderForTenant(botId);
+    const provider = await resolveProvider(botId);
 
     if (!provider || !provider.transitionTicket) return;
 

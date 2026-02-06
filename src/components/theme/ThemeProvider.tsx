@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 
 type UIMode = 'classic' | 'minimal';
 
@@ -82,8 +82,13 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return <>{children}</>;
   }
 
+  const contextValue = useMemo(
+    () => ({ uiMode, setUIMode, toggleUIMode, isLoading }),
+    [uiMode, setUIMode, toggleUIMode, isLoading]
+  );
+
   return (
-    <ThemeContext.Provider value={{ uiMode, setUIMode, toggleUIMode, isLoading }}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );

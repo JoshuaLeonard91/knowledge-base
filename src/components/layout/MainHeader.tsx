@@ -66,7 +66,7 @@ export function MainHeader({ siteName }: MainHeaderProps) {
     }
   };
 
-  // Check user authentication status on mount and route changes
+  // Check user authentication status on mount + tab focus
   useEffect(() => {
     async function checkAuth() {
       setIsLoading(true);
@@ -105,7 +105,15 @@ export function MainHeader({ siteName }: MainHeaderProps) {
     }
 
     checkAuth();
-  }, [pathname]); // Re-check on every route change
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        checkAuth();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []); // Mount only + visibility change
 
   // Don't show buttons on certain pages
   const isSignupPage = pathname === '/signup';

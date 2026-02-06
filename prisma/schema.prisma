@@ -229,7 +229,6 @@ model StaffMapping {
   updatedAt     DateTime @updatedAt
 
   @@unique([botId, discordUserId])
-  @@index([botId])
 }
 
 // ==========================================

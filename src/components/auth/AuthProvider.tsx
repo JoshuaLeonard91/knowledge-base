@@ -1,7 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
 import { SafeUser } from '@/lib/security/sanitize';
 
 interface AuthContextType {
@@ -19,7 +18,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<SafeUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'discord' | 'mock' | null>(null);
-  const pathname = usePathname();
 
   // Check auth mode on mount
   useEffect(() => {
@@ -54,10 +52,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Re-check session on route changes to catch logouts from other pages
+  // Check session on mount + when tab becomes visible (catches logouts from other tabs)
   useEffect(() => {
     checkSession();
-  }, [checkSession, pathname]);
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        checkSession();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [checkSession]);
 
   const login = async () => {
     setIsLoading(true);
@@ -114,8 +120,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const contextValue = useMemo(
+    () => ({ user, isLoading, authMode, login, logout, checkSession }),
+    [user, isLoading, authMode, login, logout, checkSession]
+  );
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, authMode, login, logout, checkSession }}>
+    <AuthContext.Provider value={contextValue}>
       {children}
     </AuthContext.Provider>
   );

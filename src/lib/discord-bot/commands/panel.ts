@@ -63,8 +63,29 @@ async function resolveProvider(botId: string) {
   return getTicketProviderForTenant(botId);
 }
 
-// Category name cache
-const categoryNameCache = new Map<string, string>();
+// Category name cache — TTL-based eviction
+const categoryNameCache = new Map<string, { value: string; expiresAt: number }>();
+const CATEGORY_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+function setCategoryCache(id: string, name: string) {
+  if (categoryNameCache.size > 500) {
+    const now = Date.now();
+    for (const [k, v] of categoryNameCache) {
+      if (v.expiresAt < now) categoryNameCache.delete(k);
+    }
+  }
+  categoryNameCache.set(id, { value: name, expiresAt: Date.now() + CATEGORY_CACHE_TTL });
+}
+
+function getCategoryName(id: string): string | undefined {
+  const entry = categoryNameCache.get(id);
+  if (!entry) return undefined;
+  if (entry.expiresAt < Date.now()) {
+    categoryNameCache.delete(id);
+    return undefined;
+  }
+  return entry.value;
+}
 
 // ==========================================
 // PANEL CONFIG
@@ -147,7 +168,7 @@ export async function postPersistentPanel(
   // Pre-cache category names for modal handler
   const categories = await resolveCategories(botId);
   for (const cat of categories) {
-    categoryNameCache.set(cat.id, cat.name);
+    setCategoryCache(cat.id, cat.name);
   }
 
   // Create ticket button
@@ -252,7 +273,7 @@ export async function handlePanelCreateButton(
 
     // Cache category names
     for (const cat of categories) {
-      categoryNameCache.set(cat.id, cat.name);
+      setCategoryCache(cat.id, cat.name);
     }
 
     const modal = buildPanelModal(botId, categories);
@@ -387,7 +408,7 @@ export async function handlePanelModal(
       return;
     }
 
-    const categoryName = categoryNameCache.get(categoryId) || categoryId;
+    const categoryName = getCategoryName(categoryId) || categoryId;
     const priority = severityToPriority[severity] || 'medium';
     const severityLabel = severity.charAt(0).toUpperCase() + severity.slice(1);
 
@@ -427,15 +448,17 @@ export async function handlePanelModal(
 
     if (fileField?.attachments?.size && provider.addAttachment) {
       const ticketId = result.ticketId!;
-      for (const [, attachment] of fileField.attachments) {
-        try {
-          const response = await fetch(attachment.url);
-          const buffer = Buffer.from(await response.arrayBuffer());
-          await provider.addAttachment(ticketId, buffer, attachment.name, attachment.contentType || 'application/octet-stream');
-        } catch (err) {
-          console.error('[Panel] Failed to upload attachment:', attachment.name, err);
-        }
-      }
+      await Promise.all(
+        Array.from(fileField.attachments.values()).map(async (attachment) => {
+          try {
+            const response = await fetch(attachment.url);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            await provider.addAttachment!(ticketId, buffer, attachment.name, attachment.contentType || 'application/octet-stream');
+          } catch (err) {
+            console.error('[Panel] Failed to upload attachment:', attachment.name, err);
+          }
+        })
+      );
     }
 
     // Build confirmation

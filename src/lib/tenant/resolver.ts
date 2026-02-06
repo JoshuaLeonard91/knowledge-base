@@ -55,7 +55,7 @@ export interface TenantContext {
 
 // Simple in-memory cache for tenant lookups (short TTL)
 const tenantCache = new Map<string, { tenant: TenantWithConfig | null; timestamp: number }>();
-const CACHE_TTL = 10 * 1000; // 10 seconds
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 /**
  * Extract subdomain from hostname

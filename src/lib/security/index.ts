@@ -67,21 +67,6 @@ export {
   requiresCsrf,
 } from './csrf';
 
-// Rate limiting
-export {
-  checkRateLimit,
-  getRateLimitKey,
-  getRateLimitHeaders,
-  RATE_LIMITS,
-  applyRateLimit,
-  resetRateLimit,
-  getRateLimitStats,
-  startCleanup,
-  stopCleanup,
-  type RateLimitConfig,
-  type RateLimitResult,
-} from './rateLimit';
-
 // Security logging
 export {
   logSecurityEvent,
