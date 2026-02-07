@@ -769,3 +769,72 @@ tr:hover td { background: var(--bg-tertiary); }
   0%   { transform: translate3d(0, 0, 0); }
   100% { transform: translate3d(0, -8px, 0); }
 }
+
+/* Ember spark animations — only visible on ember theme */
+.ember-sparks-container {
+  display: none;
+}
+
+[data-theme="ember"] .ember-sparks-container {
+  display: block;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.ember-spark {
+  position: absolute;
+  bottom: -10px;
+  border-radius: 50%;
+  background: var(--accent-primary);
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-timing-function: ease-out;
+  animation-iteration-count: infinite;
+}
+
+/* Path 1: rises left, slight drift right */
+@keyframes emberRise1 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0; }
+  10%  { opacity: 0.9; }
+  50%  { transform: translate3d(20px, -45vh, 0) scale(0.8); opacity: 0.6; }
+  100% { transform: translate3d(40px, -100vh, 0) scale(0.3); opacity: 0; }
+}
+
+/* Path 2: rises straight with slight wobble left */
+@keyframes emberRise2 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0; }
+  10%  { opacity: 0.8; }
+  30%  { transform: translate3d(-15px, -30vh, 0) scale(0.9); }
+  60%  { transform: translate3d(5px, -60vh, 0) scale(0.6); opacity: 0.5; }
+  100% { transform: translate3d(-10px, -105vh, 0) scale(0.2); opacity: 0; }
+}
+
+/* Path 3: rises right with wider drift */
+@keyframes emberRise3 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0; }
+  8%   { opacity: 0.85; }
+  40%  { transform: translate3d(-30px, -35vh, 0) scale(0.85); }
+  70%  { transform: translate3d(10px, -70vh, 0) scale(0.5); opacity: 0.4; }
+  100% { transform: translate3d(-20px, -105vh, 0) scale(0.2); opacity: 0; }
+}
+
+/* Path 4: fast rise, minimal drift */
+@keyframes emberRise4 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0; }
+  8%   { opacity: 0.9; }
+  50%  { transform: translate3d(8px, -50vh, 0) scale(0.7); opacity: 0.5; }
+  100% { transform: translate3d(-5px, -105vh, 0) scale(0.1); opacity: 0; }
+}
+
+/* Path 5: lazy drift with wide horizontal sway */
+@keyframes emberRise5 {
+  0%   { transform: translate3d(0, 0, 0) scale(1); opacity: 0; }
+  12%  { opacity: 0.7; }
+  30%  { transform: translate3d(35px, -25vh, 0) scale(0.9); }
+  60%  { transform: translate3d(-25px, -55vh, 0) scale(0.6); opacity: 0.45; }
+  85%  { transform: translate3d(15px, -85vh, 0) scale(0.35); opacity: 0.2; }
+  100% { transform: translate3d(5px, -105vh, 0) scale(0.15); opacity: 0; }
+}

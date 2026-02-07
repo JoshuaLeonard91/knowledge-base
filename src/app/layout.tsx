@@ -12,6 +12,7 @@ import { getTenantFromRequest } from "@/lib/tenant/resolver";
 import { getFooterData, getHeaderData } from "@/lib/cms";
 import { ThemeToggle } from "@/components/debug/ThemeToggle";
 import { SpookyGhosts } from "@/components/debug/SpookyGhosts";
+import { EmberSparks } from "@/components/debug/EmberSparks";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -95,6 +96,7 @@ export default async function RootLayout({
         </ThemeProvider>
         <ThemeToggle />
         <SpookyGhosts />
+        <EmberSparks />
       </body>
     </html>
   );
