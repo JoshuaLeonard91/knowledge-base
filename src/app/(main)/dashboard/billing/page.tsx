@@ -128,8 +128,8 @@ export default function BillingPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-b from-[#0a0a0f] to-[#12121a] flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500" />
+      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-[var(--accent-primary)]" />
       </div>
     );
   }
@@ -142,18 +142,18 @@ export default function BillingPage() {
     green: 'bg-green-500/20 text-green-400 border-green-500/30',
     yellow: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
     red: 'bg-red-500/20 text-red-400 border-red-500/30',
-    gray: 'bg-white/10 text-white/60 border-white/20',
+    gray: 'bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border-[var(--border-primary)]',
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-[#0a0a0f] to-[#12121a]">
+    <div className="min-h-screen bg-[var(--bg-primary)]">
       {/* Header */}
-      <header className="border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-sm sticky top-0 z-50">
+      <header className="border-b border-[var(--border-primary)] bg-[var(--bg-primary)] backdrop-blur-sm sticky top-0 z-50">
         <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="text-xl font-bold text-white">
+          <Link href="/dashboard" className="text-xl font-bold text-[var(--text-primary)]">
             {siteName}
           </Link>
-          <Link href="/dashboard" className="text-white/60 hover:text-white transition">
+          <Link href="/dashboard" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition">
             &larr; Back to Dashboard
           </Link>
         </nav>
@@ -161,8 +161,8 @@ export default function BillingPage() {
 
       {/* Content */}
       <main className="max-w-2xl mx-auto py-12 px-6">
-        <h1 className="text-3xl font-bold mb-2">Billing</h1>
-        <p className="text-white/60 mb-8">Manage your subscription and payment methods.</p>
+        <h1 className="text-3xl font-bold mb-2 text-[var(--text-primary)]">Billing</h1>
+        <p className="text-[var(--text-secondary)] mb-8">Manage your subscription and payment methods.</p>
 
         {/* Error */}
         {error && (
@@ -175,7 +175,7 @@ export default function BillingPage() {
         {action === 'cancel' && !data.subscription?.cancelAtPeriodEnd && (
           <div className="mb-6 p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
             <h3 className="font-semibold text-yellow-400 mb-2">Cancel Subscription?</h3>
-            <p className="text-white/60 text-sm mb-4">
+            <p className="text-[var(--text-secondary)] text-sm mb-4">
               If you cancel, your portal will remain active until the end of your current billing period
               ({data.subscription && new Date(data.subscription.currentPeriodEnd).toLocaleDateString()}).
               After that, your portal will become inaccessible.
@@ -183,7 +183,7 @@ export default function BillingPage() {
             <button
               onClick={openStripePortal}
               disabled={isPortalLoading}
-              className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition"
+              className="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg text-sm font-medium transition text-white"
             >
               {isPortalLoading ? 'Loading...' : 'Proceed to Cancel'}
             </button>
@@ -199,17 +199,17 @@ export default function BillingPage() {
         )}
 
         {/* Subscription Status */}
-        <div className="bg-[#16161f] rounded-2xl border border-white/10 p-6 mb-6">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] p-6 mb-6">
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h2 className="text-lg font-semibold">Current Plan</h2>
-              <p className="text-white/60">Pro - $5/month</p>
+              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Current Plan</h2>
+              <p className="text-[var(--text-secondary)]">Pro - $5/month</p>
             </div>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => fetchData(true)}
                 disabled={isRefreshing}
-                className="p-1.5 text-white/40 hover:text-white/80 transition disabled:opacity-50"
+                className="p-1.5 text-[var(--text-muted)] hover:text-[var(--text-primary)] transition disabled:opacity-50"
                 title="Refresh status"
               >
                 <svg
@@ -236,13 +236,13 @@ export default function BillingPage() {
             </div>
           </div>
 
-          <p className="text-white/60 mb-6">{data.status.description}</p>
+          <p className="text-[var(--text-secondary)] mb-6">{data.status.description}</p>
 
           {data.subscription && (
             <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-[#0a0a0f] rounded-lg p-4">
-                <p className="text-sm text-white/40 mb-1">Billing Period Ends</p>
-                <p className="font-medium">
+              <div className="bg-[var(--bg-primary)] rounded-lg p-4">
+                <p className="text-sm text-[var(--text-muted)] mb-1">Billing Period Ends</p>
+                <p className="font-medium text-[var(--text-primary)]">
                   {new Date(data.subscription.currentPeriodEnd).toLocaleDateString('en-US', {
                     year: 'numeric',
                     month: 'long',
@@ -250,8 +250,8 @@ export default function BillingPage() {
                   })}
                 </p>
               </div>
-              <div className="bg-[#0a0a0f] rounded-lg p-4">
-                <p className="text-sm text-white/40 mb-1">Auto-Renewal</p>
+              <div className="bg-[var(--bg-primary)] rounded-lg p-4">
+                <p className="text-sm text-[var(--text-muted)] mb-1">Auto-Renewal</p>
                 <p className="font-medium">
                   {data.subscription.cancelAtPeriodEnd ? (
                     <span className="text-yellow-400">Disabled</span>
@@ -275,9 +275,9 @@ export default function BillingPage() {
         </div>
 
         {/* Stripe Portal Button */}
-        <div className="bg-[#16161f] rounded-2xl border border-white/10 p-6">
-          <h2 className="text-lg font-semibold mb-2">Manage in Stripe</h2>
-          <p className="text-white/60 mb-6">
+        <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] p-6">
+          <h2 className="text-lg font-semibold mb-2 text-[var(--text-primary)]">Manage in Stripe</h2>
+          <p className="text-[var(--text-secondary)] mb-6">
             Update your payment method, view invoices, or cancel your subscription through the Stripe
             Customer Portal.
           </p>
@@ -285,7 +285,7 @@ export default function BillingPage() {
           <button
             onClick={openStripePortal}
             disabled={isPortalLoading}
-            className="w-full py-4 bg-indigo-600 hover:bg-indigo-500 disabled:bg-indigo-600/50 disabled:cursor-not-allowed rounded-xl font-semibold transition flex items-center justify-center gap-2"
+            className="w-full py-4 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition text-white flex items-center justify-center gap-2"
           >
             {isPortalLoading ? (
               <>
