@@ -41,8 +41,8 @@ export const THEME_OPTIONS: ThemeOption[] = [
     description: 'Clean light theme with cool gray tones',
     colors: {
       primary: '#4f46e5',
-      background: '#d5dce6',
-      surface: '#f8f9fb',
+      background: '#ffffff',
+      surface: '#f6f8fa',
       text: '#1e293b',
     },
   },

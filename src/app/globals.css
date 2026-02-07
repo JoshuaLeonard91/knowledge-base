@@ -363,24 +363,24 @@ tr:hover td { background: var(--bg-tertiary); }
   --text-muted: #71717a;
 }
 
-/* Light Theme - Cool gray background with white panels */
+/* Light Theme - White page, cool-tinted surfaces (GitHub/Apple style) */
 [data-theme="light"] {
-  --bg-primary: #d5dce6;
-  --bg-secondary: #f8f9fb;
-  --bg-tertiary: #e8edf2;
-  --bg-elevated: #cdd5e0;
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eef1f5;
+  --bg-elevated: #e2e8f0;
 
   --accent-primary: #4f46e5;
   --accent-secondary: #6366f1;
   --accent-hover: #4338ca;
   --accent-glow: rgba(79, 70, 229, 0.2);
 
-  --border-primary: rgba(0, 0, 0, 0.12);
-  --border-hover: rgba(0, 0, 0, 0.2);
+  --border-primary: #d1d9e0;
+  --border-hover: #b8c2cc;
 
-  --text-primary: #1e293b;
-  --text-secondary: #475569;
-  --text-muted: #4b5c6f;
+  --text-primary: #1f2328;
+  --text-secondary: #59636e;
+  --text-muted: #6b7280;
 
   /* Override status colors for better visibility on light */
   --accent-success: #22c55e;
