@@ -63,9 +63,9 @@ export const THEME_OPTIONS: ThemeOption[] = [
     description: 'Cool blue-gray with teal accents',
     colors: {
       primary: '#88c0d0',
-      background: '#2e3440',
-      surface: '#3b4252',
-      text: '#eceff4',
+      background: '#1a1d22',
+      surface: '#22262c',
+      text: '#e4e8ec',
     },
   },
   {
@@ -74,9 +74,9 @@ export const THEME_OPTIONS: ThemeOption[] = [
     description: 'Warm purple-mauve with rose accents',
     colors: {
       primary: '#c4a7e7',
-      background: '#232136',
-      surface: '#2a273f',
-      text: '#e0def4',
+      background: '#19191f',
+      surface: '#212128',
+      text: '#e4e2ec',
     },
   },
   {
@@ -85,9 +85,9 @@ export const THEME_OPTIONS: ThemeOption[] = [
     description: 'Earthy browns with warm amber accents',
     colors: {
       primary: '#fabd2f',
-      background: '#282828',
-      surface: '#3c3836',
-      text: '#ebdbb2',
+      background: '#1a1a1a',
+      surface: '#242424',
+      text: '#e8e4dc',
     },
   },
   {
@@ -96,9 +96,9 @@ export const THEME_OPTIONS: ThemeOption[] = [
     description: 'Refined navy with periwinkle accents',
     colors: {
       primary: '#7aa2f7',
-      background: '#1a1b26',
-      surface: '#24283b',
-      text: '#c0caf5',
+      background: '#181820',
+      surface: '#1e1e28',
+      text: '#dce0ea',
     },
   },
   {
@@ -107,9 +107,9 @@ export const THEME_OPTIONS: ThemeOption[] = [
     description: 'Soothing dark with soft pastel accents',
     colors: {
       primary: '#89b4fa',
-      background: '#1e1e2e',
-      surface: '#181825',
-      text: '#cdd6f4',
+      background: '#1a1a22',
+      surface: '#20202a',
+      text: '#dce0ec',
     },
   },
   {
@@ -118,9 +118,9 @@ export const THEME_OPTIONS: ThemeOption[] = [
     description: 'Teal-green with cyan accents',
     colors: {
       primary: '#2aa198',
-      background: '#002b36',
-      surface: '#073642',
-      text: '#eee8d5',
+      background: '#141a1c',
+      surface: '#1c2224',
+      text: '#e4e2dc',
     },
   },
 ];
