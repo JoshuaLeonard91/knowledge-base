@@ -985,3 +985,36 @@ tr:hover td { background: var(--bg-tertiary); }
   60%  { transform: translate3d(-15px, -45px, 0); }
   100% { transform: translate3d(5px, -10px, 0); }
 }
+
+/* ── Twilight Shooting Stars ── */
+.twilight-stars-container {
+  display: none;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+[data-theme="twilight"] .twilight-stars-container {
+  display: block;
+}
+
+.twilight-star {
+  position: absolute;
+  height: 2px;
+  border-radius: 1px;
+  opacity: 0;
+  animation-name: shootingStar;
+  animation-timing-function: ease-in;
+  animation-iteration-count: infinite;
+  will-change: opacity, transform;
+}
+
+@keyframes shootingStar {
+  0%   { opacity: 0; transform-origin: left; scale: 0 1; }
+  8%   { opacity: 1; scale: 1 1; }
+  20%  { opacity: 0.8; }
+  35%  { opacity: 0; scale: 1 1; translate: 80px 0; }
+  100% { opacity: 0; }
+}
