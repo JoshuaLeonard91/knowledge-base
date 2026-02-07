@@ -13,6 +13,7 @@ import { getFooterData, getHeaderData } from "@/lib/cms";
 import { ThemeToggle } from "@/components/debug/ThemeToggle";
 import { SpookyGhosts } from "@/components/debug/SpookyGhosts";
 import { EmberSparks } from "@/components/debug/EmberSparks";
+import { ArcticSnow } from "@/components/debug/ArcticSnow";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -97,6 +98,7 @@ export default async function RootLayout({
         <ThemeToggle />
         <SpookyGhosts />
         <EmberSparks />
+        <ArcticSnow />
       </body>
     </html>
   );

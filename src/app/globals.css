@@ -838,3 +838,79 @@ tr:hover td { background: var(--bg-tertiary); }
   85%  { transform: translate3d(15px, -85vh, 0) scale(0.35); opacity: 0.2; }
   100% { transform: translate3d(5px, -105vh, 0) scale(0.15); opacity: 0; }
 }
+
+/* Arctic snow animations — only visible on arctic theme */
+.arctic-snow-container {
+  display: none;
+}
+
+[data-theme="arctic"] .arctic-snow-container {
+  display: block;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.arctic-flake {
+  position: absolute;
+  top: -10px;
+  border-radius: 50%;
+  background: #ffffff;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+/* Path 1: gentle drift right */
+@keyframes snowFall1 {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  8%   { opacity: var(--flake-opacity, 0.3); }
+  50%  { transform: translate3d(30px, 50vh, 0); }
+  90%  { opacity: var(--flake-opacity, 0.3); }
+  100% { transform: translate3d(50px, 105vh, 0); opacity: 0; }
+}
+
+/* Path 2: drift left with wider sway */
+@keyframes snowFall2 {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  8%   { opacity: var(--flake-opacity, 0.3); }
+  30%  { transform: translate3d(-25px, 30vh, 0); }
+  60%  { transform: translate3d(15px, 60vh, 0); }
+  90%  { opacity: var(--flake-opacity, 0.3); }
+  100% { transform: translate3d(-20px, 105vh, 0); opacity: 0; }
+}
+
+/* Path 3: nearly straight down, slight wobble */
+@keyframes snowFall3 {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  10%  { opacity: var(--flake-opacity, 0.3); }
+  25%  { transform: translate3d(8px, 25vh, 0); }
+  50%  { transform: translate3d(-6px, 50vh, 0); }
+  75%  { transform: translate3d(10px, 75vh, 0); }
+  90%  { opacity: var(--flake-opacity, 0.3); }
+  100% { transform: translate3d(-4px, 105vh, 0); opacity: 0; }
+}
+
+/* Path 4: slow wide pendulum */
+@keyframes snowFall4 {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  8%   { opacity: var(--flake-opacity, 0.3); }
+  25%  { transform: translate3d(40px, 22vh, 0); }
+  50%  { transform: translate3d(-20px, 48vh, 0); }
+  75%  { transform: translate3d(35px, 74vh, 0); }
+  90%  { opacity: var(--flake-opacity, 0.3); }
+  100% { transform: translate3d(-15px, 105vh, 0); opacity: 0; }
+}
+
+/* Path 5: lazy drift right then left */
+@keyframes snowFall5 {
+  0%   { transform: translate3d(0, 0, 0); opacity: 0; }
+  10%  { opacity: var(--flake-opacity, 0.3); }
+  35%  { transform: translate3d(20px, 35vh, 0); }
+  65%  { transform: translate3d(-30px, 65vh, 0); }
+  90%  { opacity: var(--flake-opacity, 0.3); }
+  100% { transform: translate3d(10px, 105vh, 0); opacity: 0; }
+}
