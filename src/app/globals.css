@@ -914,3 +914,74 @@ tr:hover td { background: var(--bg-tertiary); }
   90%  { opacity: var(--flake-opacity, 0.3); }
   100% { transform: translate3d(10px, 105vh, 0); opacity: 0; }
 }
+
+/* ── Dusk Fireflies ── */
+.dusk-fireflies-container {
+  display: none;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+[data-theme="dusk"] .dusk-fireflies-container {
+  display: block;
+}
+
+/* Outer wrapper: slow drift path */
+.dusk-firefly-drift {
+  position: absolute;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  animation-direction: alternate;
+  will-change: transform;
+}
+
+/* Inner dot: pulse glow */
+.dusk-firefly {
+  border-radius: 50%;
+  animation-name: fireflyPulse;
+  animation-timing-function: ease-in-out;
+  animation-iteration-count: infinite;
+  will-change: opacity;
+}
+
+@keyframes fireflyPulse {
+  0%, 100% { opacity: 0.15; }
+  50%      { opacity: 0.85; }
+}
+
+/* Path 1: gentle figure-eight */
+@keyframes fireflyDrift1 {
+  0%   { transform: translate3d(0, 0, 0); }
+  25%  { transform: translate3d(30px, -20px, 0); }
+  50%  { transform: translate3d(-10px, -40px, 0); }
+  75%  { transform: translate3d(-30px, -15px, 0); }
+  100% { transform: translate3d(10px, 10px, 0); }
+}
+
+/* Path 2: lazy diagonal wander */
+@keyframes fireflyDrift2 {
+  0%   { transform: translate3d(0, 0, 0); }
+  33%  { transform: translate3d(-25px, -30px, 0); }
+  66%  { transform: translate3d(20px, -10px, 0); }
+  100% { transform: translate3d(-15px, 15px, 0); }
+}
+
+/* Path 3: wide horizontal loop */
+@keyframes fireflyDrift3 {
+  0%   { transform: translate3d(0, 0, 0); }
+  25%  { transform: translate3d(40px, -10px, 0); }
+  50%  { transform: translate3d(20px, -35px, 0); }
+  75%  { transform: translate3d(-20px, -25px, 0); }
+  100% { transform: translate3d(-10px, 5px, 0); }
+}
+
+/* Path 4: tight vertical bob */
+@keyframes fireflyDrift4 {
+  0%   { transform: translate3d(0, 0, 0); }
+  30%  { transform: translate3d(10px, -25px, 0); }
+  60%  { transform: translate3d(-15px, -45px, 0); }
+  100% { transform: translate3d(5px, -10px, 0); }
+}
