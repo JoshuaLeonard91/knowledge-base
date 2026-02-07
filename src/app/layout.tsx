@@ -9,7 +9,6 @@ import { LayoutContent } from "@/components/layout/LayoutContent";
 import { HistoryProvider } from "@/components/support/HistoryProvider";
 import { TenantProvider } from "@/lib/tenant/context";
 import { getTenantFromRequest } from "@/lib/tenant/resolver";
-import { getTheme, themeToCSSVariables } from "@/lib/theme";
 import { getFooterData, getHeaderData } from "@/lib/cms";
 import { ThemeToggle } from "@/components/debug/ThemeToggle";
 
@@ -37,15 +36,11 @@ export default async function RootLayout({
     redirect(mainDomain);
   }
 
-  // Fetch theme, header, and footer data from CMS (cached per request)
-  const [theme, headerData, footerData] = await Promise.all([
-    getTheme(),
+  // Fetch header and footer data from CMS (cached per request)
+  const [headerData, footerData] = await Promise.all([
     getHeaderData(),
     getFooterData(),
   ]);
-
-  // Build CSS variables from theme
-  let cssVariables = themeToCSSVariables(theme);
 
   // Determine the theme to apply (data-theme attribute)
   // Priority: tenant theme > default based on context
@@ -56,15 +51,12 @@ export default async function RootLayout({
     dataTheme = tenant.branding.theme;
   }
 
-  // Override with tenant branding if available (legacy primaryColor support)
+  // All accent/border colors come from [data-theme] blocks in globals.css
+  // Only set inline CSS variables for tenant-specific branding overrides
+  const cssVariables: Record<string, string> = {};
   if (tenant?.branding?.primaryColor && !tenant?.branding?.theme) {
-    cssVariables = {
-      ...cssVariables,
-      '--accent-primary': tenant.branding.primaryColor,
-    };
+    cssVariables['--accent-primary'] = tenant.branding.primaryColor;
   }
-  // Main domain accent colors come from [data-theme] in globals.css
-  // No inline overrides needed — they would block theme toggling
 
   // Convert tenant to client-safe config for context
   // NOTE: Do NOT include internal IDs or sensitive config

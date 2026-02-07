@@ -436,7 +436,7 @@ export default function DashboardPage() {
           )}
 
           {/* Create Portal CTA */}
-          <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-2xl border border-indigo-500/20 p-8 text-center">
+          <div className="bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 rounded-2xl border border-[var(--accent-primary)]/20 p-8 text-center">
             <h2 className="text-xl font-bold text-[var(--text-primary)] mb-3">
               Create Your Portal
             </h2>
@@ -725,7 +725,7 @@ export default function DashboardPage() {
 
             {/* Upgrade Card (for free users on tenant) */}
             {!isMainDomain && !data.subscription && (
-              <div className="bg-gradient-to-br from-indigo-500/20 to-purple-500/20 rounded-xl border border-indigo-500/20 p-5">
+              <div className="bg-gradient-to-br from-[var(--accent-primary)]/20 to-[var(--accent-secondary)]/20 rounded-xl border border-[var(--accent-primary)]/20 p-5">
                 <h3 className="font-semibold text-[var(--text-primary)] mb-2">Upgrade Your Account</h3>
                 <p className="text-sm text-[var(--text-secondary)] mb-4">
                   Get access to premium features and priority support.
