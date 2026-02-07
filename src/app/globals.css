@@ -685,19 +685,19 @@ tr:hover td { background: var(--bg-tertiary); }
 }
 
 /* Oceanic wave animations — only visible on oceanic theme */
-.oceanic-waves-container {
+.oceanic-hero-waves {
   display: none;
 }
 
-[data-theme="oceanic"] .oceanic-waves-container {
+[data-theme="oceanic"] .oceanic-hero-waves {
   display: block;
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   width: 100%;
   height: 120px;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
   overflow: hidden;
 }
 

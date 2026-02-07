@@ -36,6 +36,31 @@ export function LandingPageContent({ content, showAnimations = true }: LandingPa
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-[var(--accent-primary)]/20 via-transparent to-transparent" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full bg-[var(--accent-primary)]/10 blur-[120px]" />
 
+        {/* Oceanic waves — positioned at bottom of hero, shown only on oceanic theme */}
+        <div className="oceanic-hero-waves" aria-hidden="true">
+          <div className="oceanic-wave oceanic-wave--back">
+            <div className="oceanic-wave-swell oceanic-wave-swell--back">
+              <svg viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill="currentColor" d="M0,60 C240,90 480,30 720,60 C960,90 1200,30 1440,60 C1680,90 1920,30 2160,60 C2400,90 2640,30 2880,60 L2880,120 L0,120 Z" />
+              </svg>
+            </div>
+          </div>
+          <div className="oceanic-wave oceanic-wave--mid">
+            <div className="oceanic-wave-swell oceanic-wave-swell--mid">
+              <svg viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill="currentColor" d="M0,70 C200,40 440,90 720,55 C1000,20 1200,80 1440,70 C1680,40 1880,90 2160,55 C2440,20 2640,80 2880,70 L2880,120 L0,120 Z" />
+              </svg>
+            </div>
+          </div>
+          <div className="oceanic-wave oceanic-wave--front">
+            <div className="oceanic-wave-swell oceanic-wave-swell--front">
+              <svg viewBox="0 0 2880 120" preserveAspectRatio="none" xmlns="http://www.w3.org/2000/svg">
+                <path fill="currentColor" d="M0,65 C180,85 360,35 720,65 C1080,95 1260,25 1440,65 C1620,85 1800,35 2160,65 C2520,95 2700,25 2880,65 L2880,120 L0,120 Z" />
+              </svg>
+            </div>
+          </div>
+        </div>
+
         <div className="relative max-w-5xl mx-auto px-6 py-24 md:py-32 text-center">
           {/* Badge */}
           <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 mb-8 ${animationFadeClass}`}>
