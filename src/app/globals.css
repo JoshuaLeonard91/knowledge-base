@@ -683,3 +683,89 @@ tr:hover td { background: var(--bg-tertiary); }
   90%  { opacity: var(--ghost-opacity, 0.2); }
   100% { transform: translate(-50px, 95vh) rotate(0deg); opacity: 0; }
 }
+
+/* Oceanic wave animations — only visible on oceanic theme */
+.oceanic-waves-container {
+  display: none;
+}
+
+[data-theme="oceanic"] .oceanic-waves-container {
+  display: block;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 120px;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+}
+
+.oceanic-wave {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 200%;
+  height: 100%;
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.oceanic-wave svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* Back wave: slowest, most transparent, secondary color */
+.oceanic-wave--back {
+  color: var(--accent-secondary);
+  opacity: 0.05;
+  animation: waveScroll 25s linear infinite;
+}
+
+/* Middle wave: medium speed */
+.oceanic-wave--mid {
+  color: var(--accent-primary);
+  opacity: 0.07;
+  animation: waveScroll 18s linear infinite;
+  animation-delay: -5s;
+}
+
+/* Front wave: fastest, most visible */
+.oceanic-wave--front {
+  color: var(--accent-primary);
+  opacity: 0.10;
+  animation: waveScroll 12s linear infinite;
+  animation-delay: -2s;
+}
+
+@keyframes waveScroll {
+  0%   { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
+}
+
+/* Gentle vertical swell on inner wrappers */
+.oceanic-wave-swell {
+  width: 100%;
+  height: 100%;
+}
+
+.oceanic-wave-swell--back {
+  animation: waveSwell 10s ease-in-out infinite alternate;
+}
+
+.oceanic-wave-swell--mid {
+  animation: waveSwell 7s ease-in-out infinite alternate;
+  animation-delay: -3s;
+}
+
+.oceanic-wave-swell--front {
+  animation: waveSwell 5s ease-in-out infinite alternate;
+  animation-delay: -1s;
+}
+
+@keyframes waveSwell {
+  0%   { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(0, -8px, 0); }
+}
