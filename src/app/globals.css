@@ -453,22 +453,22 @@ tr:hover td { background: var(--bg-tertiary); }
   color: #fb923c;
 }
 
-/* Arctic Theme - Neutral dark with teal accents (Nord-inspired) */
+/* Arctic Theme - Deep dark with teal accents (Nord-inspired) */
 [data-theme="arctic"] {
-  --bg-primary: #1a1d22;
-  --bg-secondary: #22262c;
-  --bg-tertiary: #2a2f36;
-  --bg-elevated: #343a42;
+  --bg-primary: #0c0e12;
+  --bg-secondary: #151820;
+  --bg-tertiary: #1c2028;
+  --bg-elevated: #252a34;
 
   --accent-primary: #88c0d0;
   --accent-secondary: #81a1c1;
   --accent-hover: #8fbcbb;
   --accent-glow: rgba(136, 192, 208, 0.3);
 
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-primary: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --text-primary: #e4e8ec;
+  --text-primary: #f0f2f5;
   --text-secondary: #a0a8b4;
   --text-muted: #6b7380;
 
@@ -477,22 +477,22 @@ tr:hover td { background: var(--bg-tertiary); }
   --accent-danger: #bf616a;
 }
 
-/* Dusk Theme - Neutral dark with rose & lavender accents (Rose Pine-inspired) */
+/* Dusk Theme - Deep dark with rose & lavender accents (Rose Pine-inspired) */
 [data-theme="dusk"] {
-  --bg-primary: #19191f;
-  --bg-secondary: #212128;
-  --bg-tertiary: #2a2a32;
-  --bg-elevated: #34343e;
+  --bg-primary: #0c0c10;
+  --bg-secondary: #14141a;
+  --bg-tertiary: #1c1c24;
+  --bg-elevated: #262630;
 
   --accent-primary: #c4a7e7;
   --accent-secondary: #ea9a97;
   --accent-hover: #d4baf5;
   --accent-glow: rgba(196, 167, 231, 0.3);
 
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-primary: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --text-primary: #e4e2ec;
+  --text-primary: #f0eef5;
   --text-secondary: #9a98a8;
   --text-muted: #6c6a7a;
 
@@ -501,22 +501,22 @@ tr:hover td { background: var(--bg-tertiary); }
   --accent-danger: #eb6f92;
 }
 
-/* Ember Theme - Neutral dark with warm amber accents (Gruvbox-inspired) */
+/* Ember Theme - Deep dark with warm amber accents (Gruvbox-inspired) */
 [data-theme="ember"] {
-  --bg-primary: #1a1a1a;
-  --bg-secondary: #242424;
-  --bg-tertiary: #2e2e2e;
-  --bg-elevated: #3a3a3a;
+  --bg-primary: #0e0e0e;
+  --bg-secondary: #181818;
+  --bg-tertiary: #222222;
+  --bg-elevated: #2c2c2c;
 
   --accent-primary: #fabd2f;
   --accent-secondary: #8ec07c;
   --accent-hover: #d79921;
   --accent-glow: rgba(250, 189, 47, 0.25);
 
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-primary: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --text-primary: #e8e4dc;
+  --text-primary: #f0ede8;
   --text-secondary: #a8a49c;
   --text-muted: #78756e;
 
@@ -525,22 +525,22 @@ tr:hover td { background: var(--bg-tertiary); }
   --accent-danger: #fb4934;
 }
 
-/* Twilight Theme - Neutral dark with periwinkle accents (Tokyo Night-inspired) */
+/* Twilight Theme - Deep dark with periwinkle accents (Tokyo Night-inspired) */
 [data-theme="twilight"] {
-  --bg-primary: #181820;
-  --bg-secondary: #1e1e28;
-  --bg-tertiary: #282832;
-  --bg-elevated: #32323e;
+  --bg-primary: #0b0b12;
+  --bg-secondary: #14141c;
+  --bg-tertiary: #1c1c26;
+  --bg-elevated: #262632;
 
   --accent-primary: #7aa2f7;
   --accent-secondary: #bb9af7;
   --accent-hover: #89b4fa;
   --accent-glow: rgba(122, 162, 247, 0.3);
 
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-primary: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --text-primary: #dce0ea;
+  --text-primary: #eef0f6;
   --text-secondary: #a0a6b8;
   --text-muted: #646878;
 
@@ -549,22 +549,22 @@ tr:hover td { background: var(--bg-tertiary); }
   --accent-danger: #f7768e;
 }
 
-/* Pastel Theme - Neutral dark with soft pastel accents (Catppuccin-inspired) */
+/* Pastel Theme - Deep dark with soft pastel accents (Catppuccin-inspired) */
 [data-theme="pastel"] {
-  --bg-primary: #1a1a22;
-  --bg-secondary: #20202a;
-  --bg-tertiary: #2a2a34;
-  --bg-elevated: #343440;
+  --bg-primary: #0c0c14;
+  --bg-secondary: #14141e;
+  --bg-tertiary: #1e1e28;
+  --bg-elevated: #282834;
 
   --accent-primary: #89b4fa;
   --accent-secondary: #b4befe;
   --accent-hover: #74c7ec;
   --accent-glow: rgba(137, 180, 250, 0.3);
 
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-primary: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --text-primary: #dce0ec;
+  --text-primary: #eef0f6;
   --text-secondary: #a4a8b8;
   --text-muted: #6c7086;
 
@@ -573,22 +573,22 @@ tr:hover td { background: var(--bg-tertiary); }
   --accent-danger: #f38ba8;
 }
 
-/* Oceanic Theme - Neutral dark with cyan accents (Solarized-inspired) */
+/* Oceanic Theme - Deep dark with cyan accents (Solarized-inspired) */
 [data-theme="oceanic"] {
-  --bg-primary: #141a1c;
-  --bg-secondary: #1c2224;
-  --bg-tertiary: #262c2e;
-  --bg-elevated: #303838;
+  --bg-primary: #0a0e10;
+  --bg-secondary: #121818;
+  --bg-tertiary: #1a2222;
+  --bg-elevated: #242e2e;
 
   --accent-primary: #2aa198;
   --accent-secondary: #268bd2;
   --accent-hover: #35bfb4;
   --accent-glow: rgba(42, 161, 152, 0.3);
 
-  --border-primary: rgba(255, 255, 255, 0.08);
-  --border-hover: rgba(255, 255, 255, 0.14);
+  --border-primary: rgba(255, 255, 255, 0.10);
+  --border-hover: rgba(255, 255, 255, 0.18);
 
-  --text-primary: #e4e2dc;
+  --text-primary: #f0eee8;
   --text-secondary: #9ca0a0;
   --text-muted: #68706e;
 
