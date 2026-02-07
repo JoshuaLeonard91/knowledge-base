@@ -11,6 +11,7 @@ import { TenantProvider } from "@/lib/tenant/context";
 import { getTenantFromRequest } from "@/lib/tenant/resolver";
 import { getTheme, themeToCSSVariables } from "@/lib/theme";
 import { getFooterData, getHeaderData } from "@/lib/cms";
+import { ThemeToggle } from "@/components/debug/ThemeToggle";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -109,7 +110,7 @@ export default async function RootLayout({
             </TenantProvider>
           </AuthProvider>
         </ThemeProvider>
-
+        <ThemeToggle />
       </body>
     </html>
   );
