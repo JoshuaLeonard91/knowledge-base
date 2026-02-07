@@ -16,6 +16,7 @@ import { EmberSparks } from "@/components/debug/EmberSparks";
 import { ArcticSnow } from "@/components/debug/ArcticSnow";
 import { DuskFireflies } from "@/components/debug/DuskFireflies";
 import { TwilightStars } from "@/components/debug/TwilightStars";
+import { PastelBubbles } from "@/components/debug/PastelBubbles";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -103,6 +104,7 @@ export default async function RootLayout({
         <ArcticSnow />
         <DuskFireflies />
         <TwilightStars />
+        <PastelBubbles />
       </body>
     </html>
   );
