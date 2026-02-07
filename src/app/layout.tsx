@@ -50,7 +50,7 @@ export default async function RootLayout({
   // Determine the theme to apply (data-theme attribute)
   // Priority: tenant theme > default based on context
   // Only allow valid theme values to prevent injection
-  const VALID_THEMES = ['dark', 'light'] as const;
+  const VALID_THEMES = ['dark', 'spooky'] as const;
   let dataTheme: string = 'dark'; // Default for main domain
   if (tenant?.branding?.theme && VALID_THEMES.includes(tenant.branding.theme as typeof VALID_THEMES[number])) {
     dataTheme = tenant.branding.theme;

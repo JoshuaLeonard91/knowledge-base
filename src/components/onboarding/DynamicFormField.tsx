@@ -36,14 +36,14 @@ export const THEME_OPTIONS: ThemeOption[] = [
     },
   },
   {
-    id: 'light',
-    name: 'Light',
-    description: 'Lavender-tinted theme with indigo accents',
+    id: 'spooky',
+    name: 'Spooky',
+    description: 'Halloween orange & toxic green on deep purple',
     colors: {
-      primary: '#4f46e5',
-      background: '#f8f7fc',
-      surface: '#eae8f0',
-      text: '#2d2b3d',
+      primary: '#f97316',
+      background: '#0d0a12',
+      surface: '#161022',
+      text: '#f5f0e8',
     },
   },
 ];

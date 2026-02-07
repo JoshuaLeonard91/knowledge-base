@@ -363,57 +363,39 @@ tr:hover td { background: var(--bg-tertiary); }
   --text-muted: #71717a;
 }
 
-/* Light Theme - Lavender-tinted surfaces with indigo accents */
-[data-theme="light"] {
-  --bg-primary: #f8f7fc;
-  --bg-secondary: #eae8f0;
-  --bg-tertiary: #dddbe6;
-  --bg-elevated: #d0cedb;
+/* Spooky Theme - Halloween orange + toxic green on deep purple-black */
+[data-theme="spooky"] {
+  --bg-primary: #0d0a12;
+  --bg-secondary: #161022;
+  --bg-tertiary: #1c1428;
+  --bg-elevated: #231a30;
 
-  --accent-primary: #4f46e5;
-  --accent-secondary: #6366f1;
-  --accent-hover: #4338ca;
-  --accent-glow: rgba(79, 70, 229, 0.25);
+  --accent-primary: #f97316;
+  --accent-secondary: #39ff14;
+  --accent-hover: #fb923c;
+  --accent-glow: rgba(249, 115, 22, 0.4);
 
-  --border-primary: #d0cedb;
-  --border-hover: #b9b7c9;
+  --border-primary: rgba(139, 92, 246, 0.1);
+  --border-hover: rgba(249, 115, 22, 0.2);
 
-  --text-primary: #2d2b3d;
-  --text-secondary: #565470;
-  --text-muted: #7c7a94;
+  --text-primary: #f5f0e8;
+  --text-secondary: #a89e91;
+  --text-muted: #6b6358;
 
-  /* Override status colors for better visibility on light */
-  --accent-success: #22c55e;
-  --accent-warning: #eab308;
-  --accent-danger: #ef4444;
+  --accent-success: #39ff14;
+  --accent-warning: #f97316;
+  --accent-danger: #ED4245;
 }
 
-/* Light theme specific overrides */
-[data-theme="light"] .glass {
-  background: rgba(234, 232, 240, 0.8);
-}
-
-[data-theme="light"] .glass-hover:hover {
-  background: rgba(234, 232, 240, 0.95);
-}
-
-[data-theme="light"] code {
-  background: #dddbe6;
-}
-
-[data-theme="light"] pre {
-  background: #eae8f0;
-}
-
-[data-theme="light"] ::selection {
-  background: #4f46e5;
+[data-theme="spooky"] ::selection {
+  background: #f97316;
   color: white;
 }
 
-[data-theme="light"] a {
-  color: #4f46e5;
+[data-theme="spooky"] a {
+  color: #f97316;
 }
 
-[data-theme="light"] a:hover {
-  color: #4338ca;
+[data-theme="spooky"] a:hover {
+  color: #fb923c;
 }

@@ -26,7 +26,7 @@ export interface ClientTenantConfig {
     logoUrl: string | null;
     faviconUrl: string | null;
     primaryColor: string | null;
-    theme: string | null;  // Theme ID: "dark", "light"
+    theme: string | null;  // Theme ID: "dark", "spooky"
     // NOTE: customDomain excluded - internal config
   } | null;
   jiraConnected: boolean;
