@@ -62,19 +62,9 @@ export default async function RootLayout({
       ...cssVariables,
       '--accent-primary': tenant.branding.primaryColor,
     };
-  } else if (!tenant) {
-    // Main domain uses indigo dark theme
-    // Override all accent-related variables to match marketing pages
-    cssVariables = {
-      ...cssVariables,
-      '--accent-primary': '#6366f1',
-      '--accent-secondary': '#8b5cf6', // Purple for gradients (matches marketing pages)
-      '--accent-hover': '#4f46e5',
-      '--accent-glow': 'rgba(99, 102, 241, 0.4)',
-      '--border-primary': 'rgba(99, 102, 241, 0.06)',
-      '--border-hover': 'rgba(99, 102, 241, 0.1)',
-    };
   }
+  // Main domain accent colors come from [data-theme] in globals.css
+  // No inline overrides needed — they would block theme toggling
 
   // Convert tenant to client-safe config for context
   // NOTE: Do NOT include internal IDs or sensitive config
