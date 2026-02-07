@@ -48,7 +48,7 @@ export interface TenantContext {
     logoUrl: string | null;
     faviconUrl: string | null;
     primaryColor: string | null;
-    theme: string | null;  // Theme ID: "dark", "light", "spooky"
+    theme: string | null;  // Theme ID: dark, light, spooky, arctic, dusk, ember, twilight, pastel, oceanic
     customDomain: string | null;
   } | null;
 }

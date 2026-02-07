@@ -23,7 +23,7 @@ const securityHeaders = {
 };
 
 // Valid theme IDs
-const VALID_THEMES = ['dark', 'light', 'spooky'];
+const VALID_THEMES = ['dark', 'light', 'spooky', 'arctic', 'dusk', 'ember', 'twilight', 'pastel', 'oceanic'];
 
 // Reserved subdomains that cannot be used
 const RESERVED_SUBDOMAINS = [

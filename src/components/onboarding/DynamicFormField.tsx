@@ -57,6 +57,72 @@ export const THEME_OPTIONS: ThemeOption[] = [
       text: '#f5f0e8',
     },
   },
+  {
+    id: 'arctic',
+    name: 'Arctic',
+    description: 'Cool blue-gray with teal accents',
+    colors: {
+      primary: '#88c0d0',
+      background: '#2e3440',
+      surface: '#3b4252',
+      text: '#eceff4',
+    },
+  },
+  {
+    id: 'dusk',
+    name: 'Dusk',
+    description: 'Warm purple-mauve with rose accents',
+    colors: {
+      primary: '#c4a7e7',
+      background: '#232136',
+      surface: '#2a273f',
+      text: '#e0def4',
+    },
+  },
+  {
+    id: 'ember',
+    name: 'Ember',
+    description: 'Earthy browns with warm amber accents',
+    colors: {
+      primary: '#fabd2f',
+      background: '#282828',
+      surface: '#3c3836',
+      text: '#ebdbb2',
+    },
+  },
+  {
+    id: 'twilight',
+    name: 'Twilight',
+    description: 'Refined navy with periwinkle accents',
+    colors: {
+      primary: '#7aa2f7',
+      background: '#1a1b26',
+      surface: '#24283b',
+      text: '#c0caf5',
+    },
+  },
+  {
+    id: 'pastel',
+    name: 'Pastel',
+    description: 'Soothing dark with soft pastel accents',
+    colors: {
+      primary: '#89b4fa',
+      background: '#1e1e2e',
+      surface: '#181825',
+      text: '#cdd6f4',
+    },
+  },
+  {
+    id: 'oceanic',
+    name: 'Oceanic',
+    description: 'Teal-green with cyan accents',
+    colors: {
+      primary: '#2aa198',
+      background: '#002b36',
+      surface: '#073642',
+      text: '#eee8d5',
+    },
+  },
 ];
 
 interface DynamicFormFieldProps {
