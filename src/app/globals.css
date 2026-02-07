@@ -363,24 +363,24 @@ tr:hover td { background: var(--bg-tertiary); }
   --text-muted: #71717a;
 }
 
-/* Light Theme - White page, cool-tinted surfaces (GitHub/Apple style) */
+/* Light Theme - Lavender-tinted surfaces with indigo accents */
 [data-theme="light"] {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f6f8fa;
-  --bg-tertiary: #eef1f5;
-  --bg-elevated: #e2e8f0;
+  --bg-primary: #f8f7fc;
+  --bg-secondary: #eae8f0;
+  --bg-tertiary: #dddbe6;
+  --bg-elevated: #d0cedb;
 
   --accent-primary: #4f46e5;
   --accent-secondary: #6366f1;
   --accent-hover: #4338ca;
-  --accent-glow: rgba(79, 70, 229, 0.2);
+  --accent-glow: rgba(79, 70, 229, 0.25);
 
-  --border-primary: #d1d9e0;
-  --border-hover: #b8c2cc;
+  --border-primary: #d0cedb;
+  --border-hover: #b9b7c9;
 
-  --text-primary: #1f2328;
-  --text-secondary: #59636e;
-  --text-muted: #6b7280;
+  --text-primary: #2d2b3d;
+  --text-secondary: #565470;
+  --text-muted: #7c7a94;
 
   /* Override status colors for better visibility on light */
   --accent-success: #22c55e;
@@ -390,19 +390,19 @@ tr:hover td { background: var(--bg-tertiary); }
 
 /* Light theme specific overrides */
 [data-theme="light"] .glass {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(234, 232, 240, 0.8);
 }
 
 [data-theme="light"] .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.95);
+  background: rgba(234, 232, 240, 0.95);
 }
 
 [data-theme="light"] code {
-  background: #e2e8f0;
+  background: #dddbe6;
 }
 
 [data-theme="light"] pre {
-  background: #f1f5f9;
+  background: #eae8f0;
 }
 
 [data-theme="light"] ::selection {

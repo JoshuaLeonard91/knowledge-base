@@ -38,12 +38,12 @@ export const THEME_OPTIONS: ThemeOption[] = [
   {
     id: 'light',
     name: 'Light',
-    description: 'Clean light theme with cool gray tones',
+    description: 'Lavender-tinted theme with indigo accents',
     colors: {
       primary: '#4f46e5',
-      background: '#ffffff',
-      surface: '#f6f8fa',
-      text: '#1e293b',
+      background: '#f8f7fc',
+      surface: '#eae8f0',
+      text: '#2d2b3d',
     },
   },
 ];
