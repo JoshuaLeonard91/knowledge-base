@@ -23,7 +23,7 @@ const securityHeaders = {
 };
 
 // Valid theme IDs
-const VALID_THEMES = ['discord', 'dark', 'light'];
+const VALID_THEMES = ['dark', 'light'];
 
 // Reserved subdomains that cannot be used
 const RESERVED_SUBDOMAINS = [

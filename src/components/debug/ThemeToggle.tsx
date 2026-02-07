@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const THEMES = ['dark', 'discord', 'light'] as const;
+const THEMES = ['dark', 'light'] as const;
 
 export function ThemeToggle() {
   const [current, setCurrent] = useState(0);

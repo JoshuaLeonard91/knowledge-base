@@ -340,28 +340,8 @@ tr:hover td { background: var(--bg-tertiary); }
 
 /* ==========================================
  * THEME DEFINITIONS
- * Apply data-theme="discord|dark|light" to html element
+ * Apply data-theme="dark|light" to html element
  * ========================================== */
-
-/* Discord Theme - Classic Discord-inspired dark theme */
-[data-theme="discord"] {
-  --bg-primary: #36393f;
-  --bg-secondary: #2f3136;
-  --bg-tertiary: #292b2f;
-  --bg-elevated: #40444b;
-
-  --accent-primary: #5865F2;
-  --accent-secondary: #4752c4;
-  --accent-hover: #4752c4;
-  --accent-glow: rgba(88, 101, 242, 0.4);
-
-  --border-primary: rgba(255, 255, 255, 0.06);
-  --border-hover: rgba(255, 255, 255, 0.1);
-
-  --text-primary: #ffffff;
-  --text-secondary: #b9bbbe;
-  --text-muted: #72767d;
-}
 
 /* Midnight Theme - Sleek dark theme with indigo accents (default) */
 [data-theme="dark"] {
@@ -383,24 +363,24 @@ tr:hover td { background: var(--bg-tertiary); }
   --text-muted: #71717a;
 }
 
-/* Soft Light Theme - Easy-on-the-eyes light theme */
+/* Light Theme - Cool gray background with white panels */
 [data-theme="light"] {
-  --bg-primary: #f8fafc;
+  --bg-primary: #e8edf2;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-elevated: #e2e8f0;
+  --bg-tertiary: #f1f4f8;
+  --bg-elevated: #dce3eb;
 
   --accent-primary: #4f46e5;
   --accent-secondary: #6366f1;
   --accent-hover: #4338ca;
   --accent-glow: rgba(79, 70, 229, 0.2);
 
-  --border-primary: rgba(0, 0, 0, 0.08);
-  --border-hover: rgba(0, 0, 0, 0.15);
+  --border-primary: rgba(0, 0, 0, 0.12);
+  --border-hover: rgba(0, 0, 0, 0.2);
 
   --text-primary: #1e293b;
   --text-secondary: #475569;
-  --text-muted: #94a3b8;
+  --text-muted: #4b5c6f;
 
   /* Override status colors for better visibility on light */
   --accent-success: #22c55e;

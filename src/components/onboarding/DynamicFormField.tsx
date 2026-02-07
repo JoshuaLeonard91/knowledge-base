@@ -25,17 +25,6 @@ export interface ThemeOption {
 // Predefined theme options - exported for use in theme application
 export const THEME_OPTIONS: ThemeOption[] = [
   {
-    id: 'discord',
-    name: 'Discord',
-    description: 'Classic Discord-inspired dark theme',
-    colors: {
-      primary: '#5865F2',
-      background: '#36393f',
-      surface: '#2f3136',
-      text: '#ffffff',
-    },
-  },
-  {
     id: 'dark',
     name: 'Midnight',
     description: 'Sleek dark theme with indigo accents',
@@ -48,11 +37,11 @@ export const THEME_OPTIONS: ThemeOption[] = [
   },
   {
     id: 'light',
-    name: 'Soft Light',
-    description: 'Easy-on-the-eyes light theme',
+    name: 'Light',
+    description: 'Clean light theme with cool gray tones',
     colors: {
       primary: '#4f46e5',
-      background: '#f8fafc',
+      background: '#e8edf2',
       surface: '#ffffff',
       text: '#1e293b',
     },
