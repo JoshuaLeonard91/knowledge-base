@@ -11,6 +11,7 @@ import { TenantProvider } from "@/lib/tenant/context";
 import { getTenantFromRequest } from "@/lib/tenant/resolver";
 import { getFooterData, getHeaderData } from "@/lib/cms";
 import { ThemeToggle } from "@/components/debug/ThemeToggle";
+import { SpookyGhosts } from "@/components/debug/SpookyGhosts";
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -45,7 +46,7 @@ export default async function RootLayout({
   // Determine the theme to apply (data-theme attribute)
   // Priority: tenant theme > default based on context
   // Only allow valid theme values to prevent injection
-  const VALID_THEMES = ['dark', 'spooky'] as const;
+  const VALID_THEMES = ['dark', 'light', 'spooky'] as const;
   let dataTheme: string = 'dark'; // Default for main domain
   if (tenant?.branding?.theme && VALID_THEMES.includes(tenant.branding.theme as typeof VALID_THEMES[number])) {
     dataTheme = tenant.branding.theme;
@@ -76,7 +77,7 @@ export default async function RootLayout({
   } : null;
 
   return (
-    <html lang="en" className="dark" data-theme={dataTheme} style={cssVariables as React.CSSProperties}>
+    <html lang="en" className={dataTheme !== 'light' ? 'dark' : ''} data-theme={dataTheme} style={cssVariables as React.CSSProperties}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -93,6 +94,7 @@ export default async function RootLayout({
           </AuthProvider>
         </ThemeProvider>
         <ThemeToggle />
+        <SpookyGhosts />
       </body>
     </html>
   );

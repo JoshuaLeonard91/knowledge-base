@@ -36,6 +36,17 @@ export const THEME_OPTIONS: ThemeOption[] = [
     },
   },
   {
+    id: 'light',
+    name: 'Light',
+    description: 'Clean white theme with indigo accents',
+    colors: {
+      primary: '#4f46e5',
+      background: '#ffffff',
+      surface: '#f6f8fa',
+      text: '#1f2328',
+    },
+  },
+  {
     id: 'spooky',
     name: 'Spooky',
     description: 'Halloween orange & toxic green on deep purple',

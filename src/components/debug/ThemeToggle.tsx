@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 
-const THEMES = ['dark', 'spooky'] as const;
+const THEMES = ['dark', 'light', 'spooky'] as const;
 
 export function ThemeToggle() {
   const [current, setCurrent] = useState(0);
@@ -18,6 +18,7 @@ export function ThemeToggle() {
     const next = (current + 1) % THEMES.length;
     const theme = THEMES[next];
     document.documentElement.setAttribute('data-theme', theme);
+    document.documentElement.classList.toggle('dark', theme !== 'light');
     setCurrent(next);
   };
 

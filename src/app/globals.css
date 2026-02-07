@@ -340,7 +340,7 @@ tr:hover td { background: var(--bg-tertiary); }
 
 /* ==========================================
  * THEME DEFINITIONS
- * Apply data-theme="dark|light" to html element
+ * Apply data-theme="dark|light|spooky" to html element
  * ========================================== */
 
 /* Midnight Theme - Sleek dark theme with indigo accents (default) */
@@ -361,6 +361,59 @@ tr:hover td { background: var(--bg-tertiary); }
   --text-primary: #ffffff;
   --text-secondary: #a1a1aa;
   --text-muted: #71717a;
+}
+
+/* Light Theme - Clean white page with cool-gray surfaces */
+[data-theme="light"] {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eef1f5;
+  --bg-elevated: #e2e8f0;
+
+  --accent-primary: #4f46e5;
+  --accent-secondary: #7c3aed;
+  --accent-hover: #4338ca;
+  --accent-glow: rgba(79, 70, 229, 0.2);
+
+  --border-primary: #d1d9e0;
+  --border-hover: #b8c2cc;
+
+  --text-primary: #1f2328;
+  --text-secondary: #59636e;
+  --text-muted: #6b7280;
+
+  --accent-success: #16a34a;
+  --accent-warning: #ca8a04;
+  --accent-danger: #dc2626;
+}
+
+[data-theme="light"] .glass {
+  background: rgba(255, 255, 255, 0.8);
+}
+
+[data-theme="light"] .glass-hover:hover {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+[data-theme="light"] code {
+  background: #eef1f5;
+}
+
+[data-theme="light"] pre {
+  background: #f6f8fa;
+}
+
+[data-theme="light"] ::selection {
+  background: #4f46e5;
+  color: white;
+}
+
+[data-theme="light"] a {
+  color: #4f46e5;
+}
+
+[data-theme="light"] a:hover {
+  color: #4338ca;
 }
 
 /* Spooky Theme - Halloween orange + toxic green on deep purple-black */
@@ -398,4 +451,68 @@ tr:hover td { background: var(--bg-tertiary); }
 
 [data-theme="spooky"] a:hover {
   color: #fb923c;
+}
+
+/* Spooky ghost animations — only visible on spooky theme */
+.spooky-ghosts-container {
+  display: none;
+}
+
+[data-theme="spooky"] .spooky-ghosts-container {
+  display: block;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  overflow: hidden;
+}
+
+.spooky-ghost {
+  position: absolute;
+  font-size: 2rem;
+  opacity: 0;
+  filter: blur(0.5px);
+  will-change: transform, opacity;
+}
+
+[data-theme="spooky"] .ghost-1 {
+  animation: ghostWander1 18s ease-in-out infinite;
+}
+
+[data-theme="spooky"] .ghost-2 {
+  animation: ghostWander2 24s ease-in-out 6s infinite;
+}
+
+[data-theme="spooky"] .ghost-3 {
+  animation: ghostWander3 21s ease-in-out 12s infinite;
+}
+
+@keyframes ghostWander1 {
+  0%   { transform: translate(-40px, 30vh) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.25; }
+  25%  { transform: translate(30vw, 15vh) rotate(8deg); opacity: 0.2; }
+  50%  { transform: translate(65vw, 35vh) rotate(-5deg); opacity: 0.15; }
+  75%  { transform: translate(85vw, 10vh) rotate(10deg); opacity: 0.2; }
+  92%  { opacity: 0.25; }
+  100% { transform: translate(105vw, 25vh) rotate(0deg); opacity: 0; }
+}
+
+@keyframes ghostWander2 {
+  0%   { transform: translate(105vw, 60vh) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.2; }
+  25%  { transform: translate(70vw, 75vh) rotate(-8deg); opacity: 0.15; }
+  50%  { transform: translate(35vw, 55vh) rotate(6deg); opacity: 0.2; }
+  75%  { transform: translate(10vw, 70vh) rotate(-10deg); opacity: 0.15; }
+  92%  { opacity: 0.2; }
+  100% { transform: translate(-40px, 55vh) rotate(0deg); opacity: 0; }
+}
+
+@keyframes ghostWander3 {
+  0%   { transform: translate(50vw, -40px) rotate(0deg); opacity: 0; }
+  8%   { opacity: 0.18; }
+  25%  { transform: translate(20vw, 25vh) rotate(12deg); opacity: 0.15; }
+  50%  { transform: translate(60vw, 50vh) rotate(-8deg); opacity: 0.12; }
+  75%  { transform: translate(40vw, 80vh) rotate(6deg); opacity: 0.18; }
+  92%  { opacity: 0.15; }
+  100% { transform: translate(55vw, 105vh) rotate(0deg); opacity: 0; }
 }
