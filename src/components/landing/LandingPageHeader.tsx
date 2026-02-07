@@ -10,6 +10,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
+import { SquaresFour, Compass, Ticket, ListChecks, SignOut } from '@phosphor-icons/react';
 
 interface LandingPageHeaderProps {
   siteName: string;
@@ -157,13 +158,14 @@ export function LandingPageHeader({
           </button>
 
           {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg py-1 z-50">
+            <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg p-1.5 z-50">
               {isMainDomain && (
                 <Link
                   href="/dashboard"
                   onClick={() => setShowUserMenu(false)}
-                  className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 >
+                  <SquaresFour size={16} weight="duotone" />
                   Dashboard
                 </Link>
               )}
@@ -171,8 +173,9 @@ export function LandingPageHeader({
                 <Link
                   href="/support"
                   onClick={() => setShowUserMenu(false)}
-                  className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 >
+                  <Compass size={16} weight="duotone" />
                   Support Hub
                 </Link>
               )}
@@ -181,15 +184,17 @@ export function LandingPageHeader({
                   <Link
                     href="/support/tickets"
                     onClick={() => setShowUserMenu(false)}
-                    className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                   >
+                    <ListChecks size={16} weight="duotone" />
                     My Tickets
                   </Link>
                   <Link
                     href="/support/ticket"
                     onClick={() => setShowUserMenu(false)}
-                    className="block px-4 py-2 text-sm text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                   >
+                    <Ticket size={16} weight="duotone" />
                     Submit Ticket
                   </Link>
                 </>
@@ -198,8 +203,9 @@ export function LandingPageHeader({
               <button
                 onClick={handleLogout}
                 disabled={isLoggingOut}
-                className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[var(--bg-tertiary)] hover:text-red-300 disabled:opacity-50"
+                className="flex items-center gap-2.5 w-full px-3 py-2 text-sm rounded-md text-red-400 hover:bg-[var(--bg-tertiary)] hover:text-red-300 transition-colors disabled:opacity-50"
               >
+                <SignOut size={16} weight="bold" />
                 {isLoggingOut ? 'Signing out...' : 'Sign Out'}
               </button>
             </div>

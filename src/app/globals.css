@@ -365,10 +365,10 @@ tr:hover td { background: var(--bg-tertiary); }
 
 /* Light Theme - Cool gray background with white panels */
 [data-theme="light"] {
-  --bg-primary: #e8edf2;
+  --bg-primary: #d5dce6;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f4f8;
-  --bg-elevated: #dce3eb;
+  --bg-tertiary: #e8edf2;
+  --bg-elevated: #cdd5e0;
 
   --accent-primary: #4f46e5;
   --accent-secondary: #6366f1;

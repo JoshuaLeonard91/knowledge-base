@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { CaretDown, SignOut, Ticket, ListChecks } from '@phosphor-icons/react';
+import { CaretDown, SignOut, Ticket, ListChecks, SquaresFour } from '@phosphor-icons/react';
 import Link from 'next/link';
 
 export function UserMenu() {
@@ -79,6 +79,14 @@ export function UserMenu() {
 
           {/* Menu items */}
           <div className="p-2">
+            <Link
+              href="/dashboard"
+              onClick={() => setIsOpen(false)}
+              className="flex items-center gap-3 px-3 py-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
+            >
+              <SquaresFour size={16} weight="duotone" />
+              <span>Dashboard</span>
+            </Link>
             <Link
               href="/support/ticket"
               onClick={() => setIsOpen(false)}
