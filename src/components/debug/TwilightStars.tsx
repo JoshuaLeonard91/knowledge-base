@@ -29,7 +29,7 @@ export function TwilightStars() {
   const stars = useMemo<StarConfig[]>(() =>
     Array.from({ length: STAR_COUNT }, () => ({
       path: PATHS[Math.floor(Math.random() * PATHS.length)],
-      top: randomBetween(-5, 40),
+      top: randomBetween(5, 80),
       left: randomBetween(20, 80),
       duration: randomBetween(1.2, 2.5),
       delay: randomBetween(0, 20),
