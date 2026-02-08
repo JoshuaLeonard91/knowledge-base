@@ -3,37 +3,38 @@
 import { useMemo } from 'react';
 
 /**
- * Shooting stars that streak across the sky on the twilight theme.
- * Thin bright trails with randomized angles, speeds, and timing.
+ * Shooting stars that streak diagonally across the sky on the twilight theme.
+ * A bright head travels along a long path leaving a fading tail behind it.
  * Hidden via CSS when data-theme is not "twilight".
  */
 
-const STAR_COUNT = 8;
+const STAR_COUNT = 6;
+const PATHS = ['starStreak1', 'starStreak2', 'starStreak3'] as const;
 
 function randomBetween(min: number, max: number) {
   return Math.random() * (max - min) + min;
 }
 
 interface StarConfig {
+  path: string;
   top: number;
   left: number;
-  angle: number;
-  length: number;
   duration: number;
   delay: number;
+  tailLength: number;
   useSecondary: boolean;
 }
 
 export function TwilightStars() {
   const stars = useMemo<StarConfig[]>(() =>
     Array.from({ length: STAR_COUNT }, () => ({
-      top: randomBetween(5, 60),
-      left: randomBetween(10, 90),
-      angle: randomBetween(200, 250),
-      length: randomBetween(60, 120),
-      duration: randomBetween(1.5, 3),
-      delay: randomBetween(0, 18),
-      useSecondary: Math.random() > 0.65,
+      path: PATHS[Math.floor(Math.random() * PATHS.length)],
+      top: randomBetween(-5, 40),
+      left: randomBetween(20, 80),
+      duration: randomBetween(1.2, 2.5),
+      delay: randomBetween(0, 20),
+      tailLength: randomBetween(80, 150),
+      useSecondary: Math.random() > 0.7,
     })),
   []);
 
@@ -47,11 +48,11 @@ export function TwilightStars() {
           style={{
             top: `${s.top}%`,
             left: `${s.left}%`,
-            width: `${s.length}px`,
-            transform: `rotate(${s.angle}deg)`,
+            width: `${s.tailLength}px`,
+            animationName: s.path,
             animationDuration: `${s.duration}s`,
             animationDelay: `${s.delay}s`,
-            background: `linear-gradient(90deg, ${s.useSecondary ? 'var(--accent-secondary)' : 'var(--accent-primary)'}, transparent)`,
+            background: `linear-gradient(90deg, transparent, ${s.useSecondary ? 'var(--accent-secondary)' : 'var(--accent-primary)'} 70%, #fff)`,
           }}
         />
       ))}
