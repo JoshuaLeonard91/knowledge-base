@@ -38,6 +38,18 @@ function isComponent(value: any): boolean {
 }
 
 /**
+ * Lowercase → PascalCase lookup map, built once at module init.
+ * Handles the "bookopentext" → "BookOpenText" case where there are
+ * no separators or casing boundaries to split on.
+ */
+const lowercaseMap: Record<string, string> = {};
+for (const key of Object.keys(icons)) {
+  if (isComponent(icons[key])) {
+    lowercaseMap[key.toLowerCase()] = key;
+  }
+}
+
+/**
  * Normalize any common format to PascalCase.
  * Handles kebab-case, snake_case, spaces, and camelCase.
  * e.g. "book-open-text" | "book_open_text" | "book open text" | "bookOpenText" → "BookOpenText"
@@ -75,6 +87,10 @@ function findIcon(name: string): React.ComponentType<any> | null {
     const aliasedPascal = aliases[pascal];
     if (aliasedPascal && isComponent(icons[aliasedPascal])) return icons[aliasedPascal];
   }
+
+  // 4. Lowercase lookup (handles "bookopentext" → "BookOpenText")
+  const fromLower = lowercaseMap[name.toLowerCase()];
+  if (fromLower && isComponent(icons[fromLower])) return icons[fromLower];
 
   return null;
 }
