@@ -10,7 +10,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
-import { SquaresFour, Compass, Ticket, ListChecks, SignOut } from '@phosphor-icons/react';
+import { SquaresFour, Compass, Ticket, ListChecks, SignOut, List, X } from '@phosphor-icons/react';
 
 interface LandingPageHeaderProps {
   siteName: string;
@@ -42,6 +42,7 @@ export function LandingPageHeader({
   });
   const [isLoading, setIsLoading] = useState(true); // Check auth for both main and tenant
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -228,53 +229,121 @@ export function LandingPageHeader({
     );
   };
 
+  // Navigation links shared between desktop and mobile
+  const navLinks = (
+    <>
+      {hasPricingPage && (
+        <Link
+          href={urls.pricing}
+          onClick={() => setMobileMenuOpen(false)}
+          className={`transition ${
+            pathname === urls.pricing
+              ? 'text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          Pricing
+        </Link>
+      )}
+      <Link
+        href={urls.support}
+        onClick={() => setMobileMenuOpen(false)}
+        className={`transition ${
+          pathname.startsWith('/support')
+            ? 'text-[var(--text-primary)]'
+            : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+        }`}
+      >
+        Support
+      </Link>
+      {hasContactPage && (
+        <Link
+          href={urls.contact}
+          onClick={() => setMobileMenuOpen(false)}
+          className={`transition ${
+            pathname === urls.contact
+              ? 'text-[var(--text-primary)]'
+              : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
+          }`}
+        >
+          Contact
+        </Link>
+      )}
+    </>
+  );
+
   return (
     <header className="border-b border-[var(--border-primary)] bg-[var(--bg-primary)]/80 backdrop-blur-sm sticky top-0 z-50">
-      <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link href="/" className="text-xl font-bold text-[var(--text-primary)]">
           {siteName}
         </Link>
-        <div className="flex items-center gap-6">
-          {hasPricingPage && (
-            <Link
-              href={urls.pricing}
-              className={`transition ${
-                pathname === urls.pricing
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Pricing
-            </Link>
-          )}
-          <Link
-            href={urls.support}
-            className={`transition ${
-              pathname.startsWith('/support')
-                ? 'text-[var(--text-primary)]'
-                : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-            }`}
-          >
-            Support
-          </Link>
-          {hasContactPage && (
-            <Link
-              href={urls.contact}
-              className={`transition ${
-                pathname === urls.contact
-                  ? 'text-[var(--text-primary)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
-              }`}
-            >
-              Contact
-            </Link>
-          )}
-          {/* Action button area (Login/User menu) */}
+
+        {/* Desktop nav */}
+        <div className="hidden md:flex items-center gap-6">
+          {navLinks}
           <div className="min-w-[118px] h-[38px] flex items-center justify-end">
             {renderActionButton()}
           </div>
         </div>
+
+        {/* Mobile: action button + hamburger */}
+        <div className="flex md:hidden items-center gap-3">
+          {renderActionButton()}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <X size={22} weight="bold" /> : <List size={22} weight="bold" />}
+          </button>
+        </div>
       </nav>
+
+      {/* Mobile dropdown menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-[var(--border-primary)] bg-[var(--bg-primary)]/95 backdrop-blur-sm animate-slide-down">
+          <div className="flex flex-col gap-1 px-4 py-3">
+            {hasPricingPage && (
+              <Link
+                href={urls.pricing}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-3 py-2.5 rounded-lg transition ${
+                  pathname === urls.pricing
+                    ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                }`}
+              >
+                Pricing
+              </Link>
+            )}
+            <Link
+              href={urls.support}
+              onClick={() => setMobileMenuOpen(false)}
+              className={`px-3 py-2.5 rounded-lg transition ${
+                pathname.startsWith('/support')
+                  ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+              }`}
+            >
+              Support
+            </Link>
+            {hasContactPage && (
+              <Link
+                href={urls.contact}
+                onClick={() => setMobileMenuOpen(false)}
+                className={`px-3 py-2.5 rounded-lg transition ${
+                  pathname === urls.contact
+                    ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                }`}
+              >
+                Contact
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
     </header>
   );
 }

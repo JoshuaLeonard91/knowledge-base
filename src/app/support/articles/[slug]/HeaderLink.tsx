@@ -26,14 +26,14 @@ export function HeaderLink({ id }: HeaderLinkProps) {
   return (
     <button
       onClick={handleCopy}
-      className="inline-flex items-center justify-center w-6 h-6 ml-2 rounded opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-tertiary)] transition-all"
+      className="inline-flex items-center justify-center w-8 h-8 ml-2 rounded self-center shrink-0 opacity-40 md:opacity-0 group-hover:opacity-100 hover:bg-[var(--bg-tertiary)] transition-all"
       title="Copy link to section"
       aria-label="Copy link to section"
     >
       {copied ? (
-        <Check size={14} weight="bold" className="text-[var(--accent-success)]" />
+        <Check size={18} weight="bold" className="text-[var(--accent-success)]" />
       ) : (
-        <LinkIcon size={14} weight="bold" className="text-[var(--text-muted)]" />
+        <LinkIcon size={18} weight="bold" className="text-[var(--text-muted)]" />
       )}
     </button>
   );
