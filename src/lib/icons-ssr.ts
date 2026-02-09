@@ -38,14 +38,22 @@ function isComponent(value: any): boolean {
 }
 
 /**
- * Convert kebab-case to PascalCase.
- * e.g. "book-open-text" → "BookOpenText", "tree-structure" → "TreeStructure"
+ * Normalize any common format to PascalCase.
+ * Handles kebab-case, snake_case, spaces, and camelCase.
+ * e.g. "book-open-text" | "book_open_text" | "book open text" | "bookOpenText" → "BookOpenText"
  */
-function kebabToPascal(name: string): string {
-  return name
-    .split('-')
-    .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join('');
+function toPascalCase(name: string): string {
+  // If it contains separators (hyphens, underscores, spaces), split on them
+  if (/[-_ ]/.test(name)) {
+    return name
+      .split(/[-_ ]+/)
+      .filter(Boolean)
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+      .join('');
+  }
+  // camelCase → PascalCase (split on lowercase→uppercase boundaries)
+  // e.g. "bookOpenText" → "BookOpenText"
+  return name.replace(/(^[a-z])|([A-Z])/g, (match) => match.toUpperCase());
 }
 
 /**
@@ -60,11 +68,10 @@ function findIcon(name: string): React.ComponentType<any> | null {
   const aliased = aliases[name];
   if (aliased && isComponent(icons[aliased])) return icons[aliased];
 
-  // 3. Kebab-case conversion (e.g. "book-open-text" → "BookOpenText")
-  if (name.includes('-')) {
-    const pascal = kebabToPascal(name);
+  // 3. Normalize to PascalCase (handles kebab-case, snake_case, spaces, camelCase)
+  const pascal = toPascalCase(name);
+  if (pascal !== name) {
     if (isComponent(icons[pascal])) return icons[pascal];
-    // Check alias after conversion too
     const aliasedPascal = aliases[pascal];
     if (aliasedPascal && isComponent(icons[aliasedPascal])) return icons[aliasedPascal];
   }
