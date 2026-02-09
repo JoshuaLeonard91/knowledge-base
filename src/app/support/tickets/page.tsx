@@ -165,7 +165,7 @@ export default function MyTicketsPage() {
 
         {/* Filter Tabs */}
         {!isLoading && !error && tickets.length > 0 && (
-          <div className="flex items-center gap-2 mb-6 p-1 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] w-fit">
+          <div className="flex items-center gap-2 mb-6 p-1 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-primary)] w-full sm:w-fit overflow-x-auto">
             <button
               onClick={() => setFilter('all')}
               className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -329,7 +329,7 @@ export default function MyTicketsPage() {
                         />
                       </div>
                       <p className="font-medium text-[var(--text-primary)] mb-2">{ticket.summary}</p>
-                      <div className="flex items-center gap-4 text-xs text-[var(--text-muted)]">
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-4 text-xs text-[var(--text-muted)]">
                         <span>Created {formatRelativeTime(ticket.created)}</span>
                         <span>Updated {formatRelativeTime(ticket.updated)}</span>
                       </div>

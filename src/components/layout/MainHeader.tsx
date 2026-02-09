@@ -10,6 +10,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
+import { List, X } from '@phosphor-icons/react';
 
 interface MainHeaderProps {
   siteName: string;
@@ -31,6 +32,7 @@ export function MainHeader({ siteName }: MainHeaderProps) {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -195,11 +197,13 @@ export function MainHeader({ siteName }: MainHeaderProps) {
 
   return (
     <header className="border-b border-white/10 bg-[#0a0a0f]/80 backdrop-blur-sm sticky top-0 z-50">
-      <nav className="max-w-7xl mx-auto px-6 h-16 flex items-center justify-between">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
         <Link href="/" className="text-xl font-bold text-white">
           {siteName}
         </Link>
-        <div className="flex items-center gap-6">
+
+        {/* Desktop nav */}
+        <div className="hidden md:flex items-center gap-6">
           <Link
             href="/pricing"
             className={`transition ${
@@ -230,12 +234,64 @@ export function MainHeader({ siteName }: MainHeaderProps) {
           >
             Contact
           </Link>
-          {/* Action button area */}
           <div className="min-w-[118px] h-[38px] flex items-center justify-end">
             {renderActionButton()}
           </div>
         </div>
+
+        {/* Mobile: action button + hamburger */}
+        <div className="flex md:hidden items-center gap-3">
+          {renderActionButton()}
+          <button
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+            className="p-2 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition"
+            aria-label="Toggle menu"
+          >
+            {mobileMenuOpen ? <X size={22} weight="bold" /> : <List size={22} weight="bold" />}
+          </button>
+        </div>
       </nav>
+
+      {/* Mobile dropdown menu */}
+      {mobileMenuOpen && (
+        <div className="md:hidden border-t border-white/10 bg-[#0a0a0f]/95 backdrop-blur-sm animate-slide-down">
+          <div className="flex flex-col gap-1 px-4 py-3">
+            <Link
+              href="/pricing"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`px-3 py-2.5 rounded-lg transition ${
+                pathname === '/pricing'
+                  ? 'text-white bg-white/10'
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Pricing
+            </Link>
+            <Link
+              href="/support"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`px-3 py-2.5 rounded-lg transition ${
+                pathname.startsWith('/support')
+                  ? 'text-white bg-white/10'
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Support
+            </Link>
+            <Link
+              href="/contact"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`px-3 py-2.5 rounded-lg transition ${
+                pathname === '/contact'
+                  ? 'text-white bg-white/10'
+                  : 'text-white/70 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              Contact
+            </Link>
+          </div>
+        </div>
+      )}
     </header>
   );
 }

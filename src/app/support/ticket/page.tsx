@@ -12,7 +12,7 @@ export default async function TicketPage() {
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
         <div className="absolute inset-0 bg-grid opacity-20" />
 
-        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
           <div className="flex items-center gap-4 mb-4">
             <div className="p-3 rounded-xl bg-[var(--accent-warning)]/10 border border-[var(--accent-warning)]/20">
               <Ticket size={32} weight="duotone" className="text-[var(--accent-warning)]" />
@@ -29,8 +29,8 @@ export default async function TicketPage() {
         </div>
       </section>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid lg:grid-cols-3 gap-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
+        <div className="grid lg:grid-cols-3 gap-6 md:gap-8">
           {/* Main Form */}
           <div className="lg:col-span-2">
             <div className="p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)]">

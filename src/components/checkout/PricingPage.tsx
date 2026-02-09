@@ -76,17 +76,17 @@ export function PricingPage({
   }
 
   return (
-    <div className="py-16 px-6">
+    <div className="py-12 md:py-16 px-4 sm:px-6">
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="text-center mb-12">
-          <h1 className="text-4xl md:text-5xl font-bold text-white mb-4">{title}</h1>
+          <h1 className="text-2xl sm:text-4xl md:text-5xl font-bold text-white mb-4">{title}</h1>
           {subtitle && <p className="text-xl text-white/60 max-w-2xl mx-auto">{subtitle}</p>}
         </div>
 
         {/* Products Grid */}
         <div
-          className={`grid gap-8 ${
+          className={`grid gap-4 md:gap-8 ${
             sortedProducts.length === 1
               ? 'max-w-lg mx-auto'
               : sortedProducts.length === 2

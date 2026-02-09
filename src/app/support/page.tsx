@@ -38,7 +38,7 @@ export default async function SupportHub() {
         {/* Background effects */}
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
         <div className="absolute inset-0 bg-grid opacity-30" />
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-[var(--accent-primary)]/10 blur-[100px]" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] md:w-[600px] md:h-[600px] rounded-full bg-[var(--accent-primary)]/10 blur-[100px]" />
 
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-20 text-center">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[var(--accent-primary)]/10 border border-[var(--accent-primary)]/20 mb-6 animate-fade-in">
@@ -46,14 +46,14 @@ export default async function SupportHub() {
             <span className="text-sm font-medium text-[var(--accent-primary)]">Help Center</span>
           </div>
 
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text-primary)] mb-6 animate-slide-up">
+          <h1 className="text-2xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-[var(--text-primary)] mb-6 animate-slide-up">
             How can we{' '}
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)]">
               help you?
             </span>
           </h1>
 
-          <p className="text-lg text-[var(--text-secondary)] mb-8 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.1s' }}>
+          <p className="text-base sm:text-lg text-[var(--text-secondary)] mb-8 max-w-2xl mx-auto animate-slide-up" style={{ animationDelay: '0.1s' }}>
             Search our knowledge base, browse articles, or get personalized support for your Discord integrations.
           </p>
 
@@ -69,7 +69,7 @@ export default async function SupportHub() {
         <div className={`grid gap-4 md:grid-cols-2 ${servicesEnabled ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} stagger-children`}>
           <Link
             href="/support/articles"
-            className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-glow)] transition-all"
+            className="group p-4 md:p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] hover:shadow-[var(--shadow-glow)] transition-all"
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-[var(--accent-primary)]/10">
@@ -87,7 +87,7 @@ export default async function SupportHub() {
           {servicesEnabled && (
             <Link
               href="/support/services"
-              className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-success)] hover:shadow-[0_0_20px_rgba(35,134,54,0.3)] transition-all"
+              className="group p-4 md:p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-success)] hover:shadow-[0_0_20px_rgba(35,134,54,0.3)] transition-all"
             >
               <div className="flex items-center gap-4">
                 <div className="p-3 rounded-xl bg-[var(--accent-success)]/10">
@@ -105,7 +105,7 @@ export default async function SupportHub() {
 
           <Link
             href="/support/ticket"
-            className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-warning)] hover:shadow-[0_0_20px_rgba(254,231,92,0.3)] transition-all"
+            className="group p-4 md:p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-warning)] hover:shadow-[0_0_20px_rgba(254,231,92,0.3)] transition-all"
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-[var(--accent-warning)]/10">
@@ -122,7 +122,7 @@ export default async function SupportHub() {
 
           <a
             href="#"
-            className="group p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[#5865F2] hover:shadow-[0_0_20px_rgba(88,101,242,0.3)] transition-all"
+            className="group p-4 md:p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[#5865F2] hover:shadow-[0_0_20px_rgba(88,101,242,0.3)] transition-all"
           >
             <div className="flex items-center gap-4">
               <div className="p-3 rounded-xl bg-[#5865F2]/10">
@@ -192,7 +192,7 @@ export default async function SupportHub() {
 
       {/* CTA Section */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
-        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] p-8 md:p-12">
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[var(--accent-primary)] to-[var(--accent-secondary)] p-6 md:p-12">
           {/* Background pattern */}
           <div className="absolute inset-0 bg-grid opacity-10" />
 

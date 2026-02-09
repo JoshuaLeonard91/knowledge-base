@@ -11,7 +11,7 @@ interface CategoryListProps {
 
 export function CategoryList({ categories, articleCounts }: CategoryListProps) {
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3">
       {categories.map((category) => {
         const Icon = getIconSSR(category.icon, BookOpenText);
         const colors = getCategoryColors(category.id, category.color);
@@ -26,7 +26,7 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
             {/* Gradient overlay */}
             <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
 
-            <div className="relative p-6">
+            <div className="relative p-4 md:p-6">
               <div className="flex items-start justify-between mb-4">
                 <div className={`p-3 rounded-xl ${colors.bg}`}>
                   <Icon size={24} weight="duotone" className={colors.text} />

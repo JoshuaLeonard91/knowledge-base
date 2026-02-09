@@ -17,12 +17,12 @@ export function LandingPageFooter({ siteName, isMainDomain = false }: LandingPag
   const urls = { pricing: '/pricing', support: '/support', contact: '/contact' };
 
   return (
-    <footer className="border-t border-[var(--border-primary)] py-8 px-6 bg-[var(--bg-secondary)]">
+    <footer className="border-t border-[var(--border-primary)] py-8 px-4 sm:px-6 bg-[var(--bg-secondary)]">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <p className="text-[var(--text-muted)] text-sm">
           &copy; {new Date().getFullYear()} {siteName}. All rights reserved.
         </p>
-        <div className="flex items-center gap-6 text-sm">
+        <div className="flex items-center gap-4 md:gap-6 text-sm">
           <Link
             href={urls.pricing}
             className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
