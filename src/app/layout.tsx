@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -17,6 +17,11 @@ import { ArcticSnow } from "@/components/debug/ArcticSnow";
 import { DuskFireflies } from "@/components/debug/DuskFireflies";
 import { TwilightStars } from "@/components/debug/TwilightStars";
 import { PastelBubbles } from "@/components/debug/PastelBubbles";
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+};
 
 export const metadata: Metadata = {
   title: "Support Portal - Help Center",
@@ -88,7 +93,7 @@ export default async function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
       </head>
-      <body className="min-h-screen flex flex-col bg-[var(--bg-primary)]">
+      <body className="min-h-screen flex flex-col bg-[var(--bg-primary)] overflow-x-clip">
         <ThemeProvider>
           <AuthProvider>
             <TenantProvider tenant={clientTenant}>
