@@ -177,9 +177,9 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
                 key={service.id}
                 className="group p-6 rounded-2xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)]/50 hover:shadow-[var(--shadow-glow)] transition-all flex flex-col"
               >
-                <div className="flex items-start gap-4 mb-4">
+                <div className="flex items-start gap-4 mb-4 min-h-[4.5rem]">
                   <div
-                    className="p-3 rounded-xl"
+                    className="p-3 rounded-xl shrink-0"
                     style={{ backgroundColor: `${service.color}20` }}
                   >
                     <Icon size={28} weight="duotone" style={{ color: service.color }} />
@@ -272,23 +272,15 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
                       key={highlight.id}
                       className="group p-5 rounded-xl bg-[var(--bg-primary)] border border-[var(--border-primary)] text-center hover:border-[var(--accent-primary)]/50 hover:shadow-lg transition-all w-40 sm:w-44 flex flex-col"
                     >
-                      {highlight.statValue ? (
-                        // Display as large stat
-                        <>
-                          <div className="text-3xl font-bold text-[var(--accent-primary)] mb-2 group-hover:scale-110 transition-transform">
-                            {highlight.statValue}
-                          </div>
-                          <h4 className="font-semibold text-[var(--text-primary)] mb-1 text-sm">{highlight.title}</h4>
-                        </>
-                      ) : (
-                        // Display with icon
-                        <>
-                          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-[var(--accent-primary)]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
-                            <Icon size={28} weight="duotone" className="text-[var(--accent-primary)]" />
-                          </div>
-                          <h4 className="font-semibold text-[var(--text-primary)] mb-1">{highlight.title}</h4>
-                        </>
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-[var(--accent-primary)]/10 flex items-center justify-center group-hover:scale-110 transition-transform">
+                        <Icon size={24} weight="duotone" className="text-[var(--accent-primary)]" />
+                      </div>
+                      {highlight.statValue && (
+                        <div className="text-2xl font-bold text-[var(--accent-primary)] mb-1">
+                          {highlight.statValue}
+                        </div>
                       )}
+                      <h4 className="font-semibold text-[var(--text-primary)] mb-1 text-sm">{highlight.title}</h4>
                       <p className="text-xs text-[var(--text-muted)] mt-auto">{highlight.description}</p>
                     </div>
                   );
