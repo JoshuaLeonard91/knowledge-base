@@ -27,7 +27,7 @@ import { decryptFromString } from '@/lib/security/crypto';
 export type { ContactChannel, ResponseTimeItem, ContactPageSettings, ContactPageData } from '@/types';
 
 // Re-export service types from Hygraph
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFeature, PricingPageContent } from '@/lib/hygraph';
+export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFaq, PricingPageContent } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
 
@@ -814,10 +814,11 @@ export async function getLandingPageContentOrNull(): Promise<LandingPageContent 
 // PRICING PAGE DATA
 // ==========================================
 
-import type { PricingPageContent, PricingFeature } from '@/lib/hygraph';
+import type { PricingPageContent } from '@/lib/hygraph';
 
 /**
- * Get pricing page content
+ * Get pricing page content (page-level configuration)
+ * Actual pricing tiers come from getServiceTiers()
  * Returns defaults if not configured in CMS
  */
 export async function getPricingPageContent(): Promise<PricingPageContent> {
@@ -830,9 +831,8 @@ export async function getPricingPageContent(): Promise<PricingPageContent> {
   // Tenants without Hygraph get empty data
   if (await isTenantContext()) {
     return {
-      pageTitle: '', pageSubtitle: '', planName: '', planDescription: '',
-      monthlyPrice: '0', setupFee: '0', features: [],
-      ctaText: '', ctaLink: '', footerNote: '',
+      pageTitle: '', pageSubtitle: '', faqTitle: '', faqs: [],
+      ctaTitle: '', ctaSubtitle: '', footerNote: '',
     };
   }
 
@@ -840,23 +840,14 @@ export async function getPricingPageContent(): Promise<PricingPageContent> {
   return {
     pageTitle: 'Simple, Transparent Pricing',
     pageSubtitle: 'One plan, everything included. No hidden fees, no surprises.',
-    planName: 'Pro',
-    planDescription: 'Everything you need to run a professional support portal',
-    monthlyPrice: '5',
-    setupFee: '10',
-    features: [
-      { text: 'Custom branded support portal', included: true },
-      { text: 'Discord authentication for your users', included: true },
-      { text: 'Knowledge base with articles', included: true },
-      { text: 'Service catalog', included: true },
-      { text: 'Jira Service Desk integration', included: true },
-      { text: 'Custom subdomain (yourname.helpportal.app)', included: true },
-      { text: 'Custom logo and colors', included: true },
-      { text: 'Unlimited articles', included: true },
-      { text: 'Priority support', included: true },
+    faqTitle: 'Frequently Asked Questions',
+    faqs: [
+      { question: 'How does billing work?', answer: "You'll be billed monthly. Cancel anytime and your portal remains active until the end of your billing period." },
+      { question: 'Can I change my subdomain later?', answer: 'Currently, subdomains cannot be changed after creation. Choose carefully!' },
+      { question: 'What happens if I cancel?', answer: 'Your portal remains active until the end of your billing period. After that, it becomes inaccessible but data is retained for 30 days.' },
     ],
-    ctaText: 'Get Started',
-    ctaLink: '/signup',
+    ctaTitle: 'Ready to get started?',
+    ctaSubtitle: 'Launch your support portal in minutes.',
     footerNote: 'Cancel anytime. No long-term contracts.',
   };
 }

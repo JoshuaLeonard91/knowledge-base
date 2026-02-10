@@ -2,16 +2,37 @@
  * Dynamic Category Color Utilities
  *
  * Provides color mappings for categories with:
- * - Predefined colors for common categories
- * - Dynamic fallback colors using a consistent color palette
- * - Support for custom colors from CMS
+ * 1. CMS hex color (from Hygraph Color picker) — highest priority, uses inline styles
+ * 2. Predefined colors for common category slugs — Tailwind classes
+ * 3. Dynamic fallback colors using hash-based palette — Tailwind classes
  */
 
+import type { CSSProperties } from 'react';
+
 export interface CategoryColorSet {
+  /** Tailwind bg class (used when no hex) */
   bg: string;
+  /** Tailwind text class (used when no hex) */
   text: string;
+  /** Tailwind border class (used when no hex) */
   border: string;
+  /** Tailwind gradient class (used when no hex) */
   gradient: string;
+  /** Raw hex from CMS — when present, components should use inline styles instead of classes */
+  hex?: string;
+}
+
+/**
+ * Build inline style objects from a hex color.
+ * Components use these when `colors.hex` is set.
+ */
+export function hexToStyles(hex: string) {
+  return {
+    bg: { backgroundColor: `${hex}1a` } as CSSProperties,           // ~10% opacity
+    text: { color: hex } as CSSProperties,
+    border: { borderColor: `${hex}33` } as CSSProperties,           // ~20% opacity
+    gradient: { background: `linear-gradient(to bottom right, ${hex}33, transparent)` } as CSSProperties,
+  };
 }
 
 // Predefined colors for common category slugs
@@ -146,18 +167,21 @@ function hashString(str: string): number {
 /**
  * Get color set for a category
  *
+ * Priority: CMS hex color > predefined slug map > hash-based fallback
+ *
  * @param categorySlug - The category slug (e.g., "getting-started")
- * @param customColor - Optional custom color override from CMS
- * @returns CategoryColorSet with bg, text, border, and gradient classes
+ * @param customColor - Optional hex color from CMS (e.g., "#3B82F6")
+ * @returns CategoryColorSet — if `hex` is set, use `hexToStyles(hex)` for inline styles
  */
 export function getCategoryColors(categorySlug: string, customColor?: string): CategoryColorSet {
-  // If custom color provided from sheet, create color set from it
-  if (customColor) {
+  // If CMS hex color provided, return it with empty class fallbacks
+  if (customColor?.startsWith('#')) {
     return {
-      bg: `bg-${customColor}-500/10`,
-      text: `text-${customColor}-400`,
-      border: `border-${customColor}-500/20`,
-      gradient: `from-${customColor}-500/20 to-transparent`
+      bg: '',
+      text: '',
+      border: '',
+      gradient: '',
+      hex: customColor,
     };
   }
 
@@ -173,11 +197,22 @@ export function getCategoryColors(categorySlug: string, customColor?: string): C
 
 /**
  * Get simplified color classes for badges/pills
- * Returns combined bg, text, and border classes
+ * Returns combined bg, text, and border classes (or empty for hex-based)
  */
 export function getCategoryBadgeClasses(categorySlug: string, customColor?: string): string {
   const colors = getCategoryColors(categorySlug, customColor);
+  if (colors.hex) return '';
   return `${colors.bg} ${colors.text} ${colors.border}`;
+}
+
+/**
+ * Get inline badge styles for hex-based colors
+ */
+export function getCategoryBadgeStyles(categorySlug: string, customColor?: string): CSSProperties | undefined {
+  const colors = getCategoryColors(categorySlug, customColor);
+  if (!colors.hex) return undefined;
+  const styles = hexToStyles(colors.hex);
+  return { ...styles.bg, ...styles.text, ...styles.border, borderWidth: '1px', borderStyle: 'solid' };
 }
 
 // Default color set for edge cases

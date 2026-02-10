@@ -21,7 +21,7 @@ export {
 } from './client';
 
 // Types - new consolidated schema
-export type { SiteSettings, NavigationLink, NavigationLocation, LandingFeature, LandingFeatureWithStyle, PricingFeature } from './client';
+export type { SiteSettings, NavigationLink, NavigationLocation, LandingFeature, LandingFeatureWithStyle, PricingFaq } from './client';
 
 // Types - legacy aliases (for backwards compatibility)
 export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactPageSettings, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingPageContent, PricingPageContent } from './client';

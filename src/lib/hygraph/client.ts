@@ -122,28 +122,21 @@ export interface LandingFeatureWithStyle extends LandingFeature {
   order?: number; // Can be inferred from array position
 }
 
-// Pricing feature item (component)
-export interface PricingFeature {
-  id?: string;
-  text: string;
-  included?: boolean;
+// FAQ item for pricing page
+export interface PricingFaq {
+  question: string;
+  answer: string;
 }
 
-// Pricing page content (CMS-configurable) - for main domain /pricing
+// Pricing page content (CMS-configurable) - page-level configuration
+// Actual pricing tiers come from the ServiceTier model
 export interface PricingPageContent {
-  // Page header
   pageTitle: string;
   pageSubtitle: string;
-  // Plan details
-  planName: string;
-  planDescription: string;
-  monthlyPrice: string; // e.g., "5"
-  setupFee: string; // e.g., "10"
-  features: PricingFeature[];
-  // CTA
-  ctaText: string;
-  ctaLink: string;
-  // FAQ or additional info
+  faqTitle: string;
+  faqs: PricingFaq[];
+  ctaTitle: string;
+  ctaSubtitle: string;
   footerNote?: string;
 }
 
@@ -344,6 +337,7 @@ interface HygraphCategory {
   name: string;
   description?: string;
   icon?: string;
+  color?: { hex: string };
 }
 
 interface GraphQLResponse<T> {
@@ -533,6 +527,7 @@ export class HygraphClient {
           name
           description
           icon
+          color { hex }
         }
       }
     `);
@@ -547,6 +542,7 @@ export class HygraphClient {
       name: cat.name,
       description: cat.description || '',
       icon: cat.icon || this.getCategoryIcon(cat.slug),
+      color: cat.color?.hex,
     }));
   }
 
@@ -1910,16 +1906,10 @@ export class HygraphClient {
       pricingPageContents: Array<{
         pageTitle?: string;
         pageSubtitle?: string;
-        planName?: string;
-        planDescription?: string;
-        monthlyPrice?: string;
-        setupFee?: string;
-        features?: Array<{
-          text: string;
-          included?: boolean;
-        }>;
-        ctaText?: string;
-        ctaLink?: string;
+        faqTitle?: string;
+        faqs?: PricingFaq[];
+        ctaTitle?: string;
+        ctaSubtitle?: string;
         footerNote?: string;
       }>;
     }>(`
@@ -1927,16 +1917,10 @@ export class HygraphClient {
         pricingPageContents(first: 1) {
           pageTitle
           pageSubtitle
-          planName
-          planDescription
-          monthlyPrice
-          setupFee
-          features {
-            text
-            included
-          }
-          ctaText
-          ctaLink
+          faqTitle
+          faqs
+          ctaTitle
+          ctaSubtitle
           footerNote
         }
       }
@@ -1944,33 +1928,23 @@ export class HygraphClient {
 
     const content = data?.pricingPageContents?.[0];
 
-    // Transform features (component no longer has id, order - now has included)
-    const features: PricingFeature[] = content?.features?.map((f) => ({
-      text: f.text,
-      included: f.included ?? true,
-    })) || [];
+    // Parse faqs from JSON field
+    let faqs: PricingFaq[] = [];
+    if (content?.faqs && Array.isArray(content.faqs)) {
+      faqs = content.faqs.filter((f) => f.question && f.answer);
+    }
 
-    // Return with defaults
     return {
       pageTitle: content?.pageTitle || 'Simple, Transparent Pricing',
       pageSubtitle: content?.pageSubtitle || 'One plan, everything included. No hidden fees, no surprises.',
-      planName: content?.planName || 'Pro',
-      planDescription: content?.planDescription || 'Everything you need to run a professional support portal',
-      monthlyPrice: content?.monthlyPrice || '5',
-      setupFee: content?.setupFee || '10',
-      features: features.length > 0 ? features : [
-        { text: 'Custom branded support portal', included: true },
-        { text: 'Discord authentication for your users', included: true },
-        { text: 'Knowledge base with articles', included: true },
-        { text: 'Service catalog', included: true },
-        { text: 'Jira Service Desk integration', included: true },
-        { text: 'Custom subdomain (yourname.helpportal.app)', included: true },
-        { text: 'Custom logo and colors', included: true },
-        { text: 'Unlimited articles', included: true },
-        { text: 'Priority support', included: true },
+      faqTitle: content?.faqTitle || 'Frequently Asked Questions',
+      faqs: faqs.length > 0 ? faqs : [
+        { question: 'How does billing work?', answer: "You'll be billed monthly. Cancel anytime and your portal remains active until the end of your billing period." },
+        { question: 'Can I change my subdomain later?', answer: 'Currently, subdomains cannot be changed after creation. Choose carefully!' },
+        { question: 'What happens if I cancel?', answer: 'Your portal remains active until the end of your billing period. After that, it becomes inaccessible but data is retained for 30 days.' },
       ],
-      ctaText: content?.ctaText || 'Get Started',
-      ctaLink: content?.ctaLink || '/signup',
+      ctaTitle: content?.ctaTitle || 'Ready to get started?',
+      ctaSubtitle: content?.ctaSubtitle || 'Launch your support portal in minutes.',
       footerNote: content?.footerNote || 'Cancel anytime. No long-term contracts.',
     };
   }

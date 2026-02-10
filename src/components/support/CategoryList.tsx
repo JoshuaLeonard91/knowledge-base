@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { ArticleCategory } from '@/types';
 import { CaretRight, BookOpenText } from '@phosphor-icons/react/dist/ssr';
 import { getIconSSR } from '@/lib/icons-ssr';
-import { getCategoryColors } from '@/lib/category-colors';
+import { getCategoryColors, hexToStyles } from '@/lib/category-colors';
 
 interface CategoryListProps {
   categories: ArticleCategory[];
@@ -16,6 +16,7 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
         const Icon = getIconSSR(category.icon, BookOpenText);
         const colors = getCategoryColors(category.id, category.color);
         const count = articleCounts[category.id] || 0;
+        const styles = colors.hex ? hexToStyles(colors.hex) : null;
 
         return (
           <Link
@@ -24,13 +25,23 @@ export function CategoryList({ categories, articleCounts }: CategoryListProps) {
             className="group relative overflow-hidden rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-primary)] transition-all"
           >
             {/* Gradient overlay */}
-            <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            {styles ? (
+              <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity" style={styles.gradient} />
+            ) : (
+              <div className={`absolute inset-0 bg-gradient-to-br ${colors.gradient} opacity-0 group-hover:opacity-100 transition-opacity`} />
+            )}
 
             <div className="relative p-4 md:p-6">
               <div className="flex items-start justify-between mb-4">
-                <div className={`p-3 rounded-xl ${colors.bg}`}>
-                  <Icon size={24} weight="duotone" className={colors.text} />
-                </div>
+                {styles ? (
+                  <div className="p-3 rounded-xl" style={styles.bg}>
+                    <Icon size={24} weight="duotone" style={styles.text} />
+                  </div>
+                ) : (
+                  <div className={`p-3 rounded-xl ${colors.bg}`}>
+                    <Icon size={24} weight="duotone" className={colors.text} />
+                  </div>
+                )}
                 <span className="text-sm text-[var(--text-muted)]">
                   {count} article{count !== 1 ? 's' : ''}
                 </span>
