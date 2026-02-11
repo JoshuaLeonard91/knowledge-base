@@ -241,11 +241,9 @@ a { text-decoration: none; transition: color 0.2s ease; }
 @keyframes pageEnter {
   from {
     opacity: 0;
-    transform: translateY(8px);
   }
   to {
     opacity: 1;
-    transform: none;
   }
 }
 
