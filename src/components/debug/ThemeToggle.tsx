@@ -1,18 +1,18 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { THEME_OPTIONS } from '@/lib/themes';
 
-const THEMES = [
-  { id: 'dark', label: 'Midnight', icon: '🌙' },
-  { id: 'light', label: 'Light', icon: '☀️' },
-  { id: 'spooky', label: 'Spooky', icon: '🎃' },
-  { id: 'arctic', label: 'Arctic', icon: '❄️' },
-  { id: 'dusk', label: 'Dusk', icon: '🌸' },
-  { id: 'ember', label: 'Ember', icon: '🔥' },
-  { id: 'twilight', label: 'Twilight', icon: '🌆' },
-  { id: 'pastel', label: 'Pastel', icon: '🍬' },
-  { id: 'oceanic', label: 'Oceanic', icon: '🌊' },
-] as const;
+const THEME_ICONS: Record<string, string> = {
+  dark: '🌙', light: '☀️', spooky: '🎃', arctic: '❄️', dusk: '🌸',
+  ember: '🔥', twilight: '🌆', pastel: '🍬', oceanic: '🌊',
+};
+
+const THEMES = THEME_OPTIONS.map((t) => ({
+  id: t.id,
+  label: t.name,
+  icon: THEME_ICONS[t.id] || '🎨',
+}));
 
 export function ThemeToggle() {
   const [active, setActive] = useState('dark');

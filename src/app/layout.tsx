@@ -11,6 +11,7 @@ import { TenantProvider } from "@/lib/tenant/context";
 import { getTenantFromRequest } from "@/lib/tenant/resolver";
 import { getFooterData, getHeaderData } from "@/lib/cms";
 import { ThemeToggle } from "@/components/debug/ThemeToggle";
+import { VALID_THEMES } from "@/lib/themes";
 import { SpookyGhosts } from "@/components/debug/SpookyGhosts";
 import { EmberSparks } from "@/components/debug/EmberSparks";
 import { ArcticSnow } from "@/components/debug/ArcticSnow";
@@ -56,9 +57,8 @@ export default async function RootLayout({
   // Determine the theme to apply (data-theme attribute)
   // Priority: tenant theme > default based on context
   // Only allow valid theme values to prevent injection
-  const VALID_THEMES = ['dark', 'light', 'spooky', 'arctic', 'dusk', 'ember', 'twilight', 'pastel', 'oceanic'] as const;
   let dataTheme: string = 'dark'; // Default for main domain
-  if (tenant?.branding?.theme && VALID_THEMES.includes(tenant.branding.theme as typeof VALID_THEMES[number])) {
+  if (tenant?.branding?.theme && VALID_THEMES.includes(tenant.branding.theme)) {
     dataTheme = tenant.branding.theme;
   }
 
