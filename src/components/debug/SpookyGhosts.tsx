@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Floating ghosts that wander the screen on the spooky theme.
@@ -24,15 +24,16 @@ interface GhostConfig {
 }
 
 export function SpookyGhosts() {
-  const ghosts = useMemo<GhostConfig[]>(() =>
-    Array.from({ length: GHOST_COUNT }, () => ({
+  const [ghosts, setGhosts] = useState<GhostConfig[]>([]);
+  useEffect(() => {
+    setGhosts(Array.from({ length: GHOST_COUNT }, () => ({
       path: PATHS[Math.floor(Math.random() * PATHS.length)],
       size: randomBetween(1.5, 3.5),
       duration: randomBetween(16, 32),
       delay: randomBetween(0, 14),
       opacity: randomBetween(0.1, 0.3),
-    })),
-  []);
+    })));
+  }, []);
 
   return (
     <div className="spooky-ghosts-container">

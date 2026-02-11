@@ -14,10 +14,6 @@ import type { RichTextContent } from '@graphcms/rich-text-types';
 import { CaretLeft, Clock, BookOpenText, Tag } from '@phosphor-icons/react/dist/ssr';
 import { getIconSSR } from '@/lib/icons-ssr';
 
-// Force dynamic rendering - fetches fresh data on every request
-// Required for multi-tenant setup where content changes without rebuilds
-export const dynamic = 'force-dynamic';
-
 interface ArticlePageProps {
   params: Promise<{ slug: string }>;
 }
@@ -349,7 +345,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
           {/* Article Content */}
           <article className="prose max-w-none">
             {isRichText ? (
-              <RichTextRenderer content={article.content as RichTextContent} headings={headings} />
+              <RichTextRenderer content={article.content as RichTextContent} />
             ) : (
               renderContent(article.content as string)
             )}

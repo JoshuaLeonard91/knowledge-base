@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Floating ember sparks that drift upward on the ember theme.
@@ -25,16 +25,17 @@ interface SparkConfig {
 }
 
 export function EmberSparks() {
-  const sparks = useMemo<SparkConfig[]>(() =>
-    Array.from({ length: SPARK_COUNT }, () => ({
+  const [sparks, setSparks] = useState<SparkConfig[]>([]);
+  useEffect(() => {
+    setSparks(Array.from({ length: SPARK_COUNT }, () => ({
       path: PATHS[Math.floor(Math.random() * PATHS.length)],
       size: randomBetween(2, 5),
       duration: randomBetween(8, 18),
       delay: randomBetween(0, 12),
       left: randomBetween(5, 95),
       glow: randomBetween(4, 10),
-    })),
-  []);
+    })));
+  }, []);
 
   return (
     <div className="ember-sparks-container">

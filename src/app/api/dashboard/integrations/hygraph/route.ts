@@ -12,9 +12,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { randomBytes } from 'crypto';
 import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
-import { encryptToString } from '@/lib/security/crypto';
+import { encryptToString, decryptFromString } from '@/lib/security/crypto';
 import { getTenantFromRequest, clearTenantCache } from '@/lib/tenant/resolver';
 
 /**
@@ -54,12 +55,20 @@ export async function GET() {
       : user.tenants[0];
     const config = tenant.hygraphConfig;
 
-    // Return status only - NEVER return credentials
+    // Build webhook URL for this tenant
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://helpportal.app';
+    const webhookUrl = config ? `${appUrl}/api/webhooks/hygraph/${tenant.id}` : null;
+
+    // Return status only - NEVER return actual credentials
     return NextResponse.json(
       {
         configured: !!config,
         hasTenant: true,
         connectedAt: config?.createdAt || null,
+        webhookUrl,
+        hasWebhookSecret: !!config?.webhookSecret,
+        // Decrypt webhook secret for display (tenant needs to copy it into Hygraph)
+        webhookSecret: config?.webhookSecret ? decryptFromString(config.webhookSecret) : null,
       },
       { headers: securityHeaders }
     );
@@ -93,9 +102,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!token || typeof token !== 'string') {
+    // Token is optional — public/unauthenticated Content API doesn't need one
+    if (token && typeof token !== 'string') {
       return NextResponse.json(
-        { error: 'Token is required' },
+        { error: 'Invalid token format' },
         { status: 400, headers: securityHeaders }
       );
     }
@@ -110,7 +120,16 @@ export async function POST(request: NextRequest) {
 
     // Encrypt credentials before storage
     const encryptedEndpoint = encryptToString(endpoint);
-    const encryptedToken = encryptToString(token);
+    const encryptedToken = token ? encryptToString(token) : '';
+
+    // Auto-generate webhook secret for new configs (don't overwrite existing)
+    const existing = await prisma.tenantHygraphConfig.findUnique({
+      where: { tenantId: tenant.id },
+      select: { webhookSecret: true },
+    });
+    const webhookSecret = existing?.webhookSecret
+      ? existing.webhookSecret // Keep existing secret
+      : encryptToString(randomBytes(32).toString('hex')); // Generate new secret
 
     // Upsert configuration
     await prisma.tenantHygraphConfig.upsert({
@@ -119,10 +138,12 @@ export async function POST(request: NextRequest) {
         tenantId: tenant.id,
         endpoint: encryptedEndpoint,
         token: encryptedToken,
+        webhookSecret,
       },
       update: {
         endpoint: encryptedEndpoint,
         token: encryptedToken,
+        webhookSecret,
       },
     });
 

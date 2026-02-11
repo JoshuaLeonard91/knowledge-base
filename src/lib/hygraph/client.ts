@@ -349,6 +349,7 @@ interface GraphQLResponse<T> {
 interface HygraphClientOptions {
   endpoint?: string;
   token?: string;
+  cacheTag?: string; // Cache isolation tag: 'main' for main domain, 'tenant:{slug}' for tenants
 }
 
 export class HygraphClient {
@@ -358,14 +359,49 @@ export class HygraphClient {
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private _schemaSupportsUnlisted: boolean | null = null;
   private _schemaSupportsColor: boolean | null = null;
-  // Cache durations for different content types (in ms)
-  // Balances freshness with API efficiency (500k/mo free tier limit)
+  private cacheTag: string; // 'main' or 'tenant:{slug}' for cache isolation
+
+  // In-memory cache durations (L1 cache, fast dedup within process)
   static readonly CACHE_TTL = {
     SHORT: 60000,    // 1 min - articles, dynamic content
     MEDIUM: 180000,  // 3 min - services, pricing
     LONG: 300000,    // 5 min - navigation, footer, settings (rarely change)
   };
   private defaultCacheDuration = HygraphClient.CACHE_TTL.SHORT;
+
+  // Query name → cache tag mapping for automatic tag derivation
+  // Used by Next.js Data Cache for selective invalidation via revalidateTag()
+  private static readonly QUERY_TAG_MAP: Record<string, string> = {
+    GetArticles: 'articles',
+    GetArticleBySlug: 'articles',
+    SearchArticles: 'articles',
+    GetArticlesByCategory: 'articles',
+    GetCategories: 'categories',
+    GetHeaderData: 'settings',
+    GetHeaderDataFull: 'settings',
+    GetFooterData: 'settings',
+    GetSiteLogo: 'settings',
+    GetServiceTiers: 'services',
+    GetServices: 'services',
+    GetServiceBySlug: 'services',
+    GetSLAHighlights: 'services',
+    GetServicesPageData: 'services',
+    GetServicesPageContent: 'services',
+    HasServices: 'services',
+    HasServiceTiers: 'services',
+    GetHelpfulResources: 'services',
+    GetContactPageData: 'contact',
+    GetContactChannels: 'contact',
+    GetResponseTimeItems: 'contact',
+    GetContactPageSettings: 'contact',
+    HasContactPageSettings: 'contact',
+    GetTicketCategories: 'tickets',
+    GetLandingPageContent: 'landing',
+    HasLandingPageContent: 'landing',
+    GetPricingPageContent: 'services',
+    GetSignupConfig: 'settings',
+    GetOnboardingConfig: 'settings',
+  };
 
   /**
    * Clear the internal query cache
@@ -381,7 +417,9 @@ export class HygraphClient {
   constructor(options?: HygraphClientOptions) {
     this.endpoint = options?.endpoint || process.env.HYGRAPH_ENDPOINT || null;
     this.token = options?.token || process.env.HYGRAPH_TOKEN || null;
-    this.isConfigured = !!(this.endpoint && this.token);
+    // Only endpoint is required — token is optional for public Content API
+    this.isConfigured = !!this.endpoint;
+    this.cacheTag = options?.cacheTag || 'main';
 
     // Only log for default client (not per-tenant)
     if (!options && this.isConfigured) {
@@ -425,7 +463,14 @@ export class HygraphClient {
     }
 
     try {
-      console.log(`[Hygraph] ${queryName}: Fetching from API...`);
+      // Derive cache tags from query name for selective invalidation
+      const contentTag = HygraphClient.QUERY_TAG_MAP[queryName];
+      const fetchTags = [this.cacheTag, ...(contentTag ? [contentTag] : [])];
+      // Longer revalidation for settings (24hr), standard for content (1hr)
+      // These are safety nets — webhook invalidation (Phase 3) provides real-time freshness
+      const revalidateSeconds = cacheDuration >= HygraphClient.CACHE_TTL.LONG ? 86400 : 3600;
+
+      console.log(`[Hygraph] ${queryName}: Fetching (revalidate: ${revalidateSeconds}s, tags: [${fetchTags.join(', ')}])...`);
       const response = await fetch(this.endpoint, {
         method: 'POST',
         headers: {
@@ -436,9 +481,12 @@ export class HygraphClient {
           query: queryString,
           variables,
         }),
-        // Disable Next.js Data Cache - it's too sticky and caused 1hr+ stale data
-        // Our in-memory cache (60s) handles caching with predictable behavior
-        cache: 'no-store',
+        // Next.js Data Cache: persistent cache with tag-based invalidation
+        // L1: in-memory cache (60s-5min) → L2: Next.js Data Cache (1hr-24hr) → L3: Hygraph API
+        next: {
+          revalidate: revalidateSeconds,
+          tags: fetchTags,
+        },
       });
 
       console.log(`[Hygraph] ${queryName}: Response status: ${response.status}`);
@@ -1763,6 +1811,89 @@ export class HygraphClient {
     return { settings, navLinks };
   }
 
+  /**
+   * Get header data + page availability flags in a single query.
+   * Combines getHeaderData() + hasContactPageSettings() + hasLandingPageContent()
+   * + hasServiceTiers() into 1 API call instead of 5.
+   * Returns null if the combined query fails (e.g. schema missing some models),
+   * so callers can fall back to separate queries.
+   */
+  async getHeaderDataFull(): Promise<{
+    settings: HeaderSettings;
+    navLinks: NavLink[];
+    hasContactPage: boolean;
+    hasLandingPage: boolean;
+    hasPricingPage: boolean;
+  } | null> {
+    const data = await this.query<{
+      siteSettingsEntries: HygraphSiteSettings[];
+      navigationLinks: HygraphNavigationLink[];
+      contactCheck: { id: string }[];
+      landingCheck: { id: string }[];
+      pricingCheck: { id: string }[];
+    }>(`
+      query GetHeaderDataFull {
+        siteSettingsEntries(first: 1) {
+          siteName
+          subtitle
+          copyrightText
+          logoIcon { url }
+        }
+        navigationLinks(
+          where: { location: header }
+          first: 10
+          orderBy: order_ASC
+        ) {
+          id
+          title
+          url
+          icon
+          order
+        }
+        contactCheck: contactPageSettingsEntries(first: 1) { id }
+        landingCheck: landingPageContents(first: 1) { id }
+        pricingCheck: serviceTiers(first: 1) { id }
+      }
+    `, undefined, HygraphClient.CACHE_TTL.LONG);
+
+    if (!data) return null;
+
+    const s = data.siteSettingsEntries?.[0];
+    const settings: HeaderSettings = {
+      siteName: s?.siteName || 'Support Portal',
+      subtitle: s?.subtitle || 'Help Center',
+      logoIcon: s?.logoIcon?.url,
+      copyrightText: s?.copyrightText || s?.siteName || 'Support Portal',
+    };
+
+    let navLinks: NavLink[];
+    if (data.navigationLinks?.length > 0) {
+      navLinks = data.navigationLinks.map((link) => ({
+        id: link.id,
+        title: link.title,
+        url: link.url,
+        icon: link.icon || 'House',
+        order: link.order ?? 0,
+      }));
+    } else {
+      navLinks = [
+        { id: 'default-1', title: 'Support Hub', url: '/support', icon: 'House', order: 1 },
+        { id: 'default-2', title: 'Articles', url: '/support/articles', icon: 'BookOpenText', order: 2 },
+        { id: 'default-3', title: 'Services', url: '/support/services', icon: 'Briefcase', order: 3 },
+        { id: 'default-4', title: 'Submit Ticket', url: '/support/ticket', icon: 'PaperPlaneTilt', order: 4 },
+        { id: 'default-5', title: 'Contact', url: '/support/contact', icon: 'Envelope', order: 5 },
+      ];
+    }
+
+    return {
+      settings,
+      navLinks,
+      hasContactPage: (data.contactCheck?.length ?? 0) > 0,
+      hasLandingPage: (data.landingCheck?.length ?? 0) > 0,
+      hasPricingPage: (data.pricingCheck?.length ?? 0) > 0,
+    };
+  }
+
   // ==========================================
   // TICKET FORM DATA
   // ==========================================
@@ -2052,8 +2183,8 @@ export const hygraph = new HygraphClient();
  * Create a Hygraph client with specific credentials
  * Used for multi-tenant setups where each tenant has their own Hygraph project
  */
-export function createHygraphClient(endpoint: string, token: string): HygraphClient {
-  return new HygraphClient({ endpoint, token });
+export function createHygraphClient(endpoint: string, token: string, cacheTag?: string): HygraphClient {
+  return new HygraphClient({ endpoint, token, cacheTag });
 }
 
 // Cache for tenant-specific clients (avoids recreating on every request)
@@ -2075,7 +2206,7 @@ export function getOrCreateTenantClient(
     return cached.client;
   }
 
-  const client = createHygraphClient(endpoint, token);
+  const client = createHygraphClient(endpoint, token, `tenant:${tenantSlug}`);
   tenantClientCache.set(tenantSlug, { client, timestamp: Date.now() });
 
   return client;

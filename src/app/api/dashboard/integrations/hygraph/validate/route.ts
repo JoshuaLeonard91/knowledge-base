@@ -65,9 +65,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (!token || typeof token !== 'string') {
+    // Token is optional — public/unauthenticated Content API doesn't need one
+    if (token && typeof token !== 'string') {
       return NextResponse.json(
-        { valid: false, error: 'Token is required' },
+        { valid: false, error: 'Invalid token format' },
         { status: 400, headers: securityHeaders }
       );
     }
@@ -105,7 +106,7 @@ export async function POST(request: NextRequest) {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`,
+          ...(token && { 'Authorization': `Bearer ${token}` }),
         },
         body: JSON.stringify({ query: TEST_QUERY }),
         signal: controller.signal,

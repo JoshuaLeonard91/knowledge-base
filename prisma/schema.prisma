@@ -133,8 +133,9 @@ model TenantHygraphConfig {
   tenantId  String   @id
   tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  endpoint  String   // Hygraph API endpoint
-  token     String   // Encrypted API token
+  endpoint      String   // Hygraph API endpoint
+  token         String   // Encrypted API token
+  webhookSecret String?  // Secret for webhook signature verification (auto-generated)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

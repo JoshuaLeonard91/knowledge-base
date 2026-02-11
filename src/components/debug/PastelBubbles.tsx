@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Soft translucent bubbles that float upward on the pastel theme.
@@ -26,8 +26,9 @@ interface BubbleConfig {
 }
 
 export function PastelBubbles() {
-  const bubbles = useMemo<BubbleConfig[]>(() =>
-    Array.from({ length: BUBBLE_COUNT }, () => ({
+  const [bubbles, setBubbles] = useState<BubbleConfig[]>([]);
+  useEffect(() => {
+    setBubbles(Array.from({ length: BUBBLE_COUNT }, () => ({
       path: PATHS[Math.floor(Math.random() * PATHS.length)],
       size: randomBetween(8, 22),
       duration: randomBetween(12, 26),
@@ -35,8 +36,8 @@ export function PastelBubbles() {
       left: randomBetween(3, 97),
       opacity: randomBetween(0.08, 0.2),
       useSecondary: Math.random() > 0.5,
-    })),
-  []);
+    })));
+  }, []);
 
   return (
     <div className="pastel-bubbles-container">

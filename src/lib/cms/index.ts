@@ -54,10 +54,10 @@ const getHygraphClient = cache(async (): Promise<HygraphClient | null> => {
   try {
     const tenant = await getTenantFromRequest();
 
-    // If tenant has Hygraph config, use their client
-    if (tenant?.hygraph?.endpoint && tenant?.hygraph?.token) {
+    // If tenant has Hygraph config, use their client (token optional for public API)
+    if (tenant?.hygraph?.endpoint) {
       console.log(`[CMS] Using tenant Hygraph config for: ${tenant.slug}`);
-      return createHygraphClient(tenant.hygraph.endpoint, tenant.hygraph.token);
+      return createHygraphClient(tenant.hygraph.endpoint, tenant.hygraph.token || '', `tenant:${tenant.slug}`);
     }
 
     // Tenant exists but no Hygraph config - return null (don't use main domain credentials)
@@ -101,8 +101,9 @@ export function getCMSProvider(): CMSProvider {
 
 /**
  * Get all articles from the configured CMS
+ * Wrapped in React cache() to deduplicate within a single server render
  */
-export async function getArticles(): Promise<Article[]> {
+export const getArticles = cache(async (): Promise<Article[]> => {
   const client = await getHygraphClient();
   console.log('[CMS] getArticles - client available:', !!client);
 
@@ -117,12 +118,13 @@ export async function getArticles(): Promise<Article[]> {
 
   console.log('[CMS] getArticles - using local fallback');
   return localData.articles;
-}
+});
 
 /**
  * Get all categories from the configured CMS
+ * Wrapped in React cache() to deduplicate within a single server render
  */
-export async function getCategories(): Promise<ArticleCategory[]> {
+export const getCategories = cache(async (): Promise<ArticleCategory[]> => {
   const client = await getHygraphClient();
 
   if (client) {
@@ -132,7 +134,7 @@ export async function getCategories(): Promise<ArticleCategory[]> {
   if (await isTenantContext()) return [];
 
   return localData.categories;
-}
+});
 
 /**
  * Get an article by slug from the configured CMS
@@ -634,6 +636,11 @@ export const getHeaderData = cache(async (): Promise<{
   const client = await getHygraphClient();
 
   if (client) {
+    // Try combined query first (1 API call instead of 5)
+    const fullData = await client.getHeaderDataFull();
+    if (fullData) return fullData;
+
+    // Fallback: separate queries (handles schemas missing some models)
     const [headerData, hasContact, hasLanding, hasPricing] = await Promise.all([
       client.getHeaderData(),
       client.hasContactPageSettings(),
@@ -727,7 +734,7 @@ export async function getTicketCategoriesForTenant(tenantId: string): Promise<Ti
     if (config) {
       const endpoint = decryptFromString(config.endpoint);
       const token = decryptFromString(config.token);
-      const client = createHygraphClient(endpoint, token);
+      const client = createHygraphClient(endpoint, token, `tenant:${tenantId}`);
       return client.getTicketCategories();
     }
   } catch (error) {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Pulsing fireflies that drift gently on the dusk theme.
@@ -28,8 +28,9 @@ interface FireflyConfig {
 }
 
 export function DuskFireflies() {
-  const fireflies = useMemo<FireflyConfig[]>(() =>
-    Array.from({ length: FIREFLY_COUNT }, () => ({
+  const [fireflies, setFireflies] = useState<FireflyConfig[]>([]);
+  useEffect(() => {
+    setFireflies(Array.from({ length: FIREFLY_COUNT }, () => ({
       path: PATHS[Math.floor(Math.random() * PATHS.length)],
       size: randomBetween(3, 6),
       driftDuration: randomBetween(14, 28),
@@ -39,8 +40,8 @@ export function DuskFireflies() {
       left: randomBetween(5, 95),
       glow: randomBetween(6, 14),
       useSecondary: Math.random() > 0.5,
-    })),
-  []);
+    })));
+  }, []);
 
   return (
     <div className="dusk-fireflies-container">

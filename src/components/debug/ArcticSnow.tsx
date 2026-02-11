@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Gentle snowfall that drifts down on the arctic theme.
@@ -25,16 +25,17 @@ interface FlakeConfig {
 }
 
 export function ArcticSnow() {
-  const flakes = useMemo<FlakeConfig[]>(() =>
-    Array.from({ length: FLAKE_COUNT }, () => ({
+  const [flakes, setFlakes] = useState<FlakeConfig[]>([]);
+  useEffect(() => {
+    setFlakes(Array.from({ length: FLAKE_COUNT }, () => ({
       path: PATHS[Math.floor(Math.random() * PATHS.length)],
       size: randomBetween(2, 5),
       duration: randomBetween(10, 22),
       delay: randomBetween(0, 15),
       left: randomBetween(2, 98),
       opacity: randomBetween(0.15, 0.45),
-    })),
-  []);
+    })));
+  }, []);
 
   return (
     <div className="arctic-snow-container">

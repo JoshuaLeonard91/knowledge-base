@@ -1,11 +1,11 @@
 'use client';
 
-import { useRef, useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
 import { RichText } from '@graphcms/rich-text-react-renderer';
 import type { RichTextContent } from '@graphcms/rich-text-types';
 import Link from 'next/link';
 import { HeaderLink } from '@/app/support/articles/[slug]/HeaderLink';
-import type { TocHeading } from '@/lib/utils/headings';
+import { generateHeaderId } from '@/lib/utils/headings';
 
 /**
  * Pre-process Hygraph AST to fix blockquote nesting.
@@ -61,10 +61,9 @@ function fixBlockquoteNesting(content: any[]): any[] {
 interface RichTextRendererProps {
   content: RichTextContent;
   className?: string;
-  headings?: TocHeading[];
 }
 
-export function RichTextRenderer({ content, className = '', headings = [] }: RichTextRendererProps) {
+export function RichTextRenderer({ content, className = '' }: RichTextRendererProps) {
   // Fix Hygraph AST: merge orphaned lists into preceding blockquotes
   const fixedContent = useMemo(() => {
     if (Array.isArray(content)) {
@@ -77,37 +76,34 @@ export function RichTextRenderer({ content, className = '', headings = [] }: Ric
     return content;
   }, [content]);
 
-  // Use a ref to track which heading index we're on during rendering
-  const headingIndexRef = useRef(0);
-  // Reset counter on each render
-  headingIndexRef.current = 0;
-
-  /** Get the next heading ID from the pre-extracted list */
-  const getNextHeadingId = (): string => {
-    const heading = headings[headingIndexRef.current];
-    headingIndexRef.current++;
-    return heading?.id || '';
-  };
+  /**
+   * Callback ref that sets the heading element's id from its rendered textContent.
+   * Fires synchronously during React's commit phase — before any useEffect —
+   * so heading IDs are in the DOM by the time TableOfContents observes them.
+   */
+  const setHeadingId = useCallback((el: HTMLHeadingElement | null) => {
+    if (el && !el.id) {
+      const text = el.textContent || '';
+      const id = text.trim() ? generateHeaderId(text) : '';
+      if (id) el.id = id;
+    }
+  }, []);
 
   /** Heading renderer with anchor ID and copy-link button */
   const renderHeading = (
     Tag: 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6',
     headingClassName: string,
     children: React.ReactNode,
-  ) => {
-    const id = getNextHeadingId();
-
-    if (!id) {
-      return <Tag className={headingClassName}>{children}</Tag>;
-    }
-
-    return (
-      <Tag id={id} className={`group flex items-center scroll-mt-28 ${headingClassName}`}>
-        <span>{children}</span>
-        <HeaderLink id={id} />
-      </Tag>
-    );
-  };
+  ) => (
+    <Tag
+      ref={setHeadingId}
+      suppressHydrationWarning
+      className={`group flex items-center scroll-mt-28 ${headingClassName}`}
+    >
+      <span>{children}</span>
+      <HeaderLink />
+    </Tag>
+  );
 
   return (
     <div className={`rich-text-content ${className}`}>

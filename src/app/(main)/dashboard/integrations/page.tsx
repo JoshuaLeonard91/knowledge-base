@@ -22,6 +22,9 @@ interface IntegrationStatus {
   configured: boolean;
   hasTenant: boolean;
   connectedAt?: string;
+  webhookUrl?: string;
+  hasWebhookSecret?: boolean;
+  webhookSecret?: string;
 }
 
 interface JiraStatus extends IntegrationStatus {
@@ -673,6 +676,66 @@ export default function IntegrationsPage() {
                 <p className="text-sm text-[var(--text-secondary)] mb-4">
                   Connected on {hygraphStatus.connectedAt ? new Date(hygraphStatus.connectedAt).toLocaleDateString() : 'Unknown'}
                 </p>
+
+                {/* Webhook Configuration */}
+                {hygraphStatus.webhookUrl && (
+                  <div className="mb-4 p-4 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
+                    <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">Cache Webhook</h4>
+                    <p className="text-xs text-[var(--text-muted)] mb-3">
+                      Add this webhook in your Hygraph project settings to automatically refresh cached content when you publish changes.
+                    </p>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">Webhook URL</label>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            readOnly
+                            value={hygraphStatus.webhookUrl}
+                            className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-xs font-mono text-[var(--text-secondary)] select-all"
+                          />
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(hygraphStatus.webhookUrl!);
+                              setSuccess('Webhook URL copied!');
+                              setTimeout(() => setSuccess(null), 2000);
+                            }}
+                            className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition"
+                          >
+                            Copy
+                          </button>
+                        </div>
+                      </div>
+                      {hygraphStatus.webhookSecret && (
+                        <div>
+                          <label className="block text-xs text-[var(--text-muted)] mb-1">Secret Key</label>
+                          <div className="flex gap-2">
+                            <input
+                              type="text"
+                              readOnly
+                              value={hygraphStatus.webhookSecret}
+                              className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-xs font-mono text-[var(--text-secondary)] select-all"
+                            />
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(hygraphStatus.webhookSecret!);
+                                setSuccess('Secret key copied!');
+                                setTimeout(() => setSuccess(null), 2000);
+                              }}
+                              className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition"
+                            >
+                              Copy
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      <p className="text-xs text-[var(--text-muted)]">
+                        In Hygraph: Settings → Webhooks → Create Webhook. Paste the URL and secret, select &quot;Publish&quot; and &quot;Unpublish&quot; triggers for all content models.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
                 <button
                   onClick={() => deleteIntegration('hygraph')}
                   disabled={isDeleting === 'hygraph'}
@@ -708,12 +771,12 @@ export default function IntegrationsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token</label>
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token <span className="text-[var(--text-muted)]">(optional for public endpoints)</span></label>
                   <input
                     type="password"
                     value={hygraphForm.token}
                     onChange={(e) => setHygraphForm({ ...hygraphForm, token: e.target.value })}
-                    placeholder="eyJhbGciOiJSUzI1NiIs..."
+                    placeholder="Leave empty for public Content API"
                     autoComplete="off"
                     autoCorrect="off"
                     autoCapitalize="off"
@@ -726,14 +789,14 @@ export default function IntegrationsPage() {
                 <div className="flex gap-3">
                   <button
                     onClick={validateHygraph}
-                    disabled={isValidating || !hygraphForm.endpoint || !hygraphForm.token}
+                    disabled={isValidating || !hygraphForm.endpoint}
                     className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-sm font-medium transition disabled:opacity-50"
                   >
                     {isValidating ? 'Testing...' : 'Test Connection'}
                   </button>
                   <button
                     onClick={saveHygraph}
-                    disabled={isSaving || !hygraphForm.endpoint || !hygraphForm.token}
+                    disabled={isSaving || !hygraphForm.endpoint}
                     className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
                   >
                     {isSaving ? 'Saving...' : 'Save'}

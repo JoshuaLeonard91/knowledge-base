@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useState, useEffect } from 'react';
 
 /**
  * Shooting stars that streak diagonally across the sky on the twilight theme.
@@ -26,8 +26,9 @@ interface StarConfig {
 }
 
 export function TwilightStars() {
-  const stars = useMemo<StarConfig[]>(() =>
-    Array.from({ length: STAR_COUNT }, () => ({
+  const [stars, setStars] = useState<StarConfig[]>([]);
+  useEffect(() => {
+    setStars(Array.from({ length: STAR_COUNT }, () => ({
       path: PATHS[Math.floor(Math.random() * PATHS.length)],
       top: randomBetween(5, 80),
       left: randomBetween(20, 80),
@@ -35,8 +36,8 @@ export function TwilightStars() {
       delay: randomBetween(0, 20),
       tailLength: randomBetween(80, 150),
       useSecondary: Math.random() > 0.7,
-    })),
-  []);
+    })));
+  }, []);
 
   return (
     <div className="twilight-stars-container">

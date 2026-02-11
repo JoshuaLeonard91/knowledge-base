@@ -2,10 +2,6 @@ import { notFound } from 'next/navigation';
 import { getServicesPageData } from '@/lib/cms';
 import { ServicesContent } from './ServicesContent';
 
-// Force dynamic rendering - fetches fresh data on every request
-// Required for multi-tenant setup where content changes without rebuilds
-export const dynamic = 'force-dynamic';
-
 export default async function ServicesPage() {
   console.log('[ServicesPage] Fetching data...');
 
