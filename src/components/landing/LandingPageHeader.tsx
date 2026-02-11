@@ -8,16 +8,17 @@
  */
 
 import Link from 'next/link';
+import { createPortal } from 'react-dom';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { SquaresFour, Compass, Ticket, ListChecks, SignOut, List, X } from '@phosphor-icons/react';
 
 interface LandingPageHeaderProps {
   siteName: string;
   isMainDomain?: boolean;
   hasContactPage?: boolean;
-  hasPricingPage?: boolean; // Show pricing link if products configured in CMS
-  hasTicketing?: boolean; // Show ticket button if Jira configured (tenant or main domain)
+  hasPricingPage?: boolean;
+  hasTicketing?: boolean;
 }
 
 interface UserStatus {
@@ -40,27 +41,17 @@ export function LandingPageHeader({
     isLoggedIn: false,
     hasDashboard: false,
   });
-  const [isLoading, setIsLoading] = useState(true); // Check auth for both main and tenant
+  const [isLoading, setIsLoading] = useState(true);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(false);
 
-  // URL paths - pricing and contact stay at root level for consistent landing experience
+  useEffect(() => { setMounted(true); }, []);
+
   const urls = { pricing: '/pricing', support: '/support', contact: '/contact' };
 
-  // Close menu when clicking outside
-  useEffect(() => {
-    function handleClickOutside(event: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
-        setShowUserMenu(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Handle logout (main domain only)
+  // Handle logout
   const handleLogout = async () => {
     setIsLoggingOut(true);
     try {
@@ -81,7 +72,7 @@ export function LandingPageHeader({
     }
   };
 
-  // Check auth status (both main domain and tenants)
+  // Check auth status
   useEffect(() => {
     async function checkAuth() {
       setIsLoading(true);
@@ -95,7 +86,6 @@ export function LandingPageHeader({
           return;
         }
 
-        // Only check subscription status for main domain
         let hasDashboard = false;
         if (isMainDomain) {
           const subRes = await fetch('/api/stripe/subscription', { cache: 'no-store' });
@@ -119,101 +109,43 @@ export function LandingPageHeader({
     checkAuth();
   }, [pathname, isMainDomain]);
 
-  // Don't show auth buttons on certain pages
   const isSignupPage = pathname === '/signup';
   const isOnboardingPage = pathname === '/onboarding';
   const isDashboardPage = pathname.startsWith('/dashboard');
 
+  // Render the trigger button only (no dropdown — that's portaled separately)
   const renderActionButton = () => {
-    // Main domain: Hide on certain pages
     if (isMainDomain && (isSignupPage || isOnboardingPage || isDashboardPage)) {
       return null;
     }
 
-    // Loading state
     if (isLoading) {
       return (
         <div className="w-[118px] h-[38px] bg-[var(--bg-secondary)] rounded-lg animate-pulse" />
       );
     }
 
-    // Logged in: User menu
     if (userStatus.isLoggedIn) {
       return (
-        <div className="relative" ref={menuRef}>
-          <button
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            className="flex items-center gap-2 px-3 h-[38px] bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-lg font-medium transition text-[var(--text-primary)]"
-          >
-            {userStatus.userAvatar ? (
-              <img src={userStatus.userAvatar} alt="" className="w-6 h-6 rounded-full" />
-            ) : (
-              <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-xs text-white">
-                {userStatus.userName?.charAt(0).toUpperCase() || 'U'}
-              </div>
-            )}
-            <span className="hidden sm:inline text-[var(--text-primary)]">{userStatus.userName || 'User'}</span>
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {showUserMenu && (
-            <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg p-1.5 z-50">
-              {isMainDomain && (
-                <a
-                  href="/dashboard"
-                  className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  <SquaresFour size={16} weight="duotone" />
-                  Dashboard
-                </a>
-              )}
-              {!isMainDomain && (
-                <a
-                  href="/support"
-                  className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                >
-                  <Compass size={16} weight="duotone" />
-                  Support Hub
-                </a>
-              )}
-              {hasTicketing && (
-                <>
-                  <a
-                    href="/support/tickets"
-                    className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    <ListChecks size={16} weight="duotone" />
-                    My Tickets
-                  </a>
-                  <a
-                    href="/support/ticket"
-                    className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
-                  >
-                    <Ticket size={16} weight="duotone" />
-                    Submit Ticket
-                  </a>
-                </>
-              )}
-              <hr className="my-1 border-[var(--border-primary)]" />
-              <button
-                onClick={handleLogout}
-                disabled={isLoggingOut}
-                className="flex items-center gap-2.5 w-full px-3 py-2 text-sm rounded-md text-red-400 hover:bg-[var(--bg-tertiary)] hover:text-red-300 transition-colors disabled:opacity-50"
-              >
-                <SignOut size={16} weight="bold" />
-                {isLoggingOut ? 'Signing out...' : 'Sign Out'}
-              </button>
+        <button
+          onClick={() => setShowUserMenu(prev => !prev)}
+          className="flex items-center gap-2 px-3 h-[38px] bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] rounded-lg font-medium transition text-[var(--text-primary)]"
+        >
+          {userStatus.userAvatar ? (
+            <img src={userStatus.userAvatar} alt="" className="w-6 h-6 rounded-full" />
+          ) : (
+            <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center text-xs text-white">
+              {userStatus.userName?.charAt(0).toUpperCase() || 'U'}
             </div>
           )}
-        </div>
+          <span className="hidden sm:inline text-[var(--text-primary)]">{userStatus.userName || 'User'}</span>
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
       );
     }
 
-    // Not logged in: Login button
-    // Main domain -> redirect to dashboard after login
-    // Tenant -> redirect back to landing page after login
     const callbackUrl = isMainDomain ? '/dashboard' : '/';
     return (
       <Link
@@ -225,7 +157,6 @@ export function LandingPageHeader({
     );
   };
 
-  // Navigation links shared between desktop and mobile
   const navLinks = (
     <>
       {hasPricingPage && (
@@ -269,77 +200,143 @@ export function LandingPageHeader({
   );
 
   return (
-    <header className="border-b border-[var(--border-primary)] bg-[var(--bg-primary)]/80 backdrop-blur-sm sticky top-0 z-50">
-      <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-        <Link href="/" className="text-xl font-bold text-[var(--text-primary)]">
-          {siteName}
-        </Link>
+    <>
+      <header className="border-b border-[var(--border-primary)] bg-[var(--bg-primary)]/80 backdrop-blur-sm sticky top-0 z-50">
+        <nav className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
+          <Link href="/" className="text-xl font-bold text-[var(--text-primary)]">
+            {siteName}
+          </Link>
 
-        {/* Desktop nav */}
-        <div className="hidden md:flex items-center gap-6">
-          {navLinks}
-          <div className="min-w-[118px] h-[38px] flex items-center justify-end">
+          {/* Desktop nav */}
+          <div className="hidden md:flex items-center gap-6">
+            {navLinks}
+            <div className="min-w-[118px] h-[38px] flex items-center justify-end">
+              {renderActionButton()}
+            </div>
+          </div>
+
+          {/* Mobile: action button + hamburger */}
+          <div className="flex md:hidden items-center gap-3">
             {renderActionButton()}
-          </div>
-        </div>
-
-        {/* Mobile: action button + hamburger */}
-        <div className="flex md:hidden items-center gap-3">
-          {renderActionButton()}
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition"
-            aria-label="Toggle menu"
-          >
-            {mobileMenuOpen ? <X size={22} weight="bold" /> : <List size={22} weight="bold" />}
-          </button>
-        </div>
-      </nav>
-
-      {/* Mobile dropdown menu */}
-      {mobileMenuOpen && (
-        <div className="md:hidden border-t border-[var(--border-primary)] bg-[var(--bg-primary)]/95 backdrop-blur-sm animate-slide-down">
-          <div className="flex flex-col gap-1 px-4 py-3">
-            {hasPricingPage && (
-              <a
-                href={urls.pricing}
-                onClick={() => setMobileMenuOpen(false)}
-                className={`px-3 py-2.5 rounded-lg transition ${
-                  pathname === urls.pricing
-                    ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-                }`}
-              >
-                Pricing
-              </a>
-            )}
-            <a
-              href={urls.support}
-              onClick={() => setMobileMenuOpen(false)}
-              className={`px-3 py-2.5 rounded-lg transition ${
-                pathname.startsWith('/support')
-                  ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
-                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
-              }`}
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition"
+              aria-label="Toggle menu"
             >
-              Support
-            </a>
-            {hasContactPage && (
+              {mobileMenuOpen ? <X size={22} weight="bold" /> : <List size={22} weight="bold" />}
+            </button>
+          </div>
+        </nav>
+
+        {/* Mobile dropdown menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden border-t border-[var(--border-primary)] bg-[var(--bg-primary)]/95 backdrop-blur-sm animate-slide-down">
+            <div className="flex flex-col gap-1 px-4 py-3">
+              {hasPricingPage && (
+                <a
+                  href={urls.pricing}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-3 py-2.5 rounded-lg transition ${
+                    pathname === urls.pricing
+                      ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                  }`}
+                >
+                  Pricing
+                </a>
+              )}
               <a
-                href={urls.contact}
+                href={urls.support}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`px-3 py-2.5 rounded-lg transition ${
-                  pathname === urls.contact
+                  pathname.startsWith('/support')
                     ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
                 }`}
               >
-                Contact
+                Support
               </a>
-            )}
+              {hasContactPage && (
+                <a
+                  href={urls.contact}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`px-3 py-2.5 rounded-lg transition ${
+                    pathname === urls.contact
+                      ? 'text-[var(--text-primary)] bg-[var(--bg-secondary)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]'
+                  }`}
+                >
+                  Contact
+                </a>
+              )}
+            </div>
           </div>
-        </div>
+        )}
+      </header>
+
+      {/* User dropdown menu — portaled to document.body to escape all stacking contexts */}
+      {mounted && showUserMenu && createPortal(
+        <>
+          {/* Invisible overlay to catch outside clicks */}
+          <div
+            className="fixed inset-0 z-[9998]"
+            onClick={() => setShowUserMenu(false)}
+          />
+          {/* Dropdown — mirrors header's max-w-7xl layout so it aligns with the nav */}
+          <div className="fixed top-16 inset-x-0 z-[9999] pointer-events-none">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 pt-2 flex justify-end">
+              <div className="pointer-events-auto w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg p-1.5">
+                {isMainDomain && (
+                  <a
+                    href="/dashboard"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    <SquaresFour size={16} weight="duotone" />
+                    Dashboard
+                  </a>
+                )}
+                {!isMainDomain && (
+                  <a
+                    href="/support"
+                    className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                  >
+                    <Compass size={16} weight="duotone" />
+                    Support Hub
+                  </a>
+                )}
+                {hasTicketing && (
+                  <>
+                    <a
+                      href="/support/tickets"
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      <ListChecks size={16} weight="duotone" />
+                      My Tickets
+                    </a>
+                    <a
+                      href="/support/ticket"
+                      className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
+                    >
+                      <Ticket size={16} weight="duotone" />
+                      Submit Ticket
+                    </a>
+                  </>
+                )}
+                <hr className="my-1 border-[var(--border-primary)]" />
+                <button
+                  onClick={handleLogout}
+                  disabled={isLoggingOut}
+                  className="flex items-center gap-2.5 w-full px-3 py-2 text-sm rounded-md text-red-400 hover:bg-[var(--bg-tertiary)] hover:text-red-300 transition-colors disabled:opacity-50"
+                >
+                  <SignOut size={16} weight="bold" />
+                  {isLoggingOut ? 'Signing out...' : 'Sign Out'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
       )}
-    </header>
+    </>
   );
 }
