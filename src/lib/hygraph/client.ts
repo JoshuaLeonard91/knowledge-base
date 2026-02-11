@@ -330,6 +330,7 @@ interface HygraphArticle {
   keywords?: string[]; // Array of keyword strings
   icon?: string;
   readTime?: number;
+  unlisted?: boolean; // Hidden from listings/search, accessible by direct URL
 }
 
 interface HygraphCategory {
@@ -504,6 +505,7 @@ export class HygraphClient {
           keywords
           icon
           readTime
+          unlisted
         }
       }
     `);
@@ -513,7 +515,9 @@ export class HygraphClient {
       return [];
     }
 
-    return data.articles.map((article) => this.transformArticle(article));
+    return data.articles
+      .filter((article) => !article.unlisted)
+      .map((article) => this.transformArticle(article));
   }
 
   /**
@@ -565,6 +569,7 @@ export class HygraphClient {
           keywords
           icon
           readTime
+          unlisted
         }
       }
     `,
@@ -609,6 +614,7 @@ export class HygraphClient {
           keywords
           icon
           readTime
+          unlisted
         }
       }
     `,
@@ -619,7 +625,9 @@ export class HygraphClient {
       return [];
     }
 
-    return data.articles.map((article) => this.transformArticle(article));
+    return data.articles
+      .filter((article) => !article.unlisted)
+      .map((article) => this.transformArticle(article));
   }
 
   /**
@@ -645,6 +653,7 @@ export class HygraphClient {
           keywords
           icon
           readTime
+          unlisted
         }
       }
     `,
@@ -655,7 +664,9 @@ export class HygraphClient {
       return [];
     }
 
-    return data.articles.map((article) => this.transformArticle(article));
+    return data.articles
+      .filter((article) => !article.unlisted)
+      .map((article) => this.transformArticle(article));
   }
 
   /**

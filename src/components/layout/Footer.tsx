@@ -267,22 +267,28 @@ export function Footer({ settings, links }: FooterProps) {
           <p className="text-sm text-[var(--text-muted)]">
             &copy; {new Date().getFullYear()} {settings.copyrightText}. All rights reserved.
           </p>
-          <div className="flex items-center gap-6">
-            <a
-              href={settings.privacyPolicyUrl}
-              className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-              {...(settings.privacyPolicyUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-            >
-              Privacy Policy
-            </a>
-            <a
-              href={settings.termsOfServiceUrl}
-              className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
-              {...(settings.termsOfServiceUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
-            >
-              Terms of Service
-            </a>
-          </div>
+          {(settings.privacyPolicyUrl && settings.privacyPolicyUrl !== '#') || (settings.termsOfServiceUrl && settings.termsOfServiceUrl !== '#') ? (
+            <div className="flex items-center gap-6">
+              {settings.privacyPolicyUrl && settings.privacyPolicyUrl !== '#' && (
+                <a
+                  href={settings.privacyPolicyUrl}
+                  className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                  {...(settings.privacyPolicyUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                >
+                  Privacy Policy
+                </a>
+              )}
+              {settings.termsOfServiceUrl && settings.termsOfServiceUrl !== '#' && (
+                <a
+                  href={settings.termsOfServiceUrl}
+                  className="text-sm text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition-colors"
+                  {...(settings.termsOfServiceUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                >
+                  Terms of Service
+                </a>
+              )}
+            </div>
+          ) : null}
         </div>
       </div>
     </footer>
