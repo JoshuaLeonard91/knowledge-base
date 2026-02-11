@@ -182,8 +182,9 @@ body {
 
 ::selection { background: var(--accent-primary); color: white; }
 
-a { color: var(--accent-primary); text-decoration: none; transition: color 0.2s ease; }
-a:hover { color: var(--accent-hover); }
+a:not([class*="text-"]) { color: var(--accent-primary); }
+a:not([class*="text-"]):hover { color: var(--accent-hover); }
+a { text-decoration: none; transition: color 0.2s ease; }
 
 /* GPU-accelerated animations using translate3d and will-change */
 /* Using cubic-bezier for smoother, more natural motion */

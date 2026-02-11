@@ -58,14 +58,14 @@ export function ThemeSelector({ selectedTheme, onSelect, disabled }: ThemeSelect
               <div className="text-sm text-[var(--text-secondary)]">{theme.description}</div>
             </div>
 
-            {/* Checkmark */}
-            {isSelected && (
-              <div className="w-6 h-6 rounded-full bg-[var(--accent-primary)] flex items-center justify-center flex-shrink-0">
-                <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              </div>
-            )}
+            {/* Checkmark — always rendered to prevent layout shift */}
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 transition-all ${
+              isSelected ? 'bg-[var(--accent-primary)] opacity-100' : 'opacity-0'
+            }`}>
+              <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
           </button>
         );
       })}

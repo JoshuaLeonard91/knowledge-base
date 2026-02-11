@@ -252,25 +252,17 @@ export default function DashboardPage() {
               Dashboard
             </Link>
             {isMainDomain && data.hasTenant && data.tenant && (
-              <>
-                <a
-                  href={`https://${data.tenant.slug}.helpportal.app`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition flex items-center gap-1"
-                >
-                  Visit Portal
-                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </a>
-                <Link
-                  href="/dashboard/settings"
-                  className="px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition"
-                >
-                  Settings
-                </Link>
-              </>
+              <a
+                href={`https://${data.tenant.slug}.helpportal.app`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="px-3 py-2 text-sm font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition flex items-center gap-1"
+              >
+                Visit Portal
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              </a>
             )}
             {!isMainDomain && (
               <Link
@@ -582,7 +574,7 @@ export default function DashboardPage() {
                   </div>
 
                   {/* Quick Actions */}
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <Link
                       href="/dashboard/integrations"
                       className="group p-4 bg-[var(--bg-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition"
@@ -607,6 +599,19 @@ export default function DashboardPage() {
                       </div>
                       <h3 className="font-medium text-[var(--text-primary)] mb-0.5">Billing</h3>
                       <p className="text-xs text-[var(--text-muted)]">Manage subscription</p>
+                    </Link>
+
+                    <Link
+                      href="/dashboard/settings"
+                      className="group p-4 bg-[var(--bg-primary)] hover:bg-[var(--bg-tertiary)] rounded-lg transition"
+                    >
+                      <div className="w-10 h-10 bg-[var(--accent-primary)]/10 rounded-lg flex items-center justify-center mb-3 group-hover:bg-[var(--accent-primary)]/20 transition">
+                        <svg className="w-5 h-5 text-[var(--accent-primary)]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                        </svg>
+                      </div>
+                      <h3 className="font-medium text-[var(--text-primary)] mb-0.5">Theme Selection</h3>
+                      <p className="text-xs text-[var(--text-muted)]">Customize appearance</p>
                     </Link>
                   </div>
                 </div>

@@ -17,8 +17,13 @@ export default function SettingsPage() {
   const { siteName } = usePlatform();
 
   const [isLoading, setIsLoading] = useState(true);
-  const [savedTheme, setSavedTheme] = useState('dark');
-  const [selectedTheme, setSelectedTheme] = useState('dark');
+  // Initialize from the current DOM theme so discard always reverts correctly
+  const [savedTheme, setSavedTheme] = useState(() =>
+    typeof document !== 'undefined'
+      ? document.documentElement.getAttribute('data-theme') || 'dark'
+      : 'dark'
+  );
+  const [selectedTheme, setSelectedTheme] = useState(savedTheme);
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
