@@ -30,6 +30,16 @@ export default function SettingsPage() {
 
   const hasChanges = selectedTheme !== savedTheme;
 
+  // Restore the server-rendered theme when leaving this page
+  // (live preview changes data-theme on the document, which persists across client-side navigation)
+  useEffect(() => {
+    const originalTheme = document.documentElement.getAttribute('data-theme') || 'dark';
+    return () => {
+      document.documentElement.setAttribute('data-theme', originalTheme);
+      document.documentElement.classList.toggle('dark', originalTheme !== 'light');
+    };
+  }, []);
+
   // Fetch current theme
   useEffect(() => {
     const fetchTheme = async () => {
