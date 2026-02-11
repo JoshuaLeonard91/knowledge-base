@@ -305,7 +305,7 @@ export function LandingPageHeader({
         <div className="md:hidden border-t border-[var(--border-primary)] bg-[var(--bg-primary)]/95 backdrop-blur-sm animate-slide-down">
           <div className="flex flex-col gap-1 px-4 py-3">
             {hasPricingPage && (
-              <Link
+              <a
                 href={urls.pricing}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`px-3 py-2.5 rounded-lg transition ${
@@ -315,9 +315,9 @@ export function LandingPageHeader({
                 }`}
               >
                 Pricing
-              </Link>
+              </a>
             )}
-            <Link
+            <a
               href={urls.support}
               onClick={() => setMobileMenuOpen(false)}
               className={`px-3 py-2.5 rounded-lg transition ${
@@ -327,9 +327,9 @@ export function LandingPageHeader({
               }`}
             >
               Support
-            </Link>
+            </a>
             {hasContactPage && (
-              <Link
+              <a
                 href={urls.contact}
                 onClick={() => setMobileMenuOpen(false)}
                 className={`px-3 py-2.5 rounded-lg transition ${
@@ -339,7 +339,7 @@ export function LandingPageHeader({
                 }`}
               >
                 Contact
-              </Link>
+              </a>
             )}
           </div>
         </div>
