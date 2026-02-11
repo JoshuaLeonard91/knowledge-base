@@ -330,7 +330,6 @@ interface HygraphArticle {
   keywords?: string[]; // Array of keyword strings
   icon?: string;
   readTime?: number;
-  unlisted?: boolean; // Hidden from listings/search, accessible by direct URL
 }
 
 interface HygraphCategory {
@@ -357,6 +356,7 @@ export class HygraphClient {
   private token: string | null;
   private isConfigured: boolean;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
+  private _schemaSupportsUnlisted: boolean | null = null;
   // Cache durations for different content types (in ms)
   // Balances freshness with API efficiency (500k/mo free tier limit)
   static readonly CACHE_TTL = {
@@ -487,28 +487,74 @@ export class HygraphClient {
   }
 
   /**
-   * Get all articles
+   * Check if this Hygraph schema supports the `unlisted` field on Articles.
+   * Result is cached on the client instance to avoid repeated probe queries.
    */
-  async getArticles(): Promise<Article[]> {
-    console.log('[Hygraph] getArticles called, isConfigured:', this.isConfigured);
-    const data = await this.query<{ articles: HygraphArticle[] }>(`
-      query GetArticles {
-        articles(first: 100, orderBy: createdAt_ASC) {
+  private async checkUnlistedSupport(): Promise<boolean> {
+    if (this._schemaSupportsUnlisted !== null) {
+      return this._schemaSupportsUnlisted;
+    }
+
+    // Probe with a minimal query that includes the unlisted field
+    const probe = await this.query<{ articles: { slug: string }[] }>(`
+      query ProbeUnlisted {
+        articles(first: 1) {
           slug
-          title
-          excerpt
-          content {
-            raw
-            text
-          }
-          category
-          keywords
-          icon
-          readTime
           unlisted
         }
       }
     `);
+
+    this._schemaSupportsUnlisted = probe !== null;
+    console.log(`[Hygraph] Schema supports 'unlisted' field: ${this._schemaSupportsUnlisted}`);
+    return this._schemaSupportsUnlisted;
+  }
+
+  /**
+   * Get slugs of unlisted articles (hidden from listings/search).
+   * Returns empty set if the schema doesn't support the unlisted field.
+   */
+  private async getUnlistedSlugs(): Promise<Set<string>> {
+    const supports = await this.checkUnlistedSupport();
+    if (!supports) return new Set();
+
+    const data = await this.query<{ articles: { slug: string }[] }>(`
+      query GetUnlistedSlugs {
+        articles(where: { unlisted: true }, first: 100) {
+          slug
+        }
+      }
+    `);
+
+    if (!data?.articles) return new Set();
+    return new Set(data.articles.map((a) => a.slug));
+  }
+
+  /**
+   * Get all articles
+   */
+  async getArticles(): Promise<Article[]> {
+    console.log('[Hygraph] getArticles called, isConfigured:', this.isConfigured);
+    const [data, unlistedSlugs] = await Promise.all([
+      this.query<{ articles: HygraphArticle[] }>(`
+        query GetArticles {
+          articles(first: 100, orderBy: createdAt_ASC) {
+            slug
+            title
+            excerpt
+            content {
+              raw
+              text
+            }
+            category
+            keywords
+            icon
+            readTime
+          }
+        }
+      `),
+      this.getUnlistedSlugs(),
+    ]);
 
     console.log('[Hygraph] getArticles response:', data ? `${data.articles?.length || 0} articles` : 'null');
     if (!data?.articles) {
@@ -516,7 +562,7 @@ export class HygraphClient {
     }
 
     return data.articles
-      .filter((article) => !article.unlisted)
+      .filter((article) => !unlistedSlugs.has(article.slug))
       .map((article) => this.transformArticle(article));
   }
 
@@ -569,7 +615,6 @@ export class HygraphClient {
           keywords
           icon
           readTime
-          unlisted
         }
       }
     `,
@@ -590,43 +635,45 @@ export class HygraphClient {
    */
   async searchArticles(query: string): Promise<Article[]> {
     // GraphQL search on title, excerpt, and searchText (all support _contains)
-    const data = await this.query<{ articles: HygraphArticle[] }>(
-      `
-      query SearchArticles($query: String!) {
-        articles(
-          where: {
-            OR: [
-              { title_contains: $query }
-              { excerpt_contains: $query }
-              { searchText_contains: $query }
-            ]
+    const [data, unlistedSlugs] = await Promise.all([
+      this.query<{ articles: HygraphArticle[] }>(
+        `
+        query SearchArticles($query: String!) {
+          articles(
+            where: {
+              OR: [
+                { title_contains: $query }
+                { excerpt_contains: $query }
+                { searchText_contains: $query }
+              ]
+            }
+            first: 20
+          ) {
+            slug
+            title
+            excerpt
+            content {
+              raw
+              text
+            }
+            category
+            keywords
+            icon
+            readTime
           }
-          first: 20
-        ) {
-          slug
-          title
-          excerpt
-          content {
-            raw
-            text
-          }
-          category
-          keywords
-          icon
-          readTime
-          unlisted
         }
-      }
-    `,
-      { query }
-    );
+      `,
+        { query }
+      ),
+      this.getUnlistedSlugs(),
+    ]);
 
     if (!data?.articles) {
       return [];
     }
 
     return data.articles
-      .filter((article) => !article.unlisted)
+      .filter((article) => !unlistedSlugs.has(article.slug))
       .map((article) => this.transformArticle(article));
   }
 
@@ -634,38 +681,40 @@ export class HygraphClient {
    * Get articles by category
    */
   async getArticlesByCategory(categorySlug: string): Promise<Article[]> {
-    const data = await this.query<{ articles: HygraphArticle[] }>(
-      `
-      query GetArticlesByCategory($categorySlug: String!) {
-        articles(
-          where: { category: $categorySlug }
-          first: 100
-          orderBy: createdAt_ASC
-        ) {
-          slug
-          title
-          excerpt
-          content {
-            raw
-            text
+    const [data, unlistedSlugs] = await Promise.all([
+      this.query<{ articles: HygraphArticle[] }>(
+        `
+        query GetArticlesByCategory($categorySlug: String!) {
+          articles(
+            where: { category: $categorySlug }
+            first: 100
+            orderBy: createdAt_ASC
+          ) {
+            slug
+            title
+            excerpt
+            content {
+              raw
+              text
+            }
+            category
+            keywords
+            icon
+            readTime
           }
-          category
-          keywords
-          icon
-          readTime
-          unlisted
         }
-      }
-    `,
-      { categorySlug }
-    );
+      `,
+        { categorySlug }
+      ),
+      this.getUnlistedSlugs(),
+    ]);
 
     if (!data?.articles) {
       return [];
     }
 
     return data.articles
-      .filter((article) => !article.unlisted)
+      .filter((article) => !unlistedSlugs.has(article.slug))
       .map((article) => this.transformArticle(article));
   }
 
