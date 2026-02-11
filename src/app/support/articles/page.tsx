@@ -1,7 +1,7 @@
 import { Suspense } from 'react';
 import { SearchBar } from '@/components/support/SearchBar';
 import { ArticlesContent } from './ArticlesContent';
-import { getArticles, getCategories } from '@/lib/cms';
+import { getArticles, getCategories, withCategoryColors } from '@/lib/cms';
 import { SpinnerGap } from '@phosphor-icons/react/dist/ssr';
 
 // Force dynamic rendering - fetches fresh data on every request
@@ -43,7 +43,7 @@ export default async function ArticlesPage() {
       </section>
 
       <Suspense fallback={<ArticlesLoading />}>
-        <ArticlesContent articles={articles} categories={categories} />
+        <ArticlesContent articles={withCategoryColors(articles, categories)} categories={categories} />
       </Suspense>
     </div>
   );

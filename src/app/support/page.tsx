@@ -3,7 +3,7 @@ import { SearchBar } from '@/components/support/SearchBar';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { CategoryList } from '@/components/support/CategoryList';
 import { RecentSection } from '@/components/support/RecentSection';
-import { getArticles, getCategories, hasServices } from '@/lib/cms';
+import { getArticles, getCategories, hasServices, withCategoryColors } from '@/lib/cms';
 import { BookOpenText, PaperPlaneTilt, DiscordLogo, CaretRight, Sparkle, Briefcase } from '@phosphor-icons/react/dist/ssr';
 
 // Force dynamic rendering - fetches fresh data on every request
@@ -17,9 +17,12 @@ export default async function SupportHub() {
     hasServices()
   ]);
 
+  // Enrich articles with CMS category colors
+  const coloredArticles = withCategoryColors(articles, categories);
+
   // Get featured articles (up to 3 from different categories)
   const seenCategories = new Set<string>();
-  const featuredArticles = articles.filter(article => {
+  const featuredArticles = coloredArticles.filter(article => {
     if (seenCategories.has(article.category) || seenCategories.size >= 3) return false;
     seenCategories.add(article.category);
     return true;

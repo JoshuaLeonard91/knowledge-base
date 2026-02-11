@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { getArticleBySlug, getRelatedArticles, getCategories, getArticles } from '@/lib/cms';
+import { getArticleBySlug, getRelatedArticles, getCategories, getArticles, withCategoryColors } from '@/lib/cms';
 import { ArticleCard } from '@/components/support/ArticleCard';
 import { ArticleFeedback } from './ArticleFeedback';
 import { ArticleViewTracker } from './ArticleViewTracker';
@@ -41,6 +41,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
     getCategories(),
     getArticles()
   ]);
+  const coloredRelated = withCategoryColors(relatedArticles, categories);
   const category = categories.find(c => c.id === article.category);
   const navArticles = allArticles.map(({ slug: s, title, category: cat }) => ({ slug: s, title, category: cat }));
   const Icon = getIconSSR(article.icon, BookOpenText);
@@ -384,7 +385,7 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
                 Related Articles
               </h2>
               <div className="grid gap-4 md:grid-cols-2">
-                {relatedArticles.slice(0, 4).map((related) => (
+                {coloredRelated.slice(0, 4).map((related) => (
                   <ArticleCard key={related.slug} article={related} variant="compact" />
                 ))}
               </div>

@@ -206,6 +206,18 @@ export async function getRelatedArticles(
   return sameCategory.slice(0, limit);
 }
 
+/**
+ * Enrich articles with category colors from the categories list.
+ * Call this at the page level before passing articles to components.
+ */
+export function withCategoryColors(articles: Article[], categories: ArticleCategory[]): Article[] {
+  const colorMap = new Map(categories.map(c => [c.id, c.color]));
+  return articles.map(a => {
+    const color = colorMap.get(a.category);
+    return color ? { ...a, categoryColor: color } : a;
+  });
+}
+
 // ==========================================
 // SERVICES (Hygraph only)
 // ==========================================

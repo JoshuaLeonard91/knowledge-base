@@ -15,6 +15,7 @@ export interface Article {
   relatedSlugs: string[];
   icon: string;
   readTime: number;
+  categoryColor?: string; // Hex color from CMS category (enriched at page level)
 }
 
 export interface ArticleCategory {
