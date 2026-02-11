@@ -124,7 +124,7 @@ export default async function ContactPage() {
         </section>
       )}
 
-      <LandingPageFooter siteName={siteName} isMainDomain={isMainDomain} />
+      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} isMainDomain={isMainDomain} />
     </div>
   );
 }

@@ -169,7 +169,7 @@ export interface NavigationLink {
 }
 
 // Legacy type aliases for backwards compatibility
-export type HeaderSettings = Pick<SiteSettings, 'siteName' | 'subtitle' | 'logoIcon'>;
+export type HeaderSettings = Pick<SiteSettings, 'siteName' | 'subtitle' | 'logoIcon' | 'copyrightText'>;
 export type FooterSettings = SiteSettings;
 export type NavLink = Omit<NavigationLink, 'location' | 'external'> & { icon: string };
 export type FooterLink = NavigationLink & { section: 'quickLinks' | 'resources' | 'community' };
@@ -1696,6 +1696,7 @@ export class HygraphClient {
         siteSettingsEntries(first: 1) {
           siteName
           subtitle
+          copyrightText
         }
         navigationLinks(
           where: { location: header }
@@ -1735,6 +1736,7 @@ export class HygraphClient {
       siteName: s?.siteName || 'Support Portal',
       subtitle: s?.subtitle || 'Help Center',
       logoIcon: logoIconUrl,
+      copyrightText: s?.copyrightText || s?.siteName || 'Support Portal',
     };
 
     // Nav links with defaults if none exist

@@ -42,7 +42,7 @@ export default async function RootPage() {
           hasTicketing={hasTicketing}
         />
         <LandingPageContent content={tenantLandingContent} />
-        <LandingPageFooter siteName={siteName} isMainDomain={false} />
+        <LandingPageFooter siteName={siteName} copyrightText={tenantHeaderData.settings.copyrightText} isMainDomain={false} />
       </div>
     );
   }
@@ -66,7 +66,7 @@ export default async function RootPage() {
         hasTicketing={hasTicketing}
       />
       <LandingPageContent content={content} showAnimations={true} />
-      <LandingPageFooter siteName={siteName} isMainDomain={true} />
+      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} isMainDomain={true} />
     </div>
   );
 }

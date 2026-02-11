@@ -9,10 +9,11 @@ import Link from 'next/link';
 
 interface LandingPageFooterProps {
   siteName: string;
+  copyrightText?: string;
   isMainDomain?: boolean;
 }
 
-export function LandingPageFooter({ siteName, isMainDomain = false }: LandingPageFooterProps) {
+export function LandingPageFooter({ siteName, copyrightText, isMainDomain = false }: LandingPageFooterProps) {
   // URL paths - pricing and contact stay at root level for consistent landing experience
   const urls = { pricing: '/pricing', support: '/support', contact: '/contact' };
 
@@ -20,7 +21,7 @@ export function LandingPageFooter({ siteName, isMainDomain = false }: LandingPag
     <footer className="border-t border-[var(--border-primary)] py-8 px-4 sm:px-6 bg-[var(--bg-secondary)]">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         <p className="text-[var(--text-muted)] text-sm">
-          &copy; {new Date().getFullYear()} {siteName}. All rights reserved.
+          &copy; {new Date().getFullYear()} {copyrightText || siteName}. All rights reserved.
         </p>
         <div className="flex items-center gap-4 md:gap-6 text-sm">
           <Link

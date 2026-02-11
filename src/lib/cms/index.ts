@@ -651,7 +651,7 @@ export const getHeaderData = cache(async (): Promise<{
   // Tenants without Hygraph get empty data
   if (await isTenantContext()) {
     return {
-      settings: { siteName: '', subtitle: '', logoIcon: undefined },
+      settings: { siteName: '', subtitle: '', logoIcon: undefined, copyrightText: '' },
       navLinks: [],
       hasContactPage: false,
       hasLandingPage: false,
@@ -665,6 +665,7 @@ export const getHeaderData = cache(async (): Promise<{
       siteName: 'Support Portal',
       subtitle: 'Help Center',
       logoIcon: undefined,
+      copyrightText: 'Support Portal',
     },
     navLinks: [
       { id: 'default-1', title: 'Support Hub', url: '/support', icon: 'House', order: 1 },
