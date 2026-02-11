@@ -982,13 +982,12 @@ export async function getOnboardingConfig(context: string): Promise<OnboardingCo
         {
           id: 'branding',
           title: 'Customize Your Portal',
-          description: 'Choose a theme and optionally add your logo',
+          description: 'Choose a name and theme for your portal',
           type: 'BRANDING',
           required: false,
           fields: [
             { name: 'portalName', label: 'Portal Name', type: 'TEXT', required: false, placeholder: 'My Support Portal' },
             { name: 'theme', label: 'Choose Your Theme', type: 'THEME', required: false },
-            { name: 'logoUrl', label: 'Logo URL (optional)', type: 'IMAGE_URL', required: false, placeholder: 'https://...' },
           ],
         },
       ],

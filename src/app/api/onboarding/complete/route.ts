@@ -76,20 +76,6 @@ function sanitizeOnboardingData(data: Record<string, unknown>): Record<string, u
         continue;
       }
 
-      // Special handling for logoUrl - must be a valid HTTPS URL
-      if (key === 'logoUrl') {
-        try {
-          const url = new URL(value);
-          if (url.protocol === 'https:') {
-            sanitized[key] = url.toString().slice(0, 2048);
-          }
-          // Non-HTTPS URLs are silently dropped
-        } catch {
-          // Invalid URLs are silently dropped
-        }
-        continue;
-      }
-
       // Strip all HTML tags and dangerous patterns, limit length
       sanitized[key] = value
         .replace(/<[^>]*>/g, '')
@@ -239,18 +225,16 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Upsert branding (theme, logo, or legacy primaryColor)
-      if (sanitizedData.logoUrl || sanitizedData.theme || sanitizedData.primaryColor) {
+      // Upsert branding (theme or legacy primaryColor)
+      if (sanitizedData.theme || sanitizedData.primaryColor) {
         await prisma.tenantBranding.upsert({
           where: { tenantId: existingTenant.id },
           create: {
             tenantId: existingTenant.id,
-            logoUrl: sanitizedData.logoUrl as string | undefined,
             theme: sanitizedData.theme as string | undefined,
             primaryColor: sanitizedData.primaryColor as string | undefined,
           },
           update: {
-            logoUrl: sanitizedData.logoUrl as string | undefined,
             theme: sanitizedData.theme as string | undefined,
             primaryColor: sanitizedData.primaryColor as string | undefined,
           },
@@ -303,12 +287,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Create branding if provided (theme, logo, or legacy primaryColor)
-    if (sanitizedData.logoUrl || sanitizedData.theme || sanitizedData.primaryColor) {
+    // Create branding if provided (theme or legacy primaryColor)
+    if (sanitizedData.theme || sanitizedData.primaryColor) {
       await prisma.tenantBranding.create({
         data: {
           tenantId: newTenant.id,
-          logoUrl: sanitizedData.logoUrl as string | undefined,
           theme: sanitizedData.theme as string | undefined,
           primaryColor: sanitizedData.primaryColor as string | undefined,
         },
