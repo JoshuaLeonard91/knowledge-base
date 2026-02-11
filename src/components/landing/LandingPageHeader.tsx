@@ -161,43 +161,39 @@ export function LandingPageHeader({
           {showUserMenu && (
             <div className="absolute right-0 mt-2 w-48 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg shadow-lg p-1.5 z-50">
               {isMainDomain && (
-                <Link
+                <a
                   href="/dashboard"
-                  onClick={() => setShowUserMenu(false)}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   <SquaresFour size={16} weight="duotone" />
                   Dashboard
-                </Link>
+                </a>
               )}
               {!isMainDomain && (
-                <Link
+                <a
                   href="/support"
-                  onClick={() => setShowUserMenu(false)}
                   className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                 >
                   <Compass size={16} weight="duotone" />
                   Support Hub
-                </Link>
+                </a>
               )}
               {hasTicketing && (
                 <>
-                  <Link
+                  <a
                     href="/support/tickets"
-                    onClick={() => setShowUserMenu(false)}
                     className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                   >
                     <ListChecks size={16} weight="duotone" />
                     My Tickets
-                  </Link>
-                  <Link
+                  </a>
+                  <a
                     href="/support/ticket"
-                    onClick={() => setShowUserMenu(false)}
                     className="flex items-center gap-2.5 px-3 py-2 text-sm rounded-md text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)] transition-colors"
                   >
                     <Ticket size={16} weight="duotone" />
                     Submit Ticket
-                  </Link>
+                  </a>
                 </>
               )}
               <hr className="my-1 border-[var(--border-primary)]" />

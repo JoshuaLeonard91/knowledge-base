@@ -42,6 +42,18 @@ export function ArticlesContent({ articles, categories }: ArticlesContentProps) 
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(initialCategory);
 
+  // Update category in both local state and URL
+  const selectCategory = (slug: string | null) => {
+    setSelectedCategory(slug);
+    const params = new URLSearchParams(searchParams.toString());
+    if (slug) {
+      params.set('category', slug);
+    } else {
+      params.delete('category');
+    }
+    router.replace(`/support/articles${params.toString() ? `?${params.toString()}` : ''}`, { scroll: false });
+  };
+
   const clearSearch = () => {
     const params = new URLSearchParams(searchParams.toString());
     params.delete('q');
@@ -95,7 +107,7 @@ export function ArticlesContent({ articles, categories }: ArticlesContentProps) 
       {categories.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-8">
           <button
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => selectCategory(null)}
             className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
               selectedCategory === null
                 ? 'bg-[var(--accent-primary)] text-white'
@@ -107,7 +119,7 @@ export function ArticlesContent({ articles, categories }: ArticlesContentProps) 
           {categories.map((cat) => (
             <button
               key={cat.id}
-              onClick={() => setSelectedCategory(selectedCategory === cat.slug ? null : cat.slug)}
+              onClick={() => selectCategory(selectedCategory === cat.slug ? null : cat.slug)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 selectedCategory === cat.slug
                   ? 'bg-[var(--accent-primary)] text-white'

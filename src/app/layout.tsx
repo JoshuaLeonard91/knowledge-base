@@ -10,7 +10,6 @@ import { HistoryProvider } from "@/components/support/HistoryProvider";
 import { TenantProvider } from "@/lib/tenant/context";
 import { getTenantFromRequest } from "@/lib/tenant/resolver";
 import { getFooterData, getHeaderData } from "@/lib/cms";
-import { ThemeToggle } from "@/components/debug/ThemeToggle";
 import { VALID_THEMES } from "@/lib/themes";
 import { SpookyGhosts } from "@/components/debug/SpookyGhosts";
 import { EmberSparks } from "@/components/debug/EmberSparks";
@@ -103,7 +102,6 @@ export default async function RootLayout({
             </TenantProvider>
           </AuthProvider>
         </ThemeProvider>
-        <ThemeToggle />
         <SpookyGhosts />
         <EmberSparks />
         <ArcticSnow />
