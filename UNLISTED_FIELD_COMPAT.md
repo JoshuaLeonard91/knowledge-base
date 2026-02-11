@@ -1,58 +1,62 @@
-# Unlisted Field — Multi-Tenant Compatibility Workaround
+# Schema Compatibility — Multi-Tenant Workarounds
 
-## Problem
+Tracks fields added to the main Hygraph schema that may not exist on tenant
+schemas yet. GraphQL rejects queries that reference missing fields, which breaks
+entire pages. These workarounds detect field support at runtime and fall back
+gracefully.
 
-The `unlisted` boolean field was added to the Article model in Hygraph to support
-hiding articles (e.g., Privacy Policy, Terms of Service) from listings and search
-while keeping them accessible by direct URL.
+**File:** `src/lib/hygraph/client.ts`
 
-However, tenants who haven't added the `unlisted` field to their Hygraph Article
-model yet will have **all article queries fail** because GraphQL rejects queries
-that reference fields not in the schema. This causes their articles page to show
-zero articles.
+---
 
-## Current Fix (commit `02e6a0b`)
+## 1. Article `unlisted` field
 
-Instead of including `unlisted` directly in article query field selections, the
-client now uses a two-step approach in `src/lib/hygraph/client.ts`:
+**Purpose:** Hides articles (e.g., Privacy Policy, Terms of Service) from
+listings and search while keeping them accessible by direct URL.
 
-1. **`checkUnlistedSupport()`** — Sends a lightweight probe query with the
-   `unlisted` field. If it succeeds, the schema supports it. If it fails, it
-   doesn't. The result is cached on the client instance (persists ~5 min via
-   `tenantClientCache`).
+**Workaround (commit `02e6a0b`):**
+- `_schemaSupportsUnlisted` — cached boolean, probed once per client instance
+- `checkUnlistedSupport()` — lightweight probe query with `unlisted` field
+- `getUnlistedSlugs()` — fetches slugs where `unlisted: true`, returns empty
+  Set if field unsupported (all articles visible)
+- Article listing methods (`getArticles`, `searchArticles`,
+  `getArticlesByCategory`) run main query without `unlisted` in field selection,
+  filter via `getUnlistedSlugs()` in parallel
 
-2. **`getUnlistedSlugs()`** — If the schema supports `unlisted`, queries for
-   slugs where `unlisted: true`. If not supported, returns an empty Set (all
-   articles visible).
+**To revert:**
+- Remove `_schemaSupportsUnlisted` property
+- Remove `checkUnlistedSupport()` and `getUnlistedSlugs()` methods
+- Add `unlisted` back to all 4 article query field selections
+- Replace `Promise.all([query, getUnlistedSlugs()])` with single query +
+  `.filter((article) => !article.unlisted)`
+- Re-add `unlisted?: boolean` to `HygraphArticle` interface
 
-3. **Article listing methods** (`getArticles`, `searchArticles`,
-   `getArticlesByCategory`) run the main query (without `unlisted` in field
-   selection) in parallel with `getUnlistedSlugs()`, then filter results.
+---
 
-## When to Remove This Workaround
+## 2. ArticleCategory `color` field
 
-Once **all tenants** have added the `unlisted` Boolean field to their Article
-model in Hygraph, this workaround can be simplified back to the direct approach:
+**Purpose:** CMS-driven hex color for category icons and hover effects (replaces
+hardcoded color mappings).
 
-### Steps to revert:
+**Workaround:**
+- `_schemaSupportsColor` — cached boolean on client instance
+- `getCategories()` tries the query with `color { hex }` first
+- If it fails and `_schemaSupportsColor` is null (first attempt), sets flag to
+  `false` and retries without `color { hex }`
+- Categories without color fall back to the hash-based color assignment in
+  `src/lib/category-colors.ts`
 
-1. **Delete this file** (`UNLISTED_FIELD_COMPAT.md`)
+**To revert:**
+- Remove `_schemaSupportsColor` property
+- Simplify `getCategories()` back to a single query with `color { hex }`
 
-2. **In `src/lib/hygraph/client.ts`:**
-   - Remove the `_schemaSupportsUnlisted` property
-   - Remove the `checkUnlistedSupport()` method
-   - Remove the `getUnlistedSlugs()` method
-   - Add `unlisted` back to the field selections in all 4 article queries
-     (`GetArticles`, `GetArticle`, `SearchArticles`, `GetArticlesByCategory`)
-   - Replace the `Promise.all([query, getUnlistedSlugs()])` pattern with a
-     single query, filtering with `.filter((article) => !article.unlisted)`
-   - Optionally re-add `unlisted?: boolean` to the `HygraphArticle` interface
+---
 
-### Tenant checklist:
+## Tenant Checklist
 
-| Tenant | Has `unlisted` field? |
-|--------|-----------------------|
-| Main   | Yes                   |
-| *(add tenants here as they update)* | |
+| Tenant | Has `unlisted` (Article)? | Has `color` (ArticleCategory)? |
+|--------|---------------------------|--------------------------------|
+| Main   | Yes                       | Yes                            |
+| *(add tenants here as they update)* | | |
 
-Once all rows show "Yes", apply the revert steps above.
+Once all tenants have both fields, delete this file and apply the revert steps.

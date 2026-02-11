@@ -357,6 +357,7 @@ export class HygraphClient {
   private isConfigured: boolean;
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private _schemaSupportsUnlisted: boolean | null = null;
+  private _schemaSupportsColor: boolean | null = null;
   // Cache durations for different content types (in ms)
   // Balances freshness with API efficiency (500k/mo free tier limit)
   static readonly CACHE_TTL = {
@@ -570,6 +571,40 @@ export class HygraphClient {
    * Get all categories
    */
   async getCategories(): Promise<ArticleCategory[]> {
+    // Try with color field first; fall back without it for schemas that lack it
+    if (this._schemaSupportsColor !== false) {
+      const data = await this.query<{ articleCategories: HygraphCategory[] }>(`
+        query GetCategories {
+          articleCategories(first: 50) {
+            slug
+            name
+            description
+            icon
+            color { hex }
+          }
+        }
+      `);
+
+      if (data?.articleCategories) {
+        this._schemaSupportsColor = true;
+        return data.articleCategories.map((cat) => ({
+          id: cat.slug,
+          slug: cat.slug,
+          name: cat.name,
+          description: cat.description || '',
+          icon: cat.icon || this.getCategoryIcon(cat.slug),
+          color: cat.color?.hex,
+        }));
+      }
+
+      // Query failed — color field likely doesn't exist, try without it
+      if (this._schemaSupportsColor === null) {
+        this._schemaSupportsColor = false;
+        console.log('[Hygraph] Schema does not support color field on categories, retrying without it');
+      }
+    }
+
+    // Fallback query without color field
     const data = await this.query<{ articleCategories: HygraphCategory[] }>(`
       query GetCategories {
         articleCategories(first: 50) {
@@ -577,7 +612,6 @@ export class HygraphClient {
           name
           description
           icon
-          color { hex }
         }
       }
     `);
@@ -592,7 +626,6 @@ export class HygraphClient {
       name: cat.name,
       description: cat.description || '',
       icon: cat.icon || this.getCategoryIcon(cat.slug),
-      color: cat.color?.hex,
     }));
   }
 
