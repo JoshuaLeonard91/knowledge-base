@@ -76,13 +76,13 @@ body {
 .glow-lg { box-shadow: 0 0 40px var(--accent-glow); }
 
 .glass {
-  background: rgba(26, 26, 46, 0.7);
+  background: color-mix(in srgb, var(--bg-secondary) 80%, transparent);
   backdrop-filter: blur(12px);
   border: 1px solid var(--border-primary);
 }
 
 .glass-hover:hover {
-  background: rgba(26, 26, 46, 0.9);
+  background: color-mix(in srgb, var(--bg-secondary) 95%, transparent);
   border-color: var(--border-hover);
 }
 
@@ -383,14 +383,6 @@ tr:hover td { background: var(--bg-tertiary); }
   --accent-success: #16a34a;
   --accent-warning: #ca8a04;
   --accent-danger: #dc2626;
-}
-
-[data-theme="light"] .glass {
-  background: rgba(255, 255, 255, 0.8);
-}
-
-[data-theme="light"] .glass-hover:hover {
-  background: rgba(255, 255, 255, 0.95);
 }
 
 [data-theme="light"] code {

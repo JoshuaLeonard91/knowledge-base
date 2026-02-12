@@ -39,12 +39,15 @@ function extractTenantSubdomain(request: NextRequest): string | null {
   if (hostname.includes('localhost') || hostname.includes('127.0.0.1')) {
     if (process.env.NODE_ENV !== 'production') {
       // Check for dev tenant override via query param
-      const devTenant = request.nextUrl.searchParams.get('tenant');
-      if (devTenant) {
-        return devTenant;
+      // ?tenant=slug → set cookie and use slug
+      // ?tenant=    → clear cookie (return to main domain)
+      const devTenantParam = request.nextUrl.searchParams.get('tenant');
+      if (devTenantParam !== null) {
+        // Explicit param always wins (even empty string to clear)
+        return devTenantParam || null;
       }
 
-      // Check for dev tenant cookie
+      // Check for dev tenant cookie (persisted from a previous ?tenant= param)
       const tenantCookie = request.cookies.get('dev-tenant')?.value;
       if (tenantCookie) {
         return tenantCookie;
@@ -226,6 +229,27 @@ function isSuspiciousRequest(request: NextRequest): boolean {
 }
 
 /**
+ * In development, persist or clear the dev-tenant cookie based on ?tenant= query param.
+ * This allows tenant context to survive across navigations and page reloads on localhost.
+ */
+function syncDevTenantCookie(response: NextResponse, request: NextRequest): void {
+  if (process.env.NODE_ENV === 'production') return;
+  const hostname = request.headers.get('host') || '';
+  if (!hostname.includes('localhost') && !hostname.includes('127.0.0.1')) return;
+
+  const paramTenant = request.nextUrl.searchParams.get('tenant');
+  if (paramTenant !== null) {
+    if (paramTenant) {
+      // ?tenant=slug → persist as cookie (30 day expiry)
+      response.cookies.set('dev-tenant', paramTenant, { path: '/', maxAge: 60 * 60 * 24 * 30 });
+    } else {
+      // ?tenant= (empty) → clear cookie, return to main domain
+      response.cookies.delete('dev-tenant');
+    }
+  }
+}
+
+/**
  * Middleware function
  */
 export async function middleware(request: NextRequest) {
@@ -243,6 +267,7 @@ export async function middleware(request: NextRequest) {
     if (tenantSlug) {
       response.headers.set('x-tenant-slug', tenantSlug);
     }
+    syncDevTenantCookie(response, request);
     return response;
   }
 
@@ -342,6 +367,7 @@ export async function middleware(request: NextRequest) {
       response.headers.set('x-tenant-slug', tenantSlug);
     }
 
+    syncDevTenantCookie(response, request);
     return response;
   }
 
@@ -350,6 +376,7 @@ export async function middleware(request: NextRequest) {
   if (tenantSlug) {
     response.headers.set('x-tenant-slug', tenantSlug);
   }
+  syncDevTenantCookie(response, request);
   return response;
 }
 
