@@ -4,9 +4,10 @@
  * Dashboard Settings Page
  *
  * Allows tenant owners to change their portal's color theme.
+ * Theme preview is shown within the selector cards — no global DOM mutation needed.
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { usePlatform } from '../../PlatformProvider';
@@ -17,28 +18,13 @@ export default function SettingsPage() {
   const { siteName } = usePlatform();
 
   const [isLoading, setIsLoading] = useState(true);
-  // Initialize from the current DOM theme so discard always reverts correctly
-  const [savedTheme, setSavedTheme] = useState(() =>
-    typeof document !== 'undefined'
-      ? document.documentElement.getAttribute('data-theme') || 'dark'
-      : 'dark'
-  );
-  const [selectedTheme, setSelectedTheme] = useState(savedTheme);
+  const [savedTheme, setSavedTheme] = useState('dark');
+  const [selectedTheme, setSelectedTheme] = useState('dark');
   const [isSaving, setIsSaving] = useState(false);
   const [success, setSuccess] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const hasChanges = selectedTheme !== savedTheme;
-
-  // Restore the server-rendered theme when leaving this page
-  // (live preview changes data-theme on the document, which persists across client-side navigation)
-  useEffect(() => {
-    const originalTheme = document.documentElement.getAttribute('data-theme') || 'dark';
-    return () => {
-      document.documentElement.setAttribute('data-theme', originalTheme);
-      document.documentElement.classList.toggle('dark', originalTheme !== 'light');
-    };
-  }, []);
 
   // Fetch current theme
   useEffect(() => {
@@ -61,22 +47,14 @@ export default function SettingsPage() {
     fetchTheme();
   }, [router]);
 
-  // Apply theme instantly for live preview
-  const applyTheme = useCallback((themeId: string) => {
-    document.documentElement.setAttribute('data-theme', themeId);
-    document.documentElement.classList.toggle('dark', themeId !== 'light');
-  }, []);
-
   const handleSelect = (themeId: string) => {
     setSelectedTheme(themeId);
-    applyTheme(themeId);
     setSuccess(null);
     setError(null);
   };
 
   const handleDiscard = () => {
     setSelectedTheme(savedTheme);
-    applyTheme(savedTheme);
     setSuccess(null);
     setError(null);
   };
@@ -110,8 +88,6 @@ export default function SettingsPage() {
       setSuccess('Theme saved successfully');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save theme');
-      // Revert preview on error
-      applyTheme(savedTheme);
       setSelectedTheme(savedTheme);
     } finally {
       setIsSaving(false);
@@ -137,7 +113,7 @@ export default function SettingsPage() {
             <div className="h-4 w-64 bg-[var(--bg-tertiary)] rounded" />
             <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-8">
               {Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className="h-20 bg-[var(--bg-tertiary)] rounded-xl" />
+                <div key={i} className="h-40 bg-[var(--bg-tertiary)] rounded-xl" />
               ))}
             </div>
           </div>
@@ -183,7 +159,7 @@ export default function SettingsPage() {
         <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-6">
           <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Color Theme</h2>
           <p className="text-sm text-[var(--text-secondary)] mb-6">
-            Choose a color theme for your portal. Changes preview instantly.
+            Choose a color theme for your portal. The theme applies to your tenant subdomain.
           </p>
 
           <ThemeSelector
