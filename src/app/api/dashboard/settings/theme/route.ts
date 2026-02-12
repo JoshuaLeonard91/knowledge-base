@@ -8,7 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
-import { getTenantFromRequest, clearTenantCache } from '@/lib/tenant/resolver';
+import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { isValidTheme } from '@/lib/themes';
 
 /**
@@ -79,9 +79,6 @@ export async function PATCH(request: NextRequest) {
       create: { tenantId: tenant.id, theme },
       update: { theme },
     });
-
-    // Invalidate tenant cache so the new theme applies on next page load
-    clearTenantCache(tenant.slug);
 
     return NextResponse.json(
       { success: true, theme },

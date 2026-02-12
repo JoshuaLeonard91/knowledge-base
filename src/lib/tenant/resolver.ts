@@ -53,10 +53,6 @@ export interface TenantContext {
   } | null;
 }
 
-// Simple in-memory cache for tenant lookups (short TTL)
-const tenantCache = new Map<string, { tenant: TenantWithConfig | null; timestamp: number }>();
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
-
 /**
  * Extract subdomain from hostname
  */
@@ -91,14 +87,8 @@ export function extractSubdomain(hostname: string): string | null {
  * Get tenant from database by slug
  */
 export async function getTenantBySlug(slug: string): Promise<TenantWithConfig | null> {
-  // Check cache
-  const cached = tenantCache.get(slug);
-  if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
-    return cached.tenant;
-  }
-
   try {
-    const tenant = await prisma.tenant.findUnique({
+    return await prisma.tenant.findUnique({
       where: { slug },
       include: {
         hygraphConfig: true,
@@ -107,11 +97,6 @@ export async function getTenantBySlug(slug: string): Promise<TenantWithConfig | 
         branding: true,
       },
     });
-
-    // Cache result (even if null)
-    tenantCache.set(slug, { tenant, timestamp: Date.now() });
-
-    return tenant;
   } catch {
     console.error('[Tenant] Error fetching tenant');
     return null;
@@ -223,13 +208,3 @@ export async function isSlugAvailable(slug: string): Promise<boolean> {
   return !existing;
 }
 
-/**
- * Clear tenant cache (called by webhook on CMS update)
- */
-export function clearTenantCache(slug?: string): void {
-  if (slug) {
-    tenantCache.delete(slug);
-  } else {
-    tenantCache.clear();
-  }
-}

@@ -10,7 +10,6 @@ export {
   getTenantBySlug,
   extractSubdomain,
   isSlugAvailable,
-  clearTenantCache,
   transformTenantToContext,
   type TenantContext,
   type TenantWithConfig,

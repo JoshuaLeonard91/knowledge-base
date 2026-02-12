@@ -16,7 +16,7 @@ import { randomBytes } from 'crypto';
 import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { encryptToString, decryptFromString } from '@/lib/security/crypto';
-import { getTenantFromRequest, clearTenantCache } from '@/lib/tenant/resolver';
+import { getTenantFromRequest } from '@/lib/tenant/resolver';
 
 /**
  * GET - Return configuration status only
@@ -176,8 +176,7 @@ export async function DELETE(request: NextRequest) {
       where: { tenantId: tenant.id },
     });
 
-    // Invalidate tenant cache so stale hygraph config isn't served
-    clearTenantCache(tenant.slug);
+
 
     console.log('[Hygraph Config] Configuration deleted');
 
