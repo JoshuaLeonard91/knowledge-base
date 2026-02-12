@@ -75,3 +75,5 @@ prisma/schema.prisma
 nul
 TESTING_CLAIM_FEATURE.md
 CLIENT_SETUP.md
+.claude/settings.local.json
+error.txt
