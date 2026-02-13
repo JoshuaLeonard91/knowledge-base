@@ -1527,11 +1527,11 @@ export class HygraphClient {
     helpfulResources: HelpfulResource[];
     pageContent: ServicesPageContent;
   }> {
+    // Core services page data — these models exist on all Hygraph instances
     const data = await this.query<{
       services: HygraphService[];
       serviceTiers: HygraphServiceTier[];
       sLAHighlights: HygraphSLAHighlight[];
-      testimonials: HygraphTestimonial[];
       helpfulResources: HygraphHelpfulResource[];
       servicesPageContents: HygraphServicesPageContent[];
     }>(`
@@ -1574,14 +1574,6 @@ export class HygraphClient {
           order
           statValue
         }
-        testimonials(first: 12, orderBy: order_ASC) {
-          id
-          name
-          quote
-          picture { url }
-          url
-          order
-        }
         helpfulResources(first: 6, orderBy: order_ASC) {
           id
           title
@@ -1606,13 +1598,29 @@ export class HygraphClient {
       }
     `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
 
+    // Testimonials fetched separately — model may not exist on all Hygraph instances
+    const testimonialsData = await this.query<{
+      testimonials: HygraphTestimonial[];
+    }>(`
+      query GetTestimonials {
+        testimonials(first: 12, orderBy: order_ASC) {
+          id
+          name
+          quote
+          picture { url }
+          url
+          order
+        }
+      }
+    `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
+
     // Log raw data for debugging
     console.log('[Hygraph] getServicesPageData result:', {
       hasData: !!data,
       servicesCount: data?.services?.length ?? 0,
       tiersCount: data?.serviceTiers?.length ?? 0,
       slaCount: data?.sLAHighlights?.length ?? 0,
-      testimonialsCount: data?.testimonials?.length ?? 0,
+      testimonialsCount: testimonialsData?.testimonials?.length ?? 0,
       resourcesCount: data?.helpfulResources?.length ?? 0,
       hasPageContent: !!data?.servicesPageContents?.[0],
     });
@@ -1626,8 +1634,8 @@ export class HygraphClient {
     // Transform SLA highlights (note: Hygraph field is sLAHighlights)
     const slaHighlights = (data?.sLAHighlights || []).map((h) => this.transformSLAHighlight(h));
 
-    // Transform testimonials
-    const testimonials = (data?.testimonials || []).map((t) => this.transformTestimonial(t));
+    // Transform testimonials (graceful fallback if model doesn't exist)
+    const testimonials = (testimonialsData?.testimonials || []).map((t) => this.transformTestimonial(t));
 
     // Transform helpful resources
     const helpfulResources = (data?.helpfulResources || []).map((r) => this.transformHelpfulResource(r));
