@@ -27,7 +27,7 @@ import { decryptFromString } from '@/lib/security/crypto';
 export type { ContactChannel, ResponseTimeItem, ContactPageSettings, ContactPageData } from '@/types';
 
 // Re-export service types from Hygraph
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFaq, PricingPageContent } from '@/lib/hygraph';
+export type { Service, ServiceTier, SLAHighlight, Testimonial, HelpfulResource, ServicesPageContent, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingFeature, LandingPageContent, PricingFaq, PricingPageContent } from '@/lib/hygraph';
 
 type CMSProvider = 'hygraph' | 'local';
 
@@ -224,7 +224,7 @@ export function withCategoryColors(articles: Article[], categories: ArticleCateg
 // SERVICES (Hygraph only)
 // ==========================================
 
-import type { Service, ServiceTier, SLAHighlight, HelpfulResource } from '@/lib/hygraph';
+import type { Service, ServiceTier, SLAHighlight, Testimonial, HelpfulResource } from '@/lib/hygraph';
 
 /**
  * Check if services are enabled (any services exist in CMS)
@@ -520,6 +520,7 @@ export async function getServicesPageData(): Promise<{
   services: Service[];
   serviceTiers: ServiceTier[];
   slaHighlights: SLAHighlight[];
+  testimonials: Testimonial[];
   helpfulResources: HelpfulResource[];
   pageContent: ServicesPageContent;
 }> {
@@ -532,7 +533,7 @@ export async function getServicesPageData(): Promise<{
   // Tenants without Hygraph get empty data
   if (await isTenantContext()) {
     return {
-      services: [], serviceTiers: [], slaHighlights: [], helpfulResources: [],
+      services: [], serviceTiers: [], slaHighlights: [], testimonials: [], helpfulResources: [],
       pageContent: { heroTitle: '', heroSubtitle: '', servicesTitle: '', servicesSubtitle: '', slaTitle: '', slaSubtitle: '', resourcesTitle: '', resourcesSubtitle: '', ctaTitle: '', ctaSubtitle: '' },
     };
   }
@@ -542,6 +543,7 @@ export async function getServicesPageData(): Promise<{
     services: [],
     serviceTiers: [],
     slaHighlights: [],
+    testimonials: [],
     helpfulResources: [],
     pageContent: {
       heroTitle: 'Discord Solutions That Scale',

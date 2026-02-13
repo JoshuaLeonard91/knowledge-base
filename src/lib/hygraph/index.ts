@@ -24,7 +24,7 @@ export {
 export type { SiteSettings, NavigationLink, NavigationLocation, LandingFeature, LandingFeatureWithStyle, PricingFaq } from './client';
 
 // Types - legacy aliases (for backwards compatibility)
-export type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent, ContactPageSettings, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingPageContent, PricingPageContent } from './client';
+export type { Service, ServiceTier, SLAHighlight, Testimonial, HelpfulResource, ServicesPageContent, ContactPageSettings, FooterSettings, FooterLink, HeaderSettings, NavLink, TicketCategory, LandingPageContent, PricingPageContent } from './client';
 
 import { hygraph } from './client';
 

@@ -53,6 +53,16 @@ export interface SLAHighlight {
   statValue?: string; // e.g., "99.9%", "24/7", "<4hrs" - if set, shows as big text
 }
 
+// Testimonial for social proof carousel
+export interface Testimonial {
+  id: string;
+  name: string;
+  quote: string;
+  pictureUrl?: string;
+  url?: string;
+  order: number;
+}
+
 // Helpful resource links (CMS-driven, replaces hardcoded section)
 export interface HelpfulResource {
   id: string;
@@ -222,6 +232,15 @@ interface HygraphSLAHighlight {
   icon?: string;
   order?: number;
   statValue?: string;
+}
+
+interface HygraphTestimonial {
+  id: string;
+  name: string;
+  quote: string;
+  picture?: { url: string };
+  url?: string;
+  order?: number;
 }
 
 interface HygraphHelpfulResource {
@@ -1142,6 +1161,20 @@ export class HygraphClient {
     };
   }
 
+  /**
+   * Transform testimonial
+   */
+  private transformTestimonial(testimonial: HygraphTestimonial): Testimonial {
+    return {
+      id: testimonial.id,
+      name: testimonial.name,
+      quote: testimonial.quote,
+      pictureUrl: testimonial.picture?.url,
+      url: testimonial.url,
+      order: testimonial.order ?? 0,
+    };
+  }
+
   // ==========================================
   // HELPFUL RESOURCES
   // ==========================================
@@ -1490,6 +1523,7 @@ export class HygraphClient {
     services: Service[];
     serviceTiers: ServiceTier[];
     slaHighlights: SLAHighlight[]; // Note: Hygraph field is sLAHighlights
+    testimonials: Testimonial[];
     helpfulResources: HelpfulResource[];
     pageContent: ServicesPageContent;
   }> {
@@ -1497,6 +1531,7 @@ export class HygraphClient {
       services: HygraphService[];
       serviceTiers: HygraphServiceTier[];
       sLAHighlights: HygraphSLAHighlight[];
+      testimonials: HygraphTestimonial[];
       helpfulResources: HygraphHelpfulResource[];
       servicesPageContents: HygraphServicesPageContent[];
     }>(`
@@ -1539,6 +1574,14 @@ export class HygraphClient {
           order
           statValue
         }
+        testimonials(first: 12, orderBy: order_ASC) {
+          id
+          name
+          quote
+          picture { url }
+          url
+          order
+        }
         helpfulResources(first: 6, orderBy: order_ASC) {
           id
           title
@@ -1569,6 +1612,7 @@ export class HygraphClient {
       servicesCount: data?.services?.length ?? 0,
       tiersCount: data?.serviceTiers?.length ?? 0,
       slaCount: data?.sLAHighlights?.length ?? 0,
+      testimonialsCount: data?.testimonials?.length ?? 0,
       resourcesCount: data?.helpfulResources?.length ?? 0,
       hasPageContent: !!data?.servicesPageContents?.[0],
     });
@@ -1581,6 +1625,9 @@ export class HygraphClient {
 
     // Transform SLA highlights (note: Hygraph field is sLAHighlights)
     const slaHighlights = (data?.sLAHighlights || []).map((h) => this.transformSLAHighlight(h));
+
+    // Transform testimonials
+    const testimonials = (data?.testimonials || []).map((t) => this.transformTestimonial(t));
 
     // Transform helpful resources
     const helpfulResources = (data?.helpfulResources || []).map((r) => this.transformHelpfulResource(r));
@@ -1604,6 +1651,7 @@ export class HygraphClient {
       services,
       serviceTiers,
       slaHighlights,
+      testimonials,
       helpfulResources,
       pageContent,
     };

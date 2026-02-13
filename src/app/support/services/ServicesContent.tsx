@@ -4,7 +4,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useIsMainSite } from '@/lib/tenant/context';
-import type { Service, ServiceTier, SLAHighlight, HelpfulResource, ServicesPageContent } from '@/lib/cms';
+import type { Service, ServiceTier, SLAHighlight, Testimonial, HelpfulResource, ServicesPageContent } from '@/lib/cms';
+import { TestimonialsCarousel } from '@/components/services/TestimonialsCarousel';
 import {
   ArrowRight, Check, CaretLeft, Sparkle, Star, CaretRight, CaretDown, CaretUp,
   CurrencyDollar, Wrench
@@ -26,11 +27,12 @@ interface ServicesContentProps {
   services: Service[];
   serviceTiers: ServiceTier[];
   slaHighlights: SLAHighlight[];
+  testimonials: Testimonial[];
   helpfulResources: HelpfulResource[];
   pageContent: ServicesPageContent;
 }
 
-export function ServicesContent({ services, serviceTiers, slaHighlights, helpfulResources, pageContent }: ServicesContentProps) {
+export function ServicesContent({ services, serviceTiers, slaHighlights, testimonials, helpfulResources, pageContent }: ServicesContentProps) {
   const router = useRouter();
   const isMainSite = useIsMainSite();
   const [expandedServices, setExpandedServices] = useState<Set<string>>(new Set());
@@ -250,6 +252,23 @@ export function ServicesContent({ services, serviceTiers, slaHighlights, helpful
           })}
         </div>
       </section>
+
+      {/* Testimonials Section */}
+      {testimonials.length > 0 && (
+        <section className="scroll-mt-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+            <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-[var(--text-primary)] mb-4">
+                What Our Clients Say
+              </h2>
+              <p className="text-[var(--text-secondary)] max-w-2xl mx-auto">
+                Hear from the communities we&apos;ve helped grow and succeed.
+              </p>
+            </div>
+            <TestimonialsCarousel testimonials={testimonials} />
+          </div>
+        </section>
+      )}
 
       {/* SLA Section - only show if we have tiers or highlights */}
       {(serviceTiers.length > 0 || slaHighlights.length > 0) && (

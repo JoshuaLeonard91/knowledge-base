@@ -6,12 +6,13 @@ export default async function ServicesPage() {
   console.log('[ServicesPage] Fetching data...');
 
   // Fetch all service data from CMS in a single query (reduces API calls from 7 to 1)
-  const { services, serviceTiers, slaHighlights, helpfulResources, pageContent } = await getServicesPageData();
+  const { services, serviceTiers, slaHighlights, testimonials, helpfulResources, pageContent } = await getServicesPageData();
 
   console.log('[ServicesPage] Data received:', {
     servicesCount: services.length,
     tiersCount: serviceTiers.length,
     slaCount: slaHighlights.length,
+    testimonialsCount: testimonials.length,
     resourcesCount: helpfulResources.length,
     hasPageContent: !!pageContent,
   });
@@ -28,6 +29,7 @@ export default async function ServicesPage() {
       services={services}
       serviceTiers={serviceTiers}
       slaHighlights={slaHighlights}
+      testimonials={testimonials}
       helpfulResources={helpfulResources}
       pageContent={pageContent}
     />
