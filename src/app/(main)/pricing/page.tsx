@@ -113,7 +113,7 @@ export default async function PricingPage() {
         </div>
       )}
 
-      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} isMainDomain={isMainDomain} />
+      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} privacyPolicyUrl={headerData.settings.privacyPolicyUrl} termsOfServiceUrl={headerData.settings.termsOfServiceUrl} isMainDomain={isMainDomain} />
     </div>
   );
 }

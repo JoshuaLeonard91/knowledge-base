@@ -10,12 +10,17 @@ import Link from 'next/link';
 interface LandingPageFooterProps {
   siteName: string;
   copyrightText?: string;
+  privacyPolicyUrl?: string;
+  termsOfServiceUrl?: string;
   isMainDomain?: boolean;
 }
 
-export function LandingPageFooter({ siteName, copyrightText, isMainDomain = false }: LandingPageFooterProps) {
+export function LandingPageFooter({ siteName, copyrightText, privacyPolicyUrl, termsOfServiceUrl, isMainDomain = false }: LandingPageFooterProps) {
   // URL paths - pricing and contact stay at root level for consistent landing experience
   const urls = { pricing: '/pricing', support: '/support', contact: '/contact' };
+
+  const hasPrivacy = privacyPolicyUrl && privacyPolicyUrl !== '#';
+  const hasTerms = termsOfServiceUrl && termsOfServiceUrl !== '#';
 
   return (
     <footer className="border-t border-[var(--border-primary)] py-8 px-4 sm:px-6 bg-[var(--bg-secondary)]">
@@ -42,6 +47,24 @@ export function LandingPageFooter({ siteName, copyrightText, isMainDomain = fals
           >
             Documentation
           </Link>
+          {hasPrivacy && (
+            <a
+              href={privacyPolicyUrl}
+              className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
+              {...(privacyPolicyUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            >
+              Privacy
+            </a>
+          )}
+          {hasTerms && (
+            <a
+              href={termsOfServiceUrl}
+              className="text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
+              {...(termsOfServiceUrl.startsWith('http') ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            >
+              Terms
+            </a>
+          )}
         </div>
       </div>
     </footer>

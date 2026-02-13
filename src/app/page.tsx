@@ -42,7 +42,7 @@ export default async function RootPage() {
           hasTicketing={hasTicketing}
         />
         <LandingPageContent content={tenantLandingContent} />
-        <LandingPageFooter siteName={siteName} copyrightText={tenantHeaderData.settings.copyrightText} isMainDomain={false} />
+        <LandingPageFooter siteName={siteName} copyrightText={tenantHeaderData.settings.copyrightText} privacyPolicyUrl={tenantHeaderData.settings.privacyPolicyUrl} termsOfServiceUrl={tenantHeaderData.settings.termsOfServiceUrl} isMainDomain={false} />
       </div>
     );
   }
@@ -66,7 +66,7 @@ export default async function RootPage() {
         hasTicketing={hasTicketing}
       />
       <LandingPageContent content={content} showAnimations={true} />
-      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} isMainDomain={true} />
+      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} privacyPolicyUrl={headerData.settings.privacyPolicyUrl} termsOfServiceUrl={headerData.settings.termsOfServiceUrl} isMainDomain={true} />
     </div>
   );
 }

@@ -23,7 +23,12 @@ export const dynamic = 'force-dynamic';
 
 /**
  * Verify Hygraph webhook signature (HMAC-SHA256)
- * Hygraph sends the signature in the `gcms-signature` header as a hex-encoded HMAC
+ *
+ * The gcms-signature header format is:
+ *   sign=<base64_hmac>, env=<environment>, t=<timestamp>
+ *
+ * The HMAC is computed over a JSON payload containing { Body, EnvironmentName, TimeStamp }
+ * See: https://hygraph.com/docs/api-reference/basics/webhooks
  */
 function verifySignature(
   body: string,
@@ -32,12 +37,34 @@ function verifySignature(
 ): boolean {
   if (!signature || !secret) return false;
 
-  const expected = createHmac('sha256', secret).update(body).digest('base64');
-
   try {
+    // Parse the structured header: "sign=abc, env=master, t=123456"
+    const parts: Record<string, string> = {};
+    for (const part of signature.split(', ')) {
+      const eqIndex = part.indexOf('=');
+      if (eqIndex > 0) {
+        parts[part.slice(0, eqIndex)] = part.slice(eqIndex + 1);
+      }
+    }
+
+    const sign = parts.sign;
+    const env = parts.env;
+    const timestamp = parseInt(parts.t, 10);
+
+    if (!sign || !env || isNaN(timestamp)) return false;
+
+    // Hygraph signs a JSON payload with Body, EnvironmentName, and TimeStamp
+    const payload = JSON.stringify({
+      Body: body,
+      EnvironmentName: env,
+      TimeStamp: timestamp,
+    });
+
+    const expected = createHmac('sha256', secret).update(payload).digest('base64');
+
     return timingSafeEqual(
-      Buffer.from(expected),
-      Buffer.from(signature)
+      Buffer.from(sign),
+      Buffer.from(expected)
     );
   } catch {
     return false;
@@ -58,6 +85,7 @@ function getTagsForModel(modelName: string): string[] {
     SLAHighlight: ['services'],
     HelpfulResource: ['services'],
     ServicesPageContent: ['services'],
+    Testimonial: ['services'],
     ContactPageSettings: ['contact'],
     ContactChannel: ['contact'],
     ResponseTimeItem: ['contact'],

@@ -179,7 +179,7 @@ export interface NavigationLink {
 }
 
 // Legacy type aliases for backwards compatibility
-export type HeaderSettings = Pick<SiteSettings, 'siteName' | 'subtitle' | 'logoIcon' | 'copyrightText'>;
+export type HeaderSettings = Pick<SiteSettings, 'siteName' | 'subtitle' | 'logoIcon' | 'copyrightText' | 'privacyPolicyUrl' | 'termsOfServiceUrl'>;
 export type FooterSettings = SiteSettings;
 export type NavLink = Omit<NavigationLink, 'location' | 'external'> & { icon: string };
 export type FooterLink = NavigationLink & { section: 'quickLinks' | 'resources' | 'community' };
@@ -378,6 +378,8 @@ export class HygraphClient {
   private cache: Map<string, { data: unknown; timestamp: number }> = new Map();
   private _schemaSupportsUnlisted: boolean | null = null;
   private _schemaSupportsColor: boolean | null = null;
+  private _availableQueryFields: Set<string> | null = null;
+  private _availableQueryFieldsTimestamp = 0;
   private cacheTag: string; // 'main' or 'tenant:{slug}' for cache isolation
 
   // In-memory cache durations (L1 cache, fast dedup within process)
@@ -418,6 +420,7 @@ export class HygraphClient {
     GetLandingPageContent: 'landing',
     HasLandingPageContent: 'landing',
     GetPricingPageContent: 'services',
+    GetTestimonials: 'services',
     GetSignupConfig: 'settings',
     GetOnboardingConfig: 'settings',
   };
@@ -552,6 +555,40 @@ export class HygraphClient {
       console.error(`[Hygraph] ${queryName}: Exception:`, error);
       return null;
     }
+  }
+
+  /**
+   * Discover which root-level query fields exist on this Hygraph schema.
+   * Uses GraphQL introspection. Result cached for 30 minutes (schemas rarely change).
+   * Cost: 1 query on first call, then free from cache.
+   */
+  private async getAvailableQueryFields(): Promise<Set<string>> {
+    // Return cached result if still valid (30 min TTL)
+    if (this._availableQueryFields && Date.now() - this._availableQueryFieldsTimestamp < 30 * 60 * 1000) {
+      return this._availableQueryFields;
+    }
+
+    const data = await this.query<{
+      __schema: { queryType: { fields: { name: string }[] } };
+    }>(`
+      query IntrospectQueryFields {
+        __schema {
+          queryType {
+            fields { name }
+          }
+        }
+      }
+    `, undefined, HygraphClient.CACHE_TTL.LONG);
+
+    const fields = new Set(
+      data?.__schema?.queryType?.fields?.map((f) => f.name) ?? []
+    );
+
+    this._availableQueryFields = fields;
+    this._availableQueryFieldsTimestamp = Date.now();
+
+    console.log(`[Hygraph] Schema introspection: ${fields.size} root query fields available`);
+    return fields;
   }
 
   /**
@@ -1512,137 +1549,102 @@ export class HygraphClient {
   }
 
   // ==========================================
-  // COMBINED SERVICES PAGE DATA (Single Query)
+  // SERVICES PAGE DATA (Introspection + Combined Query)
   // ==========================================
 
   /**
-   * Get all services page data in a single query
-   * This reduces API calls from 5 to 1, avoiding rate limits
+   * Get all services page data.
+   * Uses schema introspection to discover which models exist, then builds
+   * a single combined query with only available fields. Missing models
+   * gracefully return empty arrays instead of breaking the page.
+   *
+   * Cost: 2 requests on first call (introspection + data), 1 after introspection is cached.
    */
   async getServicesPageData(): Promise<{
     services: Service[];
     serviceTiers: ServiceTier[];
-    slaHighlights: SLAHighlight[]; // Note: Hygraph field is sLAHighlights
+    slaHighlights: SLAHighlight[];
     testimonials: Testimonial[];
     helpfulResources: HelpfulResource[];
     pageContent: ServicesPageContent;
   }> {
-    // Core services page data — these models exist on all Hygraph instances
+    // Discover which query fields this schema supports
+    const available = await this.getAvailableQueryFields();
+
+    // Build combined query with only existing models
+    const queryParts: string[] = [];
+
+    if (available.has('services')) {
+      queryParts.push(`services(first: 12, orderBy: order_ASC) {
+        id name slug tagline description icon color features order priceLabel buttonText buttonUrl
+      }`);
+    }
+    if (available.has('serviceTiers')) {
+      queryParts.push(`serviceTiers(first: 4, orderBy: order_ASC) {
+        id name slug description features responseTime availability supportChannels highlighted order accentColor { hex } price buttonText buttonUrl
+      }`);
+    }
+    if (available.has('sLAHighlights')) {
+      queryParts.push(`sLAHighlights(first: 6, orderBy: order_ASC) {
+        id title description icon order statValue
+      }`);
+    }
+    if (available.has('testimonials')) {
+      queryParts.push(`testimonials(first: 12, orderBy: order_ASC) {
+        id name quote picture { url } url order
+      }`);
+    }
+    if (available.has('helpfulResources')) {
+      queryParts.push(`helpfulResources(first: 6, orderBy: order_ASC) {
+        id title description icon url color { hex } order
+      }`);
+    }
+    if (available.has('servicesPageContents')) {
+      queryParts.push(`servicesPageContents(first: 1) {
+        heroTitle heroSubtitle servicesTitle servicesSubtitle slaTitle slaSubtitle resourcesTitle resourcesSubtitle ctaTitle ctaSubtitle
+      }`);
+    }
+
+    // If no models at all, return empty defaults
+    if (queryParts.length === 0) {
+      console.log('[Hygraph] getServicesPageData: no services-related models in schema');
+      return { services: [], serviceTiers: [], slaHighlights: [], testimonials: [], helpfulResources: [], pageContent: this.defaultServicesPageContent() };
+    }
+
+    // Single combined query with only the models that exist
     const data = await this.query<{
-      services: HygraphService[];
-      serviceTiers: HygraphServiceTier[];
-      sLAHighlights: HygraphSLAHighlight[];
-      helpfulResources: HygraphHelpfulResource[];
-      servicesPageContents: HygraphServicesPageContent[];
-    }>(`
-      query GetServicesPageData {
-        services(first: 12, orderBy: order_ASC) {
-          id
-          name
-          slug
-          tagline
-          description
-          icon
-          color
-          features
-          order
-          priceLabel
-          buttonText
-          buttonUrl
-        }
-        serviceTiers(first: 4, orderBy: order_ASC) {
-          id
-          name
-          slug
-          description
-          features
-          responseTime
-          availability
-          supportChannels
-          highlighted
-          order
-          accentColor { hex }
-          price
-          buttonText
-          buttonUrl
-        }
-        sLAHighlights(first: 6, orderBy: order_ASC) {
-          id
-          title
-          description
-          icon
-          order
-          statValue
-        }
-        helpfulResources(first: 6, orderBy: order_ASC) {
-          id
-          title
-          description
-          icon
-          url
-          color { hex }
-          order
-        }
-        servicesPageContents(first: 1) {
-          heroTitle
-          heroSubtitle
-          servicesTitle
-          servicesSubtitle
-          slaTitle
-          slaSubtitle
-          resourcesTitle
-          resourcesSubtitle
-          ctaTitle
-          ctaSubtitle
-        }
-      }
-    `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
+      services?: HygraphService[];
+      serviceTiers?: HygraphServiceTier[];
+      sLAHighlights?: HygraphSLAHighlight[];
+      testimonials?: HygraphTestimonial[];
+      helpfulResources?: HygraphHelpfulResource[];
+      servicesPageContents?: HygraphServicesPageContent[];
+    }>(`query GetServicesPageData { ${queryParts.join('\n')} }`, undefined, HygraphClient.CACHE_TTL.MEDIUM);
 
-    // Testimonials fetched separately — model may not exist on all Hygraph instances
-    const testimonialsData = await this.query<{
-      testimonials: HygraphTestimonial[];
-    }>(`
-      query GetTestimonials {
-        testimonials(first: 12, orderBy: order_ASC) {
-          id
-          name
-          quote
-          picture { url }
-          url
-          order
-        }
-      }
-    `, undefined, HygraphClient.CACHE_TTL.MEDIUM);
-
-    // Log raw data for debugging
     console.log('[Hygraph] getServicesPageData result:', {
-      hasData: !!data,
       servicesCount: data?.services?.length ?? 0,
       tiersCount: data?.serviceTiers?.length ?? 0,
       slaCount: data?.sLAHighlights?.length ?? 0,
-      testimonialsCount: testimonialsData?.testimonials?.length ?? 0,
+      testimonialsCount: data?.testimonials?.length ?? 0,
       resourcesCount: data?.helpfulResources?.length ?? 0,
       hasPageContent: !!data?.servicesPageContents?.[0],
     });
 
-    // Transform services
     const services = (data?.services || []).map((s) => this.transformService(s));
-
-    // Transform service tiers
     const serviceTiers = (data?.serviceTiers || []).map((t) => this.transformServiceTier(t));
-
-    // Transform SLA highlights (note: Hygraph field is sLAHighlights)
     const slaHighlights = (data?.sLAHighlights || []).map((h) => this.transformSLAHighlight(h));
-
-    // Transform testimonials (graceful fallback if model doesn't exist)
-    const testimonials = (testimonialsData?.testimonials || []).map((t) => this.transformTestimonial(t));
-
-    // Transform helpful resources
+    const testimonials = (data?.testimonials || []).map((t) => this.transformTestimonial(t));
     const helpfulResources = (data?.helpfulResources || []).map((r) => this.transformHelpfulResource(r));
 
-    // Page content with defaults
     const content = data?.servicesPageContents?.[0];
-    const pageContent: ServicesPageContent = {
+    const pageContent = this.defaultServicesPageContent(content);
+
+    return { services, serviceTiers, slaHighlights, testimonials, helpfulResources, pageContent };
+  }
+
+  /** Default services page content with optional overrides from CMS */
+  private defaultServicesPageContent(content?: HygraphServicesPageContent): ServicesPageContent {
+    return {
       heroTitle: content?.heroTitle || 'Discord Solutions That Scale',
       heroSubtitle: content?.heroSubtitle || 'From managed bot services to custom development, we provide comprehensive solutions to help your Discord community thrive.',
       servicesTitle: content?.servicesTitle || 'What We Offer',
@@ -1653,15 +1655,6 @@ export class HygraphClient {
       resourcesSubtitle: content?.resourcesSubtitle || 'Explore our knowledge base to learn more about what we offer.',
       ctaTitle: content?.ctaTitle || 'Ready to get started?',
       ctaSubtitle: content?.ctaSubtitle || "Let's discuss how we can help your Discord community succeed.",
-    };
-
-    return {
-      services,
-      serviceTiers,
-      slaHighlights,
-      testimonials,
-      helpfulResources,
-      pageContent,
     };
   }
 
@@ -1801,6 +1794,8 @@ export class HygraphClient {
           siteName
           subtitle
           copyrightText
+          privacyPolicyUrl
+          termsOfServiceUrl
         }
         navigationLinks(
           where: { location: header }
@@ -1841,6 +1836,8 @@ export class HygraphClient {
       subtitle: s?.subtitle || 'Help Center',
       logoIcon: logoIconUrl,
       copyrightText: s?.copyrightText || s?.siteName || 'Support Portal',
+      privacyPolicyUrl: s?.privacyPolicyUrl || '',
+      termsOfServiceUrl: s?.termsOfServiceUrl || '',
     };
 
     // Nav links with defaults if none exist
@@ -1868,11 +1865,9 @@ export class HygraphClient {
   }
 
   /**
-   * Get header data + page availability flags in a single query.
-   * Combines getHeaderData() + hasContactPageSettings() + hasLandingPageContent()
-   * + hasServiceTiers() into 1 API call instead of 5.
-   * Returns null if the combined query fails (e.g. schema missing some models),
-   * so callers can fall back to separate queries.
+   * Get header data + page availability flags using introspection.
+   * Discovers which models exist, then builds a single query.
+   * Never returns null — always provides settings + navLinks with defaults.
    */
   async getHeaderDataFull(): Promise<{
     settings: HeaderSettings;
@@ -1881,36 +1876,42 @@ export class HygraphClient {
     hasLandingPage: boolean;
     hasPricingPage: boolean;
   } | null> {
+    const available = await this.getAvailableQueryFields();
+
+    // Core fields always queried (siteSettings + navigation)
+    const queryParts: string[] = [];
+
+    if (available.has('siteSettingsEntries')) {
+      queryParts.push(`siteSettingsEntries(first: 1) {
+        siteName subtitle copyrightText privacyPolicyUrl termsOfServiceUrl logoIcon { url }
+      }`);
+    }
+    if (available.has('navigationLinks')) {
+      queryParts.push(`navigationLinks(where: { location: header }, first: 10, orderBy: order_ASC) {
+        id title url icon order
+      }`);
+    }
+
+    // Optional page-existence checks — only include if model exists
+    if (available.has('contactPageSettingsEntries')) {
+      queryParts.push('contactCheck: contactPageSettingsEntries(first: 1) { id }');
+    }
+    if (available.has('landingPageContents')) {
+      queryParts.push('landingCheck: landingPageContents(first: 1) { id }');
+    }
+    if (available.has('serviceTiers')) {
+      queryParts.push('pricingCheck: serviceTiers(first: 1) { id }');
+    }
+
+    if (queryParts.length === 0) return null;
+
     const data = await this.query<{
-      siteSettingsEntries: HygraphSiteSettings[];
-      navigationLinks: HygraphNavigationLink[];
-      contactCheck: { id: string }[];
-      landingCheck: { id: string }[];
-      pricingCheck: { id: string }[];
-    }>(`
-      query GetHeaderDataFull {
-        siteSettingsEntries(first: 1) {
-          siteName
-          subtitle
-          copyrightText
-          logoIcon { url }
-        }
-        navigationLinks(
-          where: { location: header }
-          first: 10
-          orderBy: order_ASC
-        ) {
-          id
-          title
-          url
-          icon
-          order
-        }
-        contactCheck: contactPageSettingsEntries(first: 1) { id }
-        landingCheck: landingPageContents(first: 1) { id }
-        pricingCheck: serviceTiers(first: 1) { id }
-      }
-    `, undefined, HygraphClient.CACHE_TTL.LONG);
+      siteSettingsEntries?: HygraphSiteSettings[];
+      navigationLinks?: HygraphNavigationLink[];
+      contactCheck?: { id: string }[];
+      landingCheck?: { id: string }[];
+      pricingCheck?: { id: string }[];
+    }>(`query GetHeaderDataFull { ${queryParts.join('\n')} }`, undefined, HygraphClient.CACHE_TTL.LONG);
 
     if (!data) return null;
 
@@ -1920,10 +1921,12 @@ export class HygraphClient {
       subtitle: s?.subtitle || 'Help Center',
       logoIcon: s?.logoIcon?.url,
       copyrightText: s?.copyrightText || s?.siteName || 'Support Portal',
+      privacyPolicyUrl: s?.privacyPolicyUrl || '',
+      termsOfServiceUrl: s?.termsOfServiceUrl || '',
     };
 
     let navLinks: NavLink[];
-    if (data.navigationLinks?.length > 0) {
+    if (data.navigationLinks && data.navigationLinks.length > 0) {
       navLinks = data.navigationLinks.map((link) => ({
         id: link.id,
         title: link.title,
