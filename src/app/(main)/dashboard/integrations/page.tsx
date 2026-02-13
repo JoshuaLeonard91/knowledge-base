@@ -729,7 +729,7 @@ export default function IntegrationsPage() {
                         </div>
                       )}
                       <p className="text-xs text-[var(--text-muted)]">
-                        In Hygraph: Settings → Webhooks → Create Webhook. Paste the URL and secret, set method to <strong className="text-[var(--text-secondary)]">POST</strong>, stage to <strong className="text-[var(--text-secondary)]">Published</strong>, and leave content model as &quot;None&quot; (all models).
+                        In Hygraph: Project Settings → Webhooks → Create Webhook. Paste the URL and secret, set method to <strong className="text-[var(--text-secondary)]">POST</strong>, stage to <strong className="text-[var(--text-secondary)]">Published</strong>, and leave content model as &quot;None&quot; (all models).
                       </p>
                     </div>
                   </div>
