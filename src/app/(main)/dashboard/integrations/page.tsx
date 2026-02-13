@@ -706,21 +706,20 @@ export default function IntegrationsPage() {
                           </button>
                         </div>
                       </div>
-                      {hygraphStatus.webhookSecret && (
+                      {hygraphStatus.hasWebhookSecret && (
                         <div>
                           <label className="block text-xs text-[var(--text-muted)] mb-1">Secret Key</label>
                           <div className="flex gap-2">
-                            <input
-                              type="text"
-                              readOnly
-                              value={hygraphStatus.webhookSecret}
-                              className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-xs font-mono text-[var(--text-secondary)] select-all"
-                            />
+                            <div className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-xs font-mono text-[var(--text-muted)] tracking-widest">
+                              ••••••••••••••••••••••••
+                            </div>
                             <button
                               onClick={() => {
-                                navigator.clipboard.writeText(hygraphStatus.webhookSecret!);
-                                setSuccess('Secret key copied!');
-                                setTimeout(() => setSuccess(null), 2000);
+                                if (hygraphStatus.webhookSecret) {
+                                  navigator.clipboard.writeText(hygraphStatus.webhookSecret);
+                                  setSuccess('Secret key copied!');
+                                  setTimeout(() => setSuccess(null), 2000);
+                                }
                               }}
                               className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition"
                             >
@@ -730,7 +729,7 @@ export default function IntegrationsPage() {
                         </div>
                       )}
                       <p className="text-xs text-[var(--text-muted)]">
-                        In Hygraph: Settings → Webhooks → Create Webhook. Paste the URL and secret, select &quot;Publish&quot; and &quot;Unpublish&quot; triggers for all content models.
+                        In Hygraph: Settings → Webhooks → Create Webhook. Paste the URL and secret, set method to <strong className="text-[var(--text-secondary)]">POST</strong>, stage to <strong className="text-[var(--text-secondary)]">Published</strong>, and leave content model as &quot;None&quot; (all models).
                       </p>
                     </div>
                   </div>
