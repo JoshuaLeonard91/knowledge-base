@@ -39,7 +39,7 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
   }
 
   // Pages that manage their own header/layout (no Navbar/Footer)
-  const isSelfManagedPage = pathname === '/signup' || pathname === '/onboarding' || pathname.startsWith('/dashboard');
+  const isSelfManagedPage = pathname === '/signup' || pathname === '/onboarding' || pathname.startsWith('/dashboard') || pathname.startsWith('/checkout');
 
   if (isSelfManagedPage) {
     return (
