@@ -274,10 +274,14 @@ export function RichTextRenderer({ content, className = '' }: RichTextRendererPr
             );
           },
 
-          // Class wrapper (for custom styling via CMS)
-          class: ({ children, className: customClass }) => (
-            <div className={customClass}>{children}</div>
-          ),
+          // Class wrapper (for custom styling via CMS) — whitelist safe classes
+          class: ({ children, className: customClass }) => {
+            const safeClass = customClass
+              ?.split(/\s+/)
+              .filter((cls: string) => /^[a-z][a-z0-9-]*$/.test(cls) && !cls.startsWith('fixed') && !cls.startsWith('absolute') && !cls.startsWith('z-'))
+              .join(' ') || '';
+            return <div className={safeClass}>{children}</div>;
+          },
         }}
       />
     </div>

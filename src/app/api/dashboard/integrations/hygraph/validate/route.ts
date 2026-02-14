@@ -59,12 +59,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate domain to prevent SSRF — only allow *.hygraph.com and *.graphassets.com
+    // Validate domain to prevent SSRF — only allow *.hygraph.com and *.graphassets.com, block private IPs
     try {
       const parsed = new URL(endpoint);
       if (!parsed.hostname.endsWith('.hygraph.com') && !parsed.hostname.endsWith('.graphassets.com')) {
         return NextResponse.json(
           { valid: false, error: 'Invalid endpoint. Must be a Hygraph domain (*.hygraph.com).' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+      const blockedPatterns = [/^localhost$/i, /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^169\.254\./, /^0\./, /^\[::1\]/];
+      if (blockedPatterns.some(p => p.test(parsed.hostname))) {
+        return NextResponse.json(
+          { valid: false, error: 'Invalid endpoint.' },
           { status: 400, headers: securityHeaders }
         );
       }

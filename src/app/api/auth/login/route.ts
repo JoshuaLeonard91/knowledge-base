@@ -5,6 +5,7 @@ import {
   createSuccessResponse,
   createErrorResponse,
 } from '@/lib/security/sanitize';
+import { validateCsrfRequest } from '@/lib/security/csrf';
 import {
   logAuthAttempt,
   getClientIp,
@@ -57,6 +58,12 @@ export async function POST(request: NextRequest) {
       mode: 'discord',
       redirectUrl: '/api/auth/discord?callbackUrl=/support',
     });
+  }
+
+  // Mock mode — validate CSRF before creating session
+  const csrfResult = await validateCsrfRequest(request);
+  if (!csrfResult.valid) {
+    return createErrorResponse('authentication', 403);
   }
 
   // Mock mode - create session directly

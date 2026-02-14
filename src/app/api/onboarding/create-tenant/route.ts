@@ -93,7 +93,20 @@ export async function POST(request: NextRequest) {
 
     // Get request body
     const body = await request.json();
-    const { subdomain, displayName, logoUrl, primaryColor } = body;
+    const { subdomain, displayName, logoUrl: rawLogoUrl, primaryColor } = body;
+
+    // Validate logo URL if provided — only allow http(s)
+    let logoUrl: string | null = null;
+    if (rawLogoUrl && typeof rawLogoUrl === 'string') {
+      try {
+        const parsed = new URL(rawLogoUrl);
+        if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+          logoUrl = parsed.toString();
+        }
+      } catch {
+        // Invalid URL — ignore silently
+      }
+    }
 
     // Validate subdomain
     if (!subdomain || typeof subdomain !== 'string') {

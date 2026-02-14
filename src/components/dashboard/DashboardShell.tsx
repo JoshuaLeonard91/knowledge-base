@@ -9,7 +9,7 @@
 
 import { useState, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { DashboardProvider, useDashboard } from './DashboardContext';
 
 // ==========================================
@@ -89,17 +89,22 @@ const NAV_ITEMS = [
 
 function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   const pathname = usePathname();
-  const router = useRouter();
   const { user, tenant, isLoading } = useDashboard();
 
   const handleLogout = useCallback(async () => {
     try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-      router.push('/');
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
+      await fetch('/api/auth/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: { 'X-CSRF-Token': csrfData.csrf },
+      });
     } catch {
-      router.push('/');
+      // Best-effort logout
     }
-  }, [router]);
+    window.location.href = '/';
+  }, []);
 
   const portalUrl = tenant ? `https://${tenant.slug}.helpportal.app` : null;
 

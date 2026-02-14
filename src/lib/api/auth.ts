@@ -75,8 +75,10 @@ export async function requireTenantOwner(request?: NextRequest): Promise<TenantA
     return { response: errorResponse('No tenant found', 404) };
   }
 
+  // If tenant context exists (subdomain), require exact match — no fallback
+  // If no tenant context (main domain dashboard), use first tenant
   const tenant = tenantContext
-    ? user.tenants.find((t) => t.slug === tenantContext.slug) || user.tenants[0]
+    ? user.tenants.find((t) => t.slug === tenantContext.slug)
     : user.tenants[0];
 
   if (!tenant) {

@@ -51,12 +51,20 @@ export async function POST(request: NextRequest) {
       normalizedUrl = `https://${normalizedUrl}`;
     }
 
-    // Validate domain to prevent SSRF — only allow *.atlassian.net
+    // Validate domain to prevent SSRF — only allow *.atlassian.net, block private IPs
     try {
       const parsed = new URL(normalizedUrl);
       if (!parsed.hostname.endsWith('.atlassian.net')) {
         return NextResponse.json(
           { valid: false, error: 'Invalid Jira URL. Must be a *.atlassian.net domain.' },
+          { status: 400, headers: securityHeaders }
+        );
+      }
+      // Block private/reserved IPs and metadata service endpoints
+      const blockedPatterns = [/^localhost$/i, /^127\./, /^10\./, /^172\.(1[6-9]|2\d|3[01])\./, /^192\.168\./, /^169\.254\./, /^0\./, /^\[::1\]/];
+      if (blockedPatterns.some(p => p.test(parsed.hostname))) {
+        return NextResponse.json(
+          { valid: false, error: 'Invalid Jira URL.' },
           { status: 400, headers: securityHeaders }
         );
       }

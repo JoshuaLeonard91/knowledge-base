@@ -1,9 +1,39 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { randomUUID } from 'crypto';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 import { refreshTicketDM } from '@/lib/discord-bot/helpers';
 import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
+
+/** Magic number signatures for server-side file type verification */
+const MAGIC_SIGNATURES: Record<string, number[]> = {
+  'image/png': [0x89, 0x50, 0x4e, 0x47],
+  'image/jpeg': [0xff, 0xd8, 0xff],
+  'image/gif': [0x47, 0x49, 0x46],
+  'image/webp': [0x52, 0x49, 0x46, 0x46], // RIFF header
+  'application/pdf': [0x25, 0x50, 0x44, 0x46], // %PDF
+};
+
+/** Verify file content matches declared MIME type */
+function verifyFileSignature(buffer: Buffer, mimeType: string): boolean {
+  const expected = MAGIC_SIGNATURES[mimeType];
+  if (!expected) return true; // No signature to check (text, docx) — allow
+  if (buffer.length < expected.length) return false;
+  return expected.every((byte, i) => byte === buffer[i]);
+}
+
+/** Sanitize filename: strip path traversal, special chars, generate safe name */
+function sanitizeFilename(name: string): string {
+  const cleaned = name
+    .replace(/\0/g, '')
+    .replace(/[/\\]/g, '_')
+    .replace(/\.\./g, '_')
+    .replace(/[^a-zA-Z0-9._-]/g, '_')
+    .substring(0, 255);
+  const ext = cleaned.split('.').pop() || 'bin';
+  return `${randomUUID()}.${ext}`;
+}
 
 export async function GET(
   request: NextRequest,
@@ -155,13 +185,21 @@ export async function POST(
     for (const file of files) {
       if (file.size > MAX_FILE_SIZE) {
         return NextResponse.json(
-          { success: false, error: `File "${file.name}" exceeds 10MB limit` },
+          { success: false, error: `File exceeds 10MB limit` },
           { status: 400 }
         );
       }
       if (!ALLOWED_TYPES.includes(file.type)) {
         return NextResponse.json(
-          { success: false, error: `File type "${file.type}" is not allowed` },
+          { success: false, error: `File type is not allowed` },
+          { status: 400 }
+        );
+      }
+      // Server-side magic number verification — don't trust client MIME type
+      const buf = Buffer.from(await file.arrayBuffer());
+      if (!verifyFileSignature(buf, file.type)) {
+        return NextResponse.json(
+          { success: false, error: `File content does not match declared type` },
           { status: 400 }
         );
       }
@@ -196,7 +234,8 @@ export async function POST(
       await Promise.all(
         files.map(async (file) => {
           const buffer = Buffer.from(await file.arrayBuffer());
-          await provider.addAttachment!(ticketId, buffer, file.name, file.type);
+          const safeName = sanitizeFilename(file.name);
+          await provider.addAttachment!(ticketId, buffer, safeName, file.type);
         })
       );
     }

@@ -85,7 +85,6 @@ export async function GET() {
       .map(u => ({
         accountId: u.accountId,
         displayName: u.displayName,
-        email: u.emailAddress || null,
         avatar: u.avatarUrls?.['48x48'] || null,
       }));
 

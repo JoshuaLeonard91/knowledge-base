@@ -193,13 +193,11 @@ export class JiraServiceDeskClient {
       });
 
       if (!response.ok) {
-        // Log status but not body (may contain sensitive data)
-        const errorBody = await response.text().catch(() => '(failed to read body)');
+        // Log status only — error body may contain sensitive Jira internals
         console.error('[Jira Client] Request failed:', {
           status: response.status,
           statusText: response.statusText,
-          url: url.replace(/\/rest\/.*/, '/rest/...'), // Truncate for privacy
-          body: errorBody,
+          url: url.replace(/\/rest\/.*/, '/rest/...'),
         });
         return {
           data: null,

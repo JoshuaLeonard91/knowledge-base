@@ -64,7 +64,7 @@ export async function POST(request: NextRequest, context: RouteContext) {
       return NextResponse.json(result, { headers: securityHeaders });
     } catch (err) {
       if (err instanceof AutomationApiError) {
-        console.error('[Jira Automation] Get rule failed:', err.status, err.body);
+        console.error('[Jira Automation] Get rule failed:', err.status);
         return NextResponse.json(
           { error: `Failed to get automation rule (${err.status})` },
           { status: err.status === 404 ? 404 : 502, headers: securityHeaders }

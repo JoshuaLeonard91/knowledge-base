@@ -5,6 +5,7 @@ import {
   createSuccessResponse,
   createErrorResponse,
 } from '@/lib/security/sanitize';
+import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 import {
   logApiAccess,
   logValidationFailure,
@@ -16,6 +17,12 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
 
   try {
+    // Validate CSRF token
+    const csrfResult = await validateCsrfRequest(request);
+    if (!csrfResult.valid) {
+      return csrfErrorResponse();
+    }
+
     const body = await request.json();
     const { articleSlug, helpful, comment } = body;
 

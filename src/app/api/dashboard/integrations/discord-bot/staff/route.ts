@@ -113,11 +113,11 @@ export async function POST(request: NextRequest) {
         botId: tenant.id,
         discordUserId,
         jiraAccountId: trimmedJiraAccountId,
-        displayName: displayName?.trim() || null,
+        displayName: displayName?.trim()?.slice(0, 100) || null,
       },
       update: {
         jiraAccountId: trimmedJiraAccountId,
-        displayName: displayName?.trim() || null,
+        displayName: displayName?.trim()?.slice(0, 100) || null,
       },
     });
 

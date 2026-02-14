@@ -252,10 +252,24 @@ function syncDevTenantCookie(response: NextResponse, request: NextRequest): void
 /**
  * Middleware function
  */
+/** Apply security headers to a response */
+function applySecurityHeaders(response: NextResponse): void {
+  response.headers.set('X-Content-Type-Options', 'nosniff');
+  response.headers.set('X-Frame-Options', 'DENY');
+  response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+  response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  if (process.env.NODE_ENV === 'production') {
+    response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = getClientIp(request);
   const method = request.method;
+
+  // Defense-in-depth: strip internal header that could bypass middleware (CVE-2025-29927)
+  request.headers.delete('x-middleware-subrequest');
 
   // Extract tenant subdomain
   const tenantSlug = extractTenantSubdomain(request);
@@ -358,8 +372,8 @@ export async function middleware(request: NextRequest) {
     response.headers.set('X-RateLimit-Remaining', String(result.remaining));
     response.headers.set('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
 
-    // Apply global security headers to all API responses
-    response.headers.set('X-Content-Type-Options', 'nosniff');
+    // Apply security headers to all API responses
+    applySecurityHeaders(response);
     response.headers.set('Cache-Control', 'no-store, private');
 
     // Add tenant header for API routes
@@ -371,8 +385,9 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Continue for non-API routes with tenant header
+  // Continue for non-API routes with tenant header + security headers
   const response = NextResponse.next();
+  applySecurityHeaders(response);
   if (tenantSlug) {
     response.headers.set('x-tenant-slug', tenantSlug);
   }
