@@ -9,6 +9,7 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { prisma } from '@/lib/db/client';
+import { hasActiveAccess } from '@/lib/subscription/helpers';
 import type { PublicUser } from '@/types';
 import type { Tenant } from '@/generated/prisma';
 
@@ -80,6 +81,30 @@ export async function requireTenantOwner(request?: NextRequest): Promise<TenantA
 
   if (!tenant) {
     return { response: errorResponse('Tenant access denied', 403) };
+  }
+
+  return { session, tenant };
+}
+
+/**
+ * Validate authentication + tenant ownership + active subscription.
+ *
+ * Use for routes that should only be accessible to paying subscribers
+ * (e.g. integrations, settings).
+ */
+export async function requireSubscribedTenantOwner(request?: NextRequest): Promise<TenantAuthResult> {
+  const result = await requireTenantOwner(request);
+  if ('response' in result) return result;
+
+  const { session, tenant } = result;
+
+  const user = await prisma.user.findUnique({
+    where: { discordId: session.id },
+    include: { subscription: true },
+  });
+
+  if (!user || !hasActiveAccess(user.subscription)) {
+    return { response: errorResponse('Active subscription required', 403) };
   }
 
   return { session, tenant };

@@ -89,14 +89,10 @@ export async function GET(request: NextRequest) {
       details: {
         error: 'state_mismatch',
         hasStoredState: !!storedState,
-        statesMatch: storedState === state,
         tenantOrigin,
-        authCookieDomain: process.env.AUTH_COOKIE_DOMAIN || 'NOT_SET',
       },
     });
-    // Include debug info in error
-    const debugError = !storedState ? 'StateMissing' : 'StateMismatch';
-    return NextResponse.redirect(`${tenantOrigin}/support/login?error=${debugError}`);
+    return NextResponse.redirect(`${tenantOrigin}/support/login?error=InvalidState`);
   }
 
   // Validate state token expiration (embedded timestamp)

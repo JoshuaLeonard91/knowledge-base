@@ -6,7 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { requireTenantOwner, securityHeaders } from '@/lib/api/auth';
+import { requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { getValidAccessToken } from '@/lib/atlassian/token-manager';
 
@@ -22,7 +22,7 @@ interface JiraUser {
 
 export async function GET() {
   try {
-    const auth = await requireTenantOwner();
+    const auth = await requireSubscribedTenantOwner();
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 

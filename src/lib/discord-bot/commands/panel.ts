@@ -34,6 +34,7 @@ import {
 import type { FileUploadModalData } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { getTicketCategories, getTicketCategoriesForTenant } from '@/lib/cms';
+import { sanitizeString } from '@/lib/validation';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
 import { botManager } from '../manager';
 import { sendTicketCreationDM } from '../notifications';
@@ -90,6 +91,20 @@ function getCategoryName(id: string): string | undefined {
 // ==========================================
 // PANEL CONFIG
 // ==========================================
+
+// File upload validation
+const MAX_ATTACHMENT_SIZE = 10 * 1024 * 1024; // 10 MB
+const ALLOWED_CONTENT_TYPES = new Set([
+  'image/png', 'image/jpeg', 'image/gif', 'image/webp',
+  'application/pdf',
+  'text/plain', 'text/csv',
+  'application/json',
+  'application/zip', 'application/x-zip-compressed',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'video/mp4', 'video/webm',
+]);
 
 const BLURPLE = 0x5865f2;
 
@@ -390,8 +405,8 @@ export async function handlePanelModal(
     // Extract fields from modal
     const categoryId = interaction.fields.getStringSelectValues('ticket_category')[0];
     const severity = interaction.fields.getStringSelectValues('ticket_severity')[0];
-    const title = interaction.fields.getTextInputValue('ticket_title');
-    const description = interaction.fields.getTextInputValue('ticket_description');
+    const title = sanitizeString(interaction.fields.getTextInputValue('ticket_title'));
+    const description = sanitizeString(interaction.fields.getTextInputValue('ticket_description'));
 
     if (!categoryId || !severity) {
       await interaction.editReply({
@@ -448,8 +463,21 @@ export async function handlePanelModal(
 
     if (fileField?.attachments?.size && provider.addAttachment) {
       const ticketId = result.ticketId!;
+      const validAttachments = Array.from(fileField.attachments.values()).filter((a) => {
+        if (a.size > MAX_ATTACHMENT_SIZE) {
+          console.warn(`[Panel] Skipping oversized file: ${a.name} (${(a.size / 1024 / 1024).toFixed(1)}MB)`);
+          return false;
+        }
+        const mime = (a.contentType || 'application/octet-stream').toLowerCase();
+        if (!ALLOWED_CONTENT_TYPES.has(mime)) {
+          console.warn(`[Panel] Skipping disallowed file type: ${a.name} (${mime})`);
+          return false;
+        }
+        return true;
+      });
+
       await Promise.all(
-        Array.from(fileField.attachments.values()).map(async (attachment) => {
+        validAttachments.map(async (attachment) => {
           try {
             const response = await fetch(attachment.url);
             const buffer = Buffer.from(await response.arrayBuffer());

@@ -9,7 +9,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireTenantOwner, securityHeaders } from '@/lib/api/auth';
+import { requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { JiraAutomationClient, AutomationApiError } from '@/lib/atlassian/automation-client';
 
@@ -20,7 +20,7 @@ type RouteContext = { params: Promise<{ uuid: string }> };
  */
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
-    const auth = await requireTenantOwner(request);
+    const auth = await requireSubscribedTenantOwner(request);
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 

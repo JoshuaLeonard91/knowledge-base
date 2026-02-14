@@ -7,13 +7,13 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireTenantOwner, securityHeaders } from '@/lib/api/auth';
+import { requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { prisma } from '@/lib/db/client';
 import { jiraServiceDesk } from '@/lib/atlassian/client';
 
 export async function GET() {
   try {
-    const auth = await requireTenantOwner();
+    const auth = await requireSubscribedTenantOwner();
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 
@@ -41,7 +41,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireTenantOwner(request);
+    const auth = await requireSubscribedTenantOwner(request);
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 
@@ -136,7 +136,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireTenantOwner(request);
+    const auth = await requireSubscribedTenantOwner(request);
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 

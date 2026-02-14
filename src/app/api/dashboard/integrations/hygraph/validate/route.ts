@@ -10,14 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { isAuthenticated } from '@/lib/auth';
-import { validateCsrfRequest } from '@/lib/security/csrf';
-
-// Security headers
-const securityHeaders = {
-  'X-Content-Type-Options': 'nosniff',
-  'Cache-Control': 'no-store, private',
-};
+import { requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
 
 // Simple introspection query to test credentials
 const TEST_QUERY = `
@@ -35,23 +28,8 @@ const TEST_QUERY = `
  */
 export async function POST(request: NextRequest) {
   try {
-    // Validate CSRF
-    const csrfResult = await validateCsrfRequest(request);
-    if (!csrfResult.valid) {
-      return NextResponse.json(
-        { valid: false, error: 'Invalid request' },
-        { status: 403, headers: securityHeaders }
-      );
-    }
-
-    // Check authentication
-    const authenticated = await isAuthenticated();
-    if (!authenticated) {
-      return NextResponse.json(
-        { valid: false, error: 'Not authenticated' },
-        { status: 401, headers: securityHeaders }
-      );
-    }
+    const auth = await requireSubscribedTenantOwner(request);
+    if ('response' in auth) return auth.response;
 
     // Parse body
     const body = await request.json();

@@ -7,7 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, requireTenantOwner, securityHeaders } from '@/lib/api/auth';
+import { requireAuth, requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
+import { hasActiveAccess } from '@/lib/subscription/helpers';
 import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
@@ -24,13 +25,21 @@ export async function GET() {
     const user = await prisma.user.findUnique({
       where: { discordId: session.id },
       include: {
+        subscription: true,
         tenants: {
           include: { discordBotConfig: true },
         },
       },
     });
 
-    if (!user || user.tenants.length === 0) {
+    if (!user || !hasActiveAccess(user.subscription)) {
+      return NextResponse.json(
+        { error: 'Active subscription required' },
+        { status: 403, headers: securityHeaders }
+      );
+    }
+
+    if (user.tenants.length === 0) {
       return NextResponse.json(
         { configured: false, hasTenant: false },
         { headers: securityHeaders }
@@ -67,7 +76,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const auth = await requireTenantOwner(request);
+    const auth = await requireSubscribedTenantOwner(request);
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 
@@ -148,7 +157,7 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireTenantOwner(request);
+    const auth = await requireSubscribedTenantOwner(request);
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 
