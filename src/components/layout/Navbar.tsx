@@ -7,9 +7,9 @@ import { useAuth } from '../auth/AuthProvider';
 import { useTenant } from '@/lib/tenant/context';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
 import { UserMenu } from './UserMenu';
-import { List, X, Phone, House } from '@phosphor-icons/react';
+import { List, X, Phone, House, CurrencyDollar, Lifebuoy } from '@phosphor-icons/react';
 import { getIcon } from '@/lib/icons';
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import type { HeaderSettings, NavLink } from '@/lib/cms';
 
 interface NavbarProps {
@@ -17,22 +17,35 @@ interface NavbarProps {
   navLinks: NavLink[];
   hasContactPage: boolean;
   hasLandingPage: boolean;
+  hasPricingPage: boolean;
 }
 
-export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: NavbarProps) {
+export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, hasPricingPage }: NavbarProps) {
   const pathname = usePathname();
   const { user, isLoading } = useAuth();
   const tenant = useTenant();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Check if we're on the main domain (no tenant)
   const isMainDomain = !tenant;
-
-  // Check if we're on a support page (use /support/contact instead of /contact)
   const isOnSupportPage = pathname?.startsWith('/support');
 
   // Get icon component from name, fallback to House
   const resolveIcon = (iconName: string) => getIcon(iconName, House);
+
+  // On main domain non-support pages (landing, /contact, /pricing), show simplified nav
+  // instead of the full CMS support links (Articles, Services, Submit Ticket, etc.)
+  const displayLinks = useMemo(() => {
+    if (isMainDomain && !isOnSupportPage) {
+      const simplified: NavLink[] = [
+        { id: 'nav-support', title: 'Support', url: '/support', icon: 'Lifebuoy', order: 1 },
+      ];
+      if (hasPricingPage) {
+        simplified.push({ id: 'nav-pricing', title: 'Pricing', url: '/pricing', icon: 'CurrencyDollar', order: 2 });
+      }
+      return simplified;
+    }
+    return navLinks;
+  }, [isMainDomain, isOnSupportPage, hasPricingPage, navLinks]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
@@ -65,11 +78,10 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: N
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            {navLinks
-              // Filter out contact links - we add our own Contact link with context-aware URL
+            {displayLinks
               .filter((link) => link.url !== '/support/contact' && link.url !== '/contact')
               .map((link) => {
-                const isActive = pathname === link.url;
+                const isActive = pathname === link.url || (link.url === '/support' && isOnSupportPage);
                 const IconComponent = resolveIcon(link.icon);
                 return (
                   <Link
@@ -86,10 +98,9 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: N
                   </Link>
                 );
               })}
-            {/* Contact link - only show if contact page is configured in CMS */}
             {hasContactPage && (
               <Link
-                href={isMainDomain ? (isOnSupportPage ? '/support/contact' : '/contact') : '/support/contact'}
+                href="/support/contact"
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                   pathname === '/contact' || pathname === '/support/contact'
                     ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
@@ -135,11 +146,10 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: N
       {mobileMenuOpen && (
         <div className="md:hidden border-t border-[var(--border-primary)] animate-slide-down">
           <div className="px-4 py-4 space-y-2">
-            {navLinks
-              // Filter out contact links - we add our own Contact link with context-aware URL
+            {displayLinks
               .filter((link) => link.url !== '/support/contact' && link.url !== '/contact')
               .map((link) => {
-                const isActive = pathname === link.url;
+                const isActive = pathname === link.url || (link.url === '/support' && isOnSupportPage);
                 const IconComponent = resolveIcon(link.icon);
                 return (
                   <Link
@@ -157,10 +167,9 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage }: N
                   </Link>
                 );
               })}
-            {/* Contact link - only show if contact page is configured in CMS */}
             {hasContactPage && (
               <Link
-                href={isMainDomain ? (isOnSupportPage ? '/support/contact' : '/contact') : '/support/contact'}
+                href="/support/contact"
                 onClick={() => setMobileMenuOpen(false)}
                 className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
                   pathname === '/contact' || pathname === '/support/contact'
