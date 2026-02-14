@@ -12,8 +12,6 @@ import {
   CheckCircle,
   CaretRight,
   Sparkle,
-  Envelope,
-  DiscordLogo,
 } from '@phosphor-icons/react/dist/ssr';
 import { getContactPageData } from '@/lib/cms';
 import type { ContactChannel, ResponseTimeItem } from '@/types';
@@ -75,34 +73,6 @@ export default async function ContactPage() {
           </p>
         </div>
       </section>
-
-      {/* Direct Contact Links */}
-      {(settings.emailAddress || settings.discordUrl) && (
-        <section className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 -mt-4 mb-8 relative z-10">
-          <div className="flex flex-wrap items-center justify-center gap-4">
-            {settings.emailAddress && (
-              <a
-                href={`mailto:${settings.emailAddress}`}
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all text-sm"
-              >
-                <Envelope size={18} weight="duotone" className="text-[var(--accent-primary)]" />
-                {settings.emailAddress}
-              </a>
-            )}
-            {settings.discordUrl && (
-              <a
-                href={settings.discordUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--border-hover)] text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition-all text-sm"
-              >
-                <DiscordLogo size={18} weight="duotone" className="text-[#5865F2]" />
-                Join our Discord
-              </a>
-            )}
-          </div>
-        </section>
-      )}
 
       {/* Channel Cards */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-8 relative z-10">
