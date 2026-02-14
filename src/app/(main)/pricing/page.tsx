@@ -7,26 +7,23 @@
  *
  * Page content (titles, FAQ) from PricingPageContent model.
  * Pricing tiers from ServiceTier model.
+ * Navbar + Footer provided by LayoutContent.
  */
 
 import { PricingPage as GenericPricingPage } from '@/components/checkout';
-import { getHeaderData, getServiceTiers, getPricingPageContent } from '@/lib/cms';
+import { getServiceTiers, getPricingPageContent } from '@/lib/cms';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { getSession, isAuthenticated } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
-import { LandingPageHeader, LandingPageFooter } from '@/components/landing';
 
 export const dynamic = 'force-dynamic';
 
 export default async function PricingPage() {
-  // Determine context
   const tenant = await getTenantFromRequest();
   const isMainDomain = !tenant;
 
-  // Fetch data in parallel
-  const [products, headerData, pageContent] = await Promise.all([
+  const [products, pageContent] = await Promise.all([
     getServiceTiers(),
-    getHeaderData(),
     getPricingPageContent(),
   ]);
 
@@ -38,16 +35,14 @@ export default async function PricingPage() {
     const session = await getSession();
     if (session) {
       if (isMainDomain) {
-        // Check User subscription (platform level)
         const user = await prisma.user.findUnique({
           where: { discordId: session.id },
           include: { subscription: true },
         });
         if (user?.subscription?.status === 'ACTIVE') {
-          currentProductSlug = 'pro'; // Default product
+          currentProductSlug = 'pro';
         }
       } else {
-        // Check TenantUser subscription
         const tenantUser = await prisma.tenantUser.findUnique({
           where: {
             tenantId_discordId: {
@@ -64,20 +59,8 @@ export default async function PricingPage() {
     }
   }
 
-  const siteName = headerData.settings.siteName || 'HelpPortal';
-  // Tenant uses jira.connected, main domain uses JIRA_PROJECT_KEY env var
-  const hasTicketing = tenant ? (tenant.jira?.connected ?? false) : !!process.env.JIRA_PROJECT_KEY;
-
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      <LandingPageHeader
-        siteName={siteName}
-        isMainDomain={isMainDomain}
-        hasContactPage={headerData.hasContactPage}
-        hasPricingPage={headerData.hasPricingPage}
-        hasTicketing={hasTicketing}
-      />
-
+    <>
       <GenericPricingPage
         title={isMainDomain ? pageContent.pageTitle : 'Choose Your Plan'}
         subtitle={isMainDomain ? pageContent.pageSubtitle : 'Select the plan that works best for you'}
@@ -112,8 +95,6 @@ export default async function PricingPage() {
           <p className="text-sm text-[var(--text-muted)]">{pageContent.footerNote}</p>
         </div>
       )}
-
-      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} privacyPolicyUrl={headerData.settings.privacyPolicyUrl} termsOfServiceUrl={headerData.settings.termsOfServiceUrl} isMainDomain={isMainDomain} />
-    </div>
+    </>
   );
 }

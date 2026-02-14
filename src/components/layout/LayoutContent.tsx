@@ -3,7 +3,6 @@
 import { Suspense } from 'react';
 import { usePathname } from 'next/navigation';
 import { useTheme } from '@/components/theme/ThemeProvider';
-import { useTenant } from '@/lib/tenant/context';
 import { Navbar } from './Navbar';
 import { Footer } from './Footer';
 import { ProgressBar } from './ProgressBar';
@@ -28,7 +27,6 @@ interface LayoutContentProps {
 
 export function LayoutContent({ children, headerData, footerData }: LayoutContentProps) {
   const { uiMode } = useTheme();
-  const tenant = useTenant();
   const pathname = usePathname();
 
   if (uiMode === 'minimal') {
@@ -39,49 +37,37 @@ export function LayoutContent({ children, headerData, footerData }: LayoutConten
     );
   }
 
-  // Check if we're on a support page (uses shared layout even on main domain)
-  const isSupportPage = pathname.startsWith('/support');
+  // Pages that manage their own header/layout (no Navbar/Footer)
+  const isSelfManagedPage = pathname === '/signup' || pathname === '/onboarding' || pathname.startsWith('/dashboard');
 
-  // Check if we're on the landing page
-  const isLandingPage = pathname === '/';
-
-  // Check if we're on a landing-style page that handles its own header/footer
-  // These pages use LandingPageHeader/Footer and should not have the support Navbar
-  const isLandingStylePage = pathname === '/' || pathname === '/contact' || pathname === '/pricing';
-
-  // Use shared Navbar/Footer for:
-  // 1. Tenant subdomains on support pages (NOT landing-style pages - they handle their own header)
-  // 2. Main domain /support/* pages (documentation/help center)
-  if ((tenant && !isLandingStylePage) || isSupportPage) {
+  if (isSelfManagedPage) {
     return (
       <>
-        {/* Progress bar for route transitions */}
         <Suspense fallback={null}>
           <ProgressBar />
         </Suspense>
-        <Navbar settings={headerData.settings} navLinks={headerData.navLinks} hasContactPage={headerData.hasContactPage} hasLandingPage={headerData.hasLandingPage} />
-        <main className="flex-1 pt-16">
+        <main className="flex-1">
           <PageTransition>
             {children}
           </PageTransition>
         </main>
-        <Footer settings={footerData.settings} links={footerData.links} />
       </>
     );
   }
 
-  // Landing-style pages (/, /contact, /pricing) - they handle their own header/footer
+  // All other pages get Navbar + Footer (landing pages, support pages, tenant pages)
   return (
     <>
-      {/* Progress bar for route transitions */}
       <Suspense fallback={null}>
         <ProgressBar />
       </Suspense>
-      <main className="flex-1">
+      <Navbar settings={headerData.settings} navLinks={headerData.navLinks} hasContactPage={headerData.hasContactPage} hasLandingPage={headerData.hasLandingPage} />
+      <main className="flex-1 pt-16">
         <PageTransition>
           {children}
         </PageTransition>
       </main>
+      <Footer settings={footerData.settings} links={footerData.links} />
     </>
   );
 }

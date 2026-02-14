@@ -610,10 +610,12 @@ export const getFooterData = cache(async (): Promise<{
       { id: 'default-1', title: 'Support Hub', url: '/support', section: 'quickLinks', location: 'footerQuickLinks' as const, external: false, order: 1 },
       { id: 'default-2', title: 'Knowledge Base', url: '/support/articles', section: 'quickLinks', location: 'footerQuickLinks' as const, external: false, order: 2 },
       { id: 'default-3', title: 'Submit Ticket', url: '/support/ticket', section: 'quickLinks', location: 'footerQuickLinks' as const, external: false, order: 3 },
-      { id: 'default-4', title: 'Documentation', url: '#', icon: 'ArrowSquareOut', section: 'resources', location: 'footerResources' as const, external: true, order: 1 },
-      { id: 'default-5', title: 'Discord Server', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity' as const, external: true, order: 1 },
-      { id: 'default-6', title: 'Twitter', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity' as const, external: true, order: 2 },
-      { id: 'default-7', title: 'GitHub', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity' as const, external: true, order: 3 },
+      { id: 'default-4', title: 'Pricing', url: '/pricing', section: 'quickLinks', location: 'footerQuickLinks' as const, external: false, order: 4 },
+      { id: 'default-5', title: 'Contact', url: '/contact', section: 'quickLinks', location: 'footerQuickLinks' as const, external: false, order: 5 },
+      { id: 'default-6', title: 'Documentation', url: '#', icon: 'ArrowSquareOut', section: 'resources', location: 'footerResources' as const, external: true, order: 1 },
+      { id: 'default-7', title: 'Discord Server', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity' as const, external: true, order: 1 },
+      { id: 'default-8', title: 'Twitter', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity' as const, external: true, order: 2 },
+      { id: 'default-9', title: 'GitHub', url: '#', icon: 'ArrowSquareOut', section: 'community', location: 'footerCommunity' as const, external: true, order: 3 },
     ],
   };
 });

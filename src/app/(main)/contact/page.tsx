@@ -2,7 +2,7 @@
  * Contact Page (CMS-driven)
  *
  * Uses CMS for contact channels, response times, and page settings.
- * Uses CSS variables for theming consistency with landing page.
+ * Navbar + Footer provided by LayoutContent.
  */
 
 import Link from 'next/link';
@@ -13,9 +13,7 @@ import {
   CaretRight,
   Sparkle,
 } from '@phosphor-icons/react/dist/ssr';
-import { getHeaderData, getContactPageData } from '@/lib/cms';
-import { getTenantFromRequest } from '@/lib/tenant';
-import { LandingPageHeader, LandingPageFooter } from '@/components/landing';
+import { getContactPageData } from '@/lib/cms';
 import type { ContactChannel, ResponseTimeItem } from '@/types';
 
 export const metadata = {
@@ -31,17 +29,7 @@ function getPhosphorIcon(name: string): React.ComponentType<IconProps> {
 }
 
 export default async function ContactPage() {
-  const tenant = await getTenantFromRequest();
-  const isMainDomain = !tenant;
-  const [headerData, contactData] = await Promise.all([
-    getHeaderData(),
-    getContactPageData(),
-  ]);
-
-  const siteName = headerData.settings.siteName || 'Help Portal';
-  // Tenant uses jira.connected, main domain uses JIRA_PROJECT_KEY env var
-  const hasTicketing = tenant ? (tenant.jira?.connected ?? false) : !!process.env.JIRA_PROJECT_KEY;
-
+  const contactData = await getContactPageData();
   const { settings, channels, responseTimes } = contactData;
 
   // Page content with defaults
@@ -52,15 +40,7 @@ export default async function ContactPage() {
   const responseSectionNote = settings.responseSectionNote || 'Response times may vary based on complexity and current volume.';
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      <LandingPageHeader
-        siteName={siteName}
-        isMainDomain={isMainDomain}
-        hasContactPage={headerData.hasContactPage}
-        hasPricingPage={headerData.hasPricingPage}
-        hasTicketing={hasTicketing}
-      />
-
+    <>
       {/* Hero Section */}
       <section className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]" />
@@ -123,9 +103,7 @@ export default async function ContactPage() {
           </div>
         </section>
       )}
-
-      <LandingPageFooter siteName={siteName} copyrightText={headerData.settings.copyrightText} privacyPolicyUrl={headerData.settings.privacyPolicyUrl} termsOfServiceUrl={headerData.settings.termsOfServiceUrl} isMainDomain={isMainDomain} />
-    </div>
+    </>
   );
 }
 

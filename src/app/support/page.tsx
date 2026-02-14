@@ -83,6 +83,23 @@ export default async function SupportHub() {
             </div>
           </Link>
 
+          <Link
+            href="/support/ticket"
+            className="group p-4 md:p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-warning)] hover:shadow-[0_0_20px_rgba(254,231,92,0.3)] transition-all"
+          >
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-[var(--accent-warning)]/10">
+                <PaperPlaneTilt size={24} weight="duotone" className="text-[var(--accent-warning)]" />
+              </div>
+              <div>
+                <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-warning)] transition-colors">
+                  Submit Ticket
+                </h3>
+                <p className="text-sm text-[var(--text-muted)]">Get support</p>
+              </div>
+            </div>
+          </Link>
+
           {servicesEnabled && (
             <Link
               href="/support/services"
@@ -101,23 +118,6 @@ export default async function SupportHub() {
               </div>
             </Link>
           )}
-
-          <Link
-            href="/support/ticket"
-            className="group p-4 md:p-6 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-primary)] hover:border-[var(--accent-warning)] hover:shadow-[0_0_20px_rgba(254,231,92,0.3)] transition-all"
-          >
-            <div className="flex items-center gap-4">
-              <div className="p-3 rounded-xl bg-[var(--accent-warning)]/10">
-                <PaperPlaneTilt size={24} weight="duotone" className="text-[var(--accent-warning)]" />
-              </div>
-              <div>
-                <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent-warning)] transition-colors">
-                  Submit Ticket
-                </h3>
-                <p className="text-sm text-[var(--text-muted)]">Get support</p>
-              </div>
-            </div>
-          </Link>
 
           <a
             href="#"
