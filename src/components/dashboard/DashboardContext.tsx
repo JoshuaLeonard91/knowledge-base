@@ -11,14 +11,11 @@ import { createContext, useContext, useState, useEffect, useCallback, useMemo, t
 import { useRouter } from 'next/navigation';
 
 interface DashboardUser {
-  id: string;
   username: string;
   avatar: string | null;
-  email?: string;
 }
 
 interface DashboardTenant {
-  id: string;
   slug: string;
   name: string;
   status: string;
@@ -28,8 +25,7 @@ interface DashboardSubscription {
   status: string;
   currentPeriodEnd: string;
   cancelAtPeriodEnd: boolean;
-  productName?: string;
-  price?: number;
+  canceledAt?: string | null;
 }
 
 interface DashboardContextType {
@@ -92,10 +88,8 @@ export function DashboardProvider({ children }: Props) {
       const session = await sessionRes.json();
 
       setUser({
-        id: session.id,
-        username: session.username,
-        avatar: session.avatar || null,
-        email: data.email || undefined,
+        username: session.user?.displayName || 'User',
+        avatar: session.user?.avatarUrl || null,
       });
 
       setNextStep(data.nextStep || 'subscribe');
@@ -105,14 +99,12 @@ export function DashboardProvider({ children }: Props) {
           status: data.subscription.status,
           currentPeriodEnd: data.subscription.currentPeriodEnd,
           cancelAtPeriodEnd: data.subscription.cancelAtPeriodEnd,
-          productName: data.subscription.productName || data.planName,
-          price: data.subscription.price || data.price,
+          canceledAt: data.subscription.canceledAt || null,
         });
       }
 
       if (data.tenant) {
         setTenant({
-          id: data.tenant.id,
           slug: data.tenant.slug,
           name: data.tenant.name,
           status: data.tenant.status,

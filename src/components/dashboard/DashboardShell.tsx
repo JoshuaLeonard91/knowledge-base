@@ -162,7 +162,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
           <div className="flex items-center gap-3 px-3 py-2">
             {user.avatar ? (
               <img
-                src={`https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64`}
+                src={user.avatar}
                 alt=""
                 className="w-8 h-8 rounded-full ring-1 ring-white/10 flex-shrink-0"
               />

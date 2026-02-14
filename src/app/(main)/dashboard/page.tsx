@@ -224,8 +224,8 @@ export default function DashboardPage() {
                   </svg>
                 </div>
                 <div>
-                  <p className="font-medium text-[var(--text-primary)]">{subscription.productName} Plan</p>
-                  <p className="text-sm text-[var(--text-secondary)]">${subscription.price}/month</p>
+                  <p className="font-medium text-[var(--text-primary)]">Pro Plan</p>
+                  <p className="text-sm text-[var(--text-secondary)]">$5/month</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10">
@@ -274,7 +274,7 @@ export default function DashboardPage() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <h2 className="text-lg font-semibold text-[var(--text-primary)]">Subscription</h2>
-                <p className="text-sm text-[var(--text-secondary)]">{subscription.productName} Plan</p>
+                <p className="text-sm text-[var(--text-secondary)]">Pro Plan</p>
               </div>
               <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-red-500/10">
                 <span className="w-2 h-2 rounded-full bg-red-400" />
@@ -317,10 +317,10 @@ export default function DashboardPage() {
         <div className="flex items-start justify-between mb-4">
           <div>
             <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-              {subscription?.productName || 'Pro'} Plan
+              Pro Plan
             </h2>
             <p className="text-sm text-[var(--text-secondary)]">
-              ${subscription?.price || 5}/month
+              $5/month
             </p>
           </div>
           <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-green-500/10">
