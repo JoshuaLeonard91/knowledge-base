@@ -17,9 +17,17 @@ export function ArticleFeedback({ articleSlug }: ArticleFeedbackProps) {
     setFeedback(helpful ? 'helpful' : 'not-helpful');
 
     try {
+      // Fetch CSRF token first
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
+
       await fetch('/api/feedback', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfData.csrf || '',
+        },
         body: JSON.stringify({
           articleSlug,
           helpful,
