@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useTenant } from '@/lib/tenant/context';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
 import { UserMenu } from './UserMenu';
-import { List, X, Phone, House } from '@phosphor-icons/react';
+import { List, X, Phone, House, CurrencyDollar } from '@phosphor-icons/react';
 import { getIcon } from '@/lib/icons';
 import { useState, useMemo } from 'react';
 import type { HeaderSettings, NavLink } from '@/lib/cms';
@@ -32,21 +32,14 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
   // Get icon component from name, fallback to House
   const resolveIcon = (iconName: string) => getIcon(iconName, House);
 
-  // Filter nav links based on context:
-  // - Main domain: hide Submit Ticket (ticketing is for tenant portals)
-  // - Tenant: hide Pricing link (tenants don't have a pricing page)
-  // - Always: filter out contact links (handled separately below)
+  // Filter out contact/pricing links from CMS — we add our own below based on page flags
   const displayLinks = useMemo(() => {
     return navLinks.filter((link) => {
-      // Always filter out contact links — we add our own below
       if (link.url === '/support/contact' || link.url === '/contact') return false;
-      // Main domain: no Submit Ticket
-      if (isMainDomain && link.url === '/support/ticket') return false;
-      // Tenant: no Pricing
-      if (!isMainDomain && (link.url === '/pricing' || link.url === '/support/pricing')) return false;
+      if (link.url === '/pricing' || link.url === '/support/pricing') return false;
       return true;
     });
-  }, [navLinks, isMainDomain]);
+  }, [navLinks]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
@@ -97,6 +90,19 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
                 </Link>
               );
             })}
+            {hasPricingPage && (
+              <Link
+                href="/support/pricing"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  pathname === '/pricing' || pathname === '/support/pricing'
+                    ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <CurrencyDollar size={18} weight="duotone" />
+                Pricing
+              </Link>
+            )}
             {hasContactPage && (
               <Link
                 href="/support/contact"
@@ -164,6 +170,20 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
                 </Link>
               );
             })}
+            {hasPricingPage && (
+              <Link
+                href="/support/pricing"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                  pathname === '/pricing' || pathname === '/support/pricing'
+                    ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                    : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+                }`}
+              >
+                <CurrencyDollar size={20} weight="duotone" />
+                Pricing
+              </Link>
+            )}
             {hasContactPage && (
               <Link
                 href="/support/contact"
