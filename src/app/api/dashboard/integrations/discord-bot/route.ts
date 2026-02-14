@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { requireAuth, requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
+import { requireAuth, requireTenantOwner, requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { hasActiveAccess } from '@/lib/subscription/helpers';
 import { prisma } from '@/lib/db/client';
 import { encryptToString } from '@/lib/security/crypto';
@@ -32,12 +32,14 @@ export async function GET() {
       },
     });
 
-    if (!user || !hasActiveAccess(user.subscription)) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Active subscription required' },
-        { status: 403, headers: securityHeaders }
+        { error: 'User not found' },
+        { status: 404, headers: securityHeaders }
       );
     }
+
+    const isActive = hasActiveAccess(user.subscription);
 
     if (user.tenants.length === 0) {
       return NextResponse.json(
@@ -62,6 +64,7 @@ export async function GET() {
         guildId: config?.guildId || null,
         connected: !!botClient,
         connectedAt: config?.createdAt || null,
+        readOnly: !isActive,
       },
       { headers: securityHeaders }
     );
@@ -155,9 +158,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
+// Allow disconnect even with expired subscription
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireSubscribedTenantOwner(request);
+    const auth = await requireTenantOwner(request);
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 

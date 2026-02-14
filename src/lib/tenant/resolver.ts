@@ -8,6 +8,7 @@
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/db/client';
 import { decryptFromString } from '@/lib/security/crypto';
+import { hasActiveAccess } from '@/lib/subscription/helpers';
 import type { Tenant, TenantHygraphConfig, TenantJiraConfig, TenantFeatures, TenantBranding } from '@/generated/prisma';
 
 // Tenant with all relations loaded
@@ -51,6 +52,7 @@ export interface TenantContext {
     theme: string | null;  // Theme ID: dark, light, spooky, arctic, dusk, ember, twilight, pastel, oceanic
     customDomain: string | null;
   } | null;
+  subscriptionActive: boolean;
 }
 
 /**
@@ -120,13 +122,23 @@ export async function getTenantFromRequest(): Promise<TenantContext | null> {
     return null;
   }
 
-  return transformTenantToContext(tenant);
+  // Check owner's subscription status
+  let subscriptionActive = false;
+  if (tenant.ownerId) {
+    const owner = await prisma.user.findUnique({
+      where: { id: tenant.ownerId },
+      include: { subscription: true },
+    });
+    subscriptionActive = !!owner && hasActiveAccess(owner.subscription);
+  }
+
+  return transformTenantToContext(tenant, subscriptionActive);
 }
 
 /**
  * Transform database tenant to context with decrypted values
  */
-export function transformTenantToContext(tenant: TenantWithConfig): TenantContext {
+export function transformTenantToContext(tenant: TenantWithConfig, subscriptionActive = true): TenantContext {
   // Decrypt Hygraph config if present
   let hygraph: TenantContext['hygraph'] = null;
   if (tenant.hygraphConfig) {
@@ -187,6 +199,7 @@ export function transformTenantToContext(tenant: TenantWithConfig): TenantContex
           customDomain: tenant.branding.customDomain,
         }
       : null,
+    subscriptionActive,
   };
 }
 

@@ -11,6 +11,7 @@ import { TenantProvider } from "@/lib/tenant/context";
 import { getTenantFromRequest } from "@/lib/tenant/resolver";
 import { getFooterData, getHeaderData } from "@/lib/cms";
 import { VALID_THEMES } from "@/lib/themes";
+import { PortalInactive } from "@/components/subscription/PortalInactive";
 import { SpookyGhosts } from "@/components/debug/SpookyGhosts";
 import { EmberSparks } from "@/components/debug/EmberSparks";
 import { ArcticSnow } from "@/components/debug/ArcticSnow";
@@ -83,6 +84,7 @@ export default async function RootLayout({
       // NOTE: customDomain intentionally excluded from client
     } : null,
     jiraConnected: tenant.jira?.connected ?? false,
+    subscriptionActive: tenant.subscriptionActive,
   } : null;
 
   return (
@@ -97,7 +99,9 @@ export default async function RootLayout({
           <AuthProvider>
             <TenantProvider tenant={clientTenant}>
               <HistoryProvider>
-                <LayoutContent headerData={headerData} footerData={footerData}>{children}</LayoutContent>
+                <LayoutContent headerData={headerData} footerData={footerData}>
+                  {tenant && !tenant.subscriptionActive ? <PortalInactive tenantName={tenant.name} /> : children}
+                </LayoutContent>
               </HistoryProvider>
             </TenantProvider>
           </AuthProvider>

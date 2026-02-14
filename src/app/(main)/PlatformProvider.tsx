@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, type ReactNode } from 'react';
 
 interface PlatformContextType {
   siteName: string;
@@ -22,8 +22,4 @@ export function PlatformProvider({
       {children}
     </PlatformContext.Provider>
   );
-}
-
-export function usePlatform() {
-  return useContext(PlatformContext);
 }

@@ -6,17 +6,24 @@
  * Configure third-party integrations:
  * - Hygraph CMS (endpoint + token)
  * - Jira Service Desk (URL + email + token)
+ * - Discord Bot (token + guild ID)
  *
  * Security:
  * - Credentials are encrypted before storage
  * - Credentials are NEVER displayed back
  * - Only delete action available after setup
+ *
+ * When subscription is expired, page is read-only:
+ * - Can view config status (no secrets)
+ * - Can disconnect integrations
+ * - Cannot create/update integrations
  */
 
 import { useEffect, useState, useCallback } from 'react';
-import Link from 'next/link';
-import { useRouter, useSearchParams } from 'next/navigation';
-import { usePlatform } from '../../PlatformProvider';
+import { useSearchParams } from 'next/navigation';
+import { useDashboard } from '@/components/dashboard/DashboardContext';
+import { FloatingPanel } from '@/components/dashboard/FloatingPanel';
+import { SubscriptionExpiredBanner } from '@/components/subscription/SubscriptionExpiredBanner';
 
 interface IntegrationStatus {
   configured: boolean;
@@ -25,6 +32,7 @@ interface IntegrationStatus {
   webhookUrl?: string;
   hasWebhookSecret?: boolean;
   webhookSecret?: string;
+  readOnly?: boolean;
 }
 
 interface JiraStatus extends IntegrationStatus {
@@ -57,6 +65,7 @@ interface DiscordBotStatus {
   guildId: string | null;
   connected: boolean;
   connectedAt: string | null;
+  readOnly?: boolean;
 }
 
 interface StaffMappingItem {
@@ -74,9 +83,8 @@ interface JiraUser {
 }
 
 export default function IntegrationsPage() {
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const { siteName } = usePlatform();
+  const { isLoading: contextLoading, hasActiveAccess } = useDashboard();
 
   // Loading states
   const [isLoading, setIsLoading] = useState(true);
@@ -85,6 +93,9 @@ export default function IntegrationsPage() {
   const [hygraphStatus, setHygraphStatus] = useState<IntegrationStatus | null>(null);
   const [jiraStatus, setJiraStatus] = useState<JiraStatus | null>(null);
   const [discordBotStatus, setDiscordBotStatus] = useState<DiscordBotStatus | null>(null);
+
+  // Derive readOnly from API response
+  const readOnly = hygraphStatus?.readOnly || jiraStatus?.readOnly || discordBotStatus?.readOnly || false;
 
   // Form states
   const [hygraphForm, setHygraphForm] = useState({ endpoint: '', token: '' });
@@ -126,11 +137,6 @@ export default function IntegrationsPage() {
         fetch('/api/dashboard/integrations/discord-bot'),
       ]);
 
-      if (hygraphRes.status === 401) {
-        router.push('/signup');
-        return;
-      }
-
       const [hygraphData, jiraData, discordBotData] = await Promise.all([
         hygraphRes.json(),
         jiraRes.json(),
@@ -140,8 +146,7 @@ export default function IntegrationsPage() {
       setHygraphStatus(hygraphData);
       setJiraStatus(jiraData);
       setDiscordBotStatus(discordBotData);
-    } catch (err) {
-      console.error('Failed to fetch integration statuses');
+    } catch {
       setError('Failed to load integration statuses');
     } finally {
       setIsLoading(false);
@@ -150,7 +155,7 @@ export default function IntegrationsPage() {
 
   useEffect(() => {
     fetchStatuses();
-  }, [router]);
+  }, []);
 
   // Get CSRF token
   const getCsrfToken = async (): Promise<string> => {
@@ -184,7 +189,7 @@ export default function IntegrationsPage() {
 
       setSuccess('Connection successful!');
       return true;
-    } catch (err) {
+    } catch {
       setError('Validation failed');
       return false;
     } finally {
@@ -199,7 +204,6 @@ export default function IntegrationsPage() {
     setSuccess(null);
 
     try {
-      // Validate first
       const isValid = await validateHygraph();
       if (!isValid) {
         setIsSaving(false);
@@ -227,7 +231,7 @@ export default function IntegrationsPage() {
       setActiveForm(null);
       setHygraphForm({ endpoint: '', token: '' });
       fetchStatuses();
-    } catch (err) {
+    } catch {
       setError('Failed to save configuration');
     } finally {
       setIsSaving(false);
@@ -259,7 +263,7 @@ export default function IntegrationsPage() {
 
       setSuccess('Connection successful!');
       return true;
-    } catch (err) {
+    } catch {
       setError('Validation failed');
       return false;
     } finally {
@@ -274,7 +278,6 @@ export default function IntegrationsPage() {
     setSuccess(null);
 
     try {
-      // Validate first
       const isValid = await validateJira();
       if (!isValid) {
         setIsSaving(false);
@@ -302,7 +305,7 @@ export default function IntegrationsPage() {
       setActiveForm(null);
       setJiraForm({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' });
       fetchStatuses();
-    } catch (err) {
+    } catch {
       setError('Failed to save configuration');
     } finally {
       setIsSaving(false);
@@ -341,7 +344,7 @@ export default function IntegrationsPage() {
       setActiveForm(null);
       setDiscordBotForm({ botToken: '', guildId: '' });
       fetchStatuses();
-    } catch (err) {
+    } catch {
       setError('Failed to save configuration');
     } finally {
       setIsSaving(false);
@@ -357,9 +360,7 @@ export default function IntegrationsPage() {
       const csrf = await getCsrfToken();
       const res = await fetch(`/api/dashboard/integrations/${type}`, {
         method: 'DELETE',
-        headers: {
-          'X-CSRF-Token': csrf,
-        },
+        headers: { 'X-CSRF-Token': csrf },
       });
 
       const data = await res.json();
@@ -372,7 +373,7 @@ export default function IntegrationsPage() {
       const names: Record<string, string> = { hygraph: 'Hygraph', jira: 'Jira', 'discord-bot': 'Discord Bot' };
       setSuccess(`${names[type]} disconnected`);
       fetchStatuses();
-    } catch (err) {
+    } catch {
       setError('Failed to disconnect');
     } finally {
       setIsDeleting(null);
@@ -388,7 +389,7 @@ export default function IntegrationsPage() {
         setStaffMappings(data.mappings || []);
       }
     } catch {
-      // Silently fail — staff mappings are optional
+      // Silently fail
     }
   };
 
@@ -403,7 +404,7 @@ export default function IntegrationsPage() {
         setJiraUsers(data.users || []);
       }
     } catch {
-      // Silently fail — will fall back to manual input
+      // Silently fail
     } finally {
       setIsLoadingJiraUsers(false);
     }
@@ -473,7 +474,6 @@ export default function IntegrationsPage() {
   useEffect(() => {
     if (discordBotStatus?.configured && jiraStatus?.configured) {
       fetchStaffMappings();
-      // Fetch Jira users if a project is selected (for dropdown)
       if (jiraStatus.projectKey && jiraStatus.authMode === 'oauth') {
         fetchJiraUsers();
       }
@@ -485,18 +485,17 @@ export default function IntegrationsPage() {
     if (searchParams.get('jira') === 'connected') {
       setSuccess('Jira connected via Atlassian OAuth!');
       fetchStatuses();
-      // Clean URL without reload
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, [searchParams]);
 
   // Jira OAuth wizard helpers
   const getJiraOnboardingStep = useCallback((): number => {
-    if (!jiraStatus?.configured) return 0; // Not connected
-    if (jiraStatus.authMode !== 'oauth') return 4; // Legacy API token mode — fully configured
-    if (!jiraStatus.projectKey) return 1; // Connected, needs project selection
-    if (!jiraStatus.automationRuleCreated) return 2; // Project selected, needs automation
-    return 3; // Complete
+    if (!jiraStatus?.configured) return 0;
+    if (jiraStatus.authMode !== 'oauth') return 4;
+    if (!jiraStatus.projectKey) return 1;
+    if (!jiraStatus.automationRuleCreated) return 2;
+    return 3;
   }, [jiraStatus]);
 
   const fetchJiraProjects = async () => {
@@ -601,104 +600,114 @@ export default function IntegrationsPage() {
     }
   }, [getJiraOnboardingStep, jiraProjects.length, isLoadingProjects]);
 
-  if (isLoading) {
+  if (isLoading || contextLoading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
+      <div className="flex items-center justify-center py-20">
         <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-indigo-500" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      {/* Header */}
-      <header className="border-b border-[var(--border-primary)] bg-[var(--bg-primary)] backdrop-blur-sm sticky top-0 z-50">
-        <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="text-xl font-bold text-[var(--text-primary)]">
-            {siteName}
-          </Link>
-          <Link href="/dashboard" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition">
-            &larr; Back to Dashboard
-          </Link>
-        </nav>
-      </header>
+    <div>
+      <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">Integrations</h1>
+      <p className="text-[var(--text-secondary)] text-sm mb-6">Connect third-party services to your portal.</p>
 
-      {/* Content */}
-      <main className="max-w-3xl mx-auto py-12 px-6">
-        <h1 className="text-3xl font-bold mb-2">Integrations</h1>
-        <p className="text-[var(--text-secondary)] mb-8">Connect third-party services to your portal.</p>
+      {/* Read-only banner */}
+      {readOnly && <SubscriptionExpiredBanner />}
 
-        {/* Success/Error Messages */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <p className="text-green-400 text-sm flex items-center gap-2">
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-              {success}
-            </p>
-          </div>
-        )}
+      {/* Success/Error Messages */}
+      {success && (
+        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+          <p className="text-green-400 text-sm flex items-center gap-2">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            {success}
+          </p>
+        </div>
+      )}
 
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <p className="text-red-400 text-sm">{error}</p>
-          </div>
-        )}
+      {error && (
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
 
-        <div className="space-y-6">
-          {/* Hygraph Card */}
-          <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] overflow-hidden">
-            <div className="p-6 flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-purple-400" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Hygraph CMS</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">Content management for your portal</p>
-                </div>
+      <div className="space-y-6">
+        {/* Hygraph Card */}
+        <FloatingPanel noPadding>
+          <div className="p-6 flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-purple-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-purple-400" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+                </svg>
               </div>
-              <span className={`px-3 py-1 text-sm rounded-full ${
-                hygraphStatus?.configured
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
-              }`}>
-                {hygraphStatus?.configured ? 'Connected' : 'Not Connected'}
-              </span>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Hygraph CMS</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Content management for your portal</p>
+              </div>
             </div>
+            <span className={`px-3 py-1 text-sm rounded-full ${
+              hygraphStatus?.configured
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-yellow-500/20 text-yellow-400'
+            }`}>
+              {hygraphStatus?.configured ? 'Connected' : 'Not Connected'}
+            </span>
+          </div>
 
-            {/* Connected State */}
-            {hygraphStatus?.configured && activeForm !== 'hygraph' && (
-              <div className="px-6 pb-6">
-                <p className="text-sm text-[var(--text-secondary)] mb-4">
-                  Connected on {hygraphStatus.connectedAt ? new Date(hygraphStatus.connectedAt).toLocaleDateString() : 'Unknown'}
-                </p>
+          {/* Connected State */}
+          {hygraphStatus?.configured && activeForm !== 'hygraph' && (
+            <div className="px-6 pb-6">
+              <p className="text-sm text-[var(--text-secondary)] mb-4">
+                Connected on {hygraphStatus.connectedAt ? new Date(hygraphStatus.connectedAt).toLocaleDateString() : 'Unknown'}
+              </p>
 
-                {/* Webhook Configuration */}
-                {hygraphStatus.webhookUrl && (
-                  <div className="mb-4 p-4 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
-                    <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">Cache Webhook</h4>
-                    <p className="text-xs text-[var(--text-muted)] mb-3">
-                      Add this webhook in your Hygraph project settings to automatically refresh cached content when you publish changes.
-                    </p>
-                    <div className="space-y-3">
+              {/* Webhook Configuration */}
+              {hygraphStatus.webhookUrl && (
+                <div className="mb-4 p-4 bg-[var(--bg-primary)]/50 rounded-lg border border-white/[0.04]">
+                  <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">Cache Webhook</h4>
+                  <p className="text-xs text-[var(--text-muted)] mb-3">
+                    Add this webhook in your Hygraph project settings to automatically refresh cached content when you publish changes.
+                  </p>
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-xs text-[var(--text-muted)] mb-1">Webhook URL</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          readOnly
+                          value={hygraphStatus.webhookUrl}
+                          className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-lg text-xs font-mono text-[var(--text-secondary)] select-all"
+                        />
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(hygraphStatus.webhookUrl!);
+                            setSuccess('Webhook URL copied!');
+                            setTimeout(() => setSuccess(null), 2000);
+                          }}
+                          className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition"
+                        >
+                          Copy
+                        </button>
+                      </div>
+                    </div>
+                    {hygraphStatus.hasWebhookSecret && !readOnly && (
                       <div>
-                        <label className="block text-xs text-[var(--text-muted)] mb-1">Webhook URL</label>
+                        <label className="block text-xs text-[var(--text-muted)] mb-1">Secret Key</label>
                         <div className="flex gap-2">
-                          <input
-                            type="text"
-                            readOnly
-                            value={hygraphStatus.webhookUrl}
-                            className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-xs font-mono text-[var(--text-secondary)] select-all"
-                          />
+                          <div className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-lg text-xs font-mono text-[var(--text-muted)] tracking-widest">
+                            ••••••••••••••••••••••••
+                          </div>
                           <button
                             onClick={() => {
-                              navigator.clipboard.writeText(hygraphStatus.webhookUrl!);
-                              setSuccess('Webhook URL copied!');
-                              setTimeout(() => setSuccess(null), 2000);
+                              if (hygraphStatus.webhookSecret) {
+                                navigator.clipboard.writeText(hygraphStatus.webhookSecret);
+                                setSuccess('Secret key copied!');
+                                setTimeout(() => setSuccess(null), 2000);
+                              }
                             }}
                             className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition"
                           >
@@ -706,645 +715,622 @@ export default function IntegrationsPage() {
                           </button>
                         </div>
                       </div>
-                      {hygraphStatus.hasWebhookSecret && (
-                        <div>
-                          <label className="block text-xs text-[var(--text-muted)] mb-1">Secret Key</label>
-                          <div className="flex gap-2">
-                            <div className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-lg text-xs font-mono text-[var(--text-muted)] tracking-widest">
-                              ••••••••••••••••••••••••
-                            </div>
-                            <button
-                              onClick={() => {
-                                if (hygraphStatus.webhookSecret) {
-                                  navigator.clipboard.writeText(hygraphStatus.webhookSecret);
-                                  setSuccess('Secret key copied!');
-                                  setTimeout(() => setSuccess(null), 2000);
-                                }
-                              }}
-                              className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition"
-                            >
-                              Copy
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                      <p className="text-xs text-[var(--text-muted)]">
-                        In Hygraph: Project Settings → Webhooks → Create Webhook. Paste the URL and secret, set method to <strong className="text-[var(--text-secondary)]">POST</strong>, stage to <strong className="text-[var(--text-secondary)]">Published</strong>, and leave content model as &quot;None&quot; (all models).
-                      </p>
-                    </div>
+                    )}
+                    <p className="text-xs text-[var(--text-muted)]">
+                      In Hygraph: Project Settings → Webhooks → Create Webhook. Paste the URL and secret, set method to <strong className="text-[var(--text-secondary)]">POST</strong>, stage to <strong className="text-[var(--text-secondary)]">Published</strong>, and leave content model as &quot;None&quot; (all models).
+                    </p>
                   </div>
-                )}
+                </div>
+              )}
 
+              <button
+                onClick={() => deleteIntegration('hygraph')}
+                disabled={isDeleting === 'hygraph'}
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
+              >
+                {isDeleting === 'hygraph' ? 'Disconnecting...' : 'Disconnect'}
+              </button>
+            </div>
+          )}
+
+          {/* Setup Form (hidden when readOnly) */}
+          {!hygraphStatus?.configured && activeForm !== 'hygraph' && !readOnly && (
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => { setActiveForm('hygraph'); setError(null); setSuccess(null); }}
+                className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm font-medium transition"
+              >
+                Connect Hygraph
+              </button>
+            </div>
+          )}
+
+          {activeForm === 'hygraph' && !readOnly && (
+            <div className="px-6 pb-6 space-y-4">
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-2">Endpoint URL</label>
+                <input
+                  type="url"
+                  value={hygraphForm.endpoint}
+                  onChange={(e) => setHygraphForm({ ...hygraphForm, endpoint: e.target.value })}
+                  placeholder="https://api-xx.hygraph.com/v2/..."
+                  className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token <span className="text-[var(--text-muted)]">(optional for public endpoints)</span></label>
+                <input
+                  type="password"
+                  value={hygraphForm.token}
+                  onChange={(e) => setHygraphForm({ ...hygraphForm, token: e.target.value })}
+                  placeholder="Leave empty for public Content API"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-purple-500/50"
+                />
+              </div>
+              <div className="flex gap-3">
                 <button
-                  onClick={() => deleteIntegration('hygraph')}
-                  disabled={isDeleting === 'hygraph'}
-                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                  onClick={validateHygraph}
+                  disabled={isValidating || !hygraphForm.endpoint}
+                  className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-sm font-medium transition disabled:opacity-50"
                 >
-                  {isDeleting === 'hygraph' ? 'Disconnecting...' : 'Disconnect'}
+                  {isValidating ? 'Testing...' : 'Test Connection'}
+                </button>
+                <button
+                  onClick={saveHygraph}
+                  disabled={isSaving || !hygraphForm.endpoint}
+                  className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {isSaving ? 'Saving...' : 'Save'}
+                </button>
+                <button
+                  onClick={() => { setActiveForm(null); setHygraphForm({ endpoint: '', token: '' }); setError(null); }}
+                  className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition"
+                >
+                  Cancel
                 </button>
               </div>
-            )}
+            </div>
+          )}
+        </FloatingPanel>
 
-            {/* Setup Form */}
-            {!hygraphStatus?.configured && activeForm !== 'hygraph' && (
-              <div className="px-6 pb-6">
-                <button
-                  onClick={() => { setActiveForm('hygraph'); setError(null); setSuccess(null); }}
-                  className="px-4 py-2 bg-purple-500/20 hover:bg-purple-500/30 text-purple-400 rounded-lg text-sm font-medium transition"
-                >
-                  Connect Hygraph
-                </button>
+        {/* Jira Card */}
+        <FloatingPanel noPadding>
+          <div className="p-6 flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z" />
+                </svg>
               </div>
-            )}
-
-            {activeForm === 'hygraph' && (
-              <div className="px-6 pb-6 space-y-4">
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Endpoint URL</label>
-                  <input
-                    type="url"
-                    value={hygraphForm.endpoint}
-                    onChange={(e) => setHygraphForm({ ...hygraphForm, endpoint: e.target.value })}
-                    placeholder="https://api-xx.hygraph.com/v2/..."
-                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-purple-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token <span className="text-[var(--text-muted)]">(optional for public endpoints)</span></label>
-                  <input
-                    type="password"
-                    value={hygraphForm.token}
-                    onChange={(e) => setHygraphForm({ ...hygraphForm, token: e.target.value })}
-                    placeholder="Leave empty for public Content API"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    data-lpignore="true"
-                    data-1p-ignore="true"
-                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-purple-500/50"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={validateHygraph}
-                    disabled={isValidating || !hygraphForm.endpoint}
-                    className="px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {isValidating ? 'Testing...' : 'Test Connection'}
-                  </button>
-                  <button
-                    onClick={saveHygraph}
-                    disabled={isSaving || !hygraphForm.endpoint}
-                    className="px-4 py-2 bg-purple-600 hover:bg-purple-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {isSaving ? 'Saving...' : 'Save'}
-                  </button>
-                  <button
-                    onClick={() => { setActiveForm(null); setHygraphForm({ endpoint: '', token: '' }); setError(null); }}
-                    className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Jira Service Desk</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Ticket management integration</p>
               </div>
-            )}
+            </div>
+            <span className={`px-3 py-1 text-sm rounded-full ${
+              jiraStatus?.configured
+                ? 'bg-green-500/20 text-green-400'
+                : 'bg-yellow-500/20 text-yellow-400'
+            }`}>
+              {jiraStatus?.configured ? 'Connected' : 'Not Connected'}
+            </span>
           </div>
 
-          {/* Jira Card */}
-          <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] overflow-hidden">
-            <div className="p-6 flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-blue-500/10 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-blue-400" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z" />
-                  </svg>
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Jira Service Desk</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">Ticket management integration</p>
-                </div>
+          {/* Onboarding progress steps (OAuth mode) */}
+          {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && (
+            <div className="px-6 pb-2">
+              <div className="flex items-center gap-2 text-xs">
+                {['Connect', 'Select Project', 'Notifications'].map((label, i) => {
+                  const step = getJiraOnboardingStep();
+                  const done = i < step || step === 3;
+                  const active = i === step - 1 && step < 3;
+                  return (
+                    <div key={label} className="flex items-center gap-2">
+                      {i > 0 && <div className={`w-6 h-px ${done ? 'bg-green-500/40' : 'bg-white/[0.06]'}`} />}
+                      <span className={`flex items-center gap-1.5 ${done ? 'text-green-400' : active ? 'text-blue-400' : 'text-[var(--text-muted)]'}`}>
+                        {done ? (
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        ) : (
+                          <span className={`w-3.5 h-3.5 rounded-full border ${active ? 'border-blue-400' : 'border-white/[0.1]'} flex items-center justify-center text-[8px]`}>{i + 1}</span>
+                        )}
+                        {label}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
-              <span className={`px-3 py-1 text-sm rounded-full ${
-                jiraStatus?.configured
-                  ? 'bg-green-500/20 text-green-400'
-                  : 'bg-yellow-500/20 text-yellow-400'
-              }`}>
-                {jiraStatus?.configured ? 'Connected' : 'Not Connected'}
-              </span>
             </div>
+          )}
 
-            {/* Onboarding progress steps (OAuth mode) */}
-            {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && (
-              <div className="px-6 pb-2">
-                <div className="flex items-center gap-2 text-xs">
-                  {['Connect', 'Select Project', 'Notifications'].map((label, i) => {
-                    const step = getJiraOnboardingStep();
-                    const done = i < step || step === 3;
-                    const active = i === step - 1 && step < 3;
-                    return (
-                      <div key={label} className="flex items-center gap-2">
-                        {i > 0 && <div className={`w-6 h-px ${done ? 'bg-green-500/40' : 'bg-[var(--border-primary)]'}`} />}
-                        <span className={`flex items-center gap-1.5 ${done ? 'text-green-400' : active ? 'text-blue-400' : 'text-[var(--text-muted)]'}`}>
-                          {done ? (
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                          ) : (
-                            <span className={`w-3.5 h-3.5 rounded-full border ${active ? 'border-blue-400' : 'border-[var(--border-primary)]'} flex items-center justify-center text-[8px]`}>{i + 1}</span>
-                          )}
-                          {label}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
+          {/* Step 0: Not connected (hidden when readOnly) */}
+          {!jiraStatus?.configured && !readOnly && (
+            <div className="px-6 pb-6 space-y-3">
+              <button
+                onClick={() => { window.location.href = '/api/auth/atlassian'; }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z" /></svg>
+                Connect with Atlassian
+              </button>
+              <p className="text-xs text-[var(--text-muted)]">You&apos;ll be redirected to Atlassian to authorize access.</p>
 
-            {/* Step 0: Not connected — show Connect button */}
-            {!jiraStatus?.configured && (
-              <div className="px-6 pb-6 space-y-3">
+              {/* Fallback: manual API token setup */}
+              {activeForm !== 'jira' && (
                 <button
-                  onClick={() => { window.location.href = '/api/auth/atlassian'; }}
-                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-500/20 hover:bg-blue-500/30 text-blue-400 rounded-lg text-sm font-medium transition"
+                  onClick={() => { setActiveForm('jira'); setError(null); setSuccess(null); }}
+                  className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition underline"
                 >
-                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M11.571 11.513H0a5.218 5.218 0 0 0 5.232 5.215h2.13v2.057A5.215 5.215 0 0 0 12.575 24V12.518a1.005 1.005 0 0 0-1.005-1.005zm5.723-5.756H5.736a5.215 5.215 0 0 0 5.215 5.214h2.129v2.058a5.218 5.218 0 0 0 5.215 5.214V6.758a1.001 1.001 0 0 0-1.001-1.001zM23.013 0H11.455a5.215 5.215 0 0 0 5.215 5.215h2.129v2.057A5.215 5.215 0 0 0 24 12.483V1.005A1.005 1.005 0 0 0 23.013 0z" /></svg>
-                  Connect with Atlassian
+                  Or configure manually with API token
                 </button>
-                <p className="text-xs text-[var(--text-muted)]">You&apos;ll be redirected to Atlassian to authorize access.</p>
+              )}
 
-                {/* Fallback: manual API token setup */}
-                {activeForm !== 'jira' && (
-                  <button
-                    onClick={() => { setActiveForm('jira'); setError(null); setSuccess(null); }}
-                    className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition underline"
-                  >
-                    Or configure manually with API token
-                  </button>
-                )}
-
-                {activeForm === 'jira' && (
-                  <div className="space-y-4 pt-2 border-t border-[var(--border-primary)]">
+              {activeForm === 'jira' && (
+                <div className="space-y-4 pt-2 border-t border-white/[0.06]">
+                  <div>
+                    <label className="block text-sm text-[var(--text-secondary)] mb-2">Jira URL</label>
+                    <input type="text" value={jiraForm.jiraUrl} onChange={(e) => setJiraForm({ ...jiraForm, jiraUrl: e.target.value })} placeholder="yoursite.atlassian.net" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[var(--text-secondary)] mb-2">Email</label>
+                    <input type="email" value={jiraForm.email} onChange={(e) => setJiraForm({ ...jiraForm, email: e.target.value })} placeholder="you@example.com" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
+                  </div>
+                  <div>
+                    <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token</label>
+                    <input type="password" value={jiraForm.apiToken} onChange={(e) => setJiraForm({ ...jiraForm, apiToken: e.target.value })} placeholder="Your Atlassian API token" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm text-[var(--text-secondary)] mb-2">Jira URL</label>
-                      <input type="text" value={jiraForm.jiraUrl} onChange={(e) => setJiraForm({ ...jiraForm, jiraUrl: e.target.value })} placeholder="yoursite.atlassian.net" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
+                      <label className="block text-sm text-[var(--text-secondary)] mb-2">Service Desk ID</label>
+                      <input type="text" value={jiraForm.serviceDeskId} onChange={(e) => setJiraForm({ ...jiraForm, serviceDeskId: e.target.value })} placeholder="1" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
                     </div>
                     <div>
-                      <label className="block text-sm text-[var(--text-secondary)] mb-2">Email</label>
-                      <input type="email" value={jiraForm.email} onChange={(e) => setJiraForm({ ...jiraForm, email: e.target.value })} placeholder="you@example.com" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
-                    </div>
-                    <div>
-                      <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token</label>
-                      <input type="password" value={jiraForm.apiToken} onChange={(e) => setJiraForm({ ...jiraForm, apiToken: e.target.value })} placeholder="Your Atlassian API token" autoComplete="off" autoCorrect="off" autoCapitalize="off" spellCheck={false} data-lpignore="true" data-1p-ignore="true" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm text-[var(--text-secondary)] mb-2">Service Desk ID</label>
-                        <input type="text" value={jiraForm.serviceDeskId} onChange={(e) => setJiraForm({ ...jiraForm, serviceDeskId: e.target.value })} placeholder="1" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
-                      </div>
-                      <div>
-                        <label className="block text-sm text-[var(--text-secondary)] mb-2">Project Key</label>
-                        <input type="text" value={jiraForm.projectKey} onChange={(e) => setJiraForm({ ...jiraForm, projectKey: e.target.value })} placeholder="SUPPORT" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <button onClick={saveJira} disabled={isSaving || !jiraForm.jiraUrl || !jiraForm.email || !jiraForm.apiToken} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50">
-                        {isSaving ? 'Saving...' : 'Save'}
-                      </button>
-                      <button onClick={() => { setActiveForm(null); setJiraForm({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' }); setError(null); }} className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition">
-                        Cancel
-                      </button>
+                      <label className="block text-sm text-[var(--text-secondary)] mb-2">Project Key</label>
+                      <input type="text" value={jiraForm.projectKey} onChange={(e) => setJiraForm({ ...jiraForm, projectKey: e.target.value })} placeholder="SUPPORT" className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50" />
                     </div>
                   </div>
+                  <div className="flex gap-3">
+                    <button onClick={saveJira} disabled={isSaving || !jiraForm.jiraUrl || !jiraForm.email || !jiraForm.apiToken} className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50">
+                      {isSaving ? 'Saving...' : 'Save'}
+                    </button>
+                    <button onClick={() => { setActiveForm(null); setJiraForm({ jiraUrl: '', email: '', apiToken: '', serviceDeskId: '', projectKey: '' }); setError(null); }} className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition">
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Step 1: Connected via OAuth, select project (hidden when readOnly) */}
+          {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && !jiraStatus.projectKey && !readOnly && (
+            <div className="px-6 pb-6 space-y-4">
+              <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                Connected to <span className="text-[var(--text-primary)] font-medium">{jiraStatus.cloudUrl || 'Atlassian'}</span>
+              </div>
+
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-2">Select a JSM Project</label>
+                {isLoadingProjects ? (
+                  <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-2">
+                    <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
+                    Loading projects...
+                  </div>
+                ) : (
+                  <select
+                    value={selectedProject?.key || ''}
+                    onChange={(e) => {
+                      const project = jiraProjects.find(p => p.key === e.target.value);
+                      setSelectedProject(project || null);
+                      if (project) fetchRequestTypes(project.key);
+                    }}
+                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-blue-500/50"
+                  >
+                    <option value="">Choose a project...</option>
+                    {jiraProjects.map(p => (
+                      <option key={p.id} value={p.key}>{p.name} ({p.key})</option>
+                    ))}
+                  </select>
+                )}
+                {jiraProjects.length === 0 && !isLoadingProjects && (
+                  <button onClick={fetchJiraProjects} className="mt-2 text-xs text-blue-400 hover:text-blue-300 transition">
+                    Reload projects
+                  </button>
                 )}
               </div>
-            )}
 
-            {/* Step 1: Connected via OAuth, select project */}
-            {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && !jiraStatus.projectKey && (
-              <div className="px-6 pb-6 space-y-4">
-                <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                  <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                  Connected to <span className="text-[var(--text-primary)] font-medium">{jiraStatus.cloudUrl || 'Atlassian'}</span>
-                </div>
-
+              {selectedProject && (
                 <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Select a JSM Project</label>
-                  {isLoadingProjects ? (
+                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Request Type</label>
+                  {isLoadingRequestTypes ? (
                     <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-2">
                       <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
-                      Loading projects...
+                      Loading request types...
                     </div>
                   ) : (
                     <select
-                      value={selectedProject?.key || ''}
-                      onChange={(e) => {
-                        const project = jiraProjects.find(p => p.key === e.target.value);
-                        setSelectedProject(project || null);
-                        if (project) fetchRequestTypes(project.key);
-                      }}
-                      className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-blue-500/50"
+                      value={selectedRequestType}
+                      onChange={(e) => setSelectedRequestType(e.target.value)}
+                      className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-blue-500/50"
                     >
-                      <option value="">Choose a project...</option>
-                      {jiraProjects.map(p => (
-                        <option key={p.id} value={p.key}>{p.name} ({p.key})</option>
+                      <option value="">Choose a request type...</option>
+                      {jiraRequestTypes.map(rt => (
+                        <option key={rt.id} value={rt.id}>{rt.name}{rt.description ? ` — ${rt.description}` : ''}</option>
                       ))}
                     </select>
                   )}
-                  {jiraProjects.length === 0 && !isLoadingProjects && (
-                    <button onClick={fetchJiraProjects} className="mt-2 text-xs text-blue-400 hover:text-blue-300 transition">
-                      Reload projects
-                    </button>
-                  )}
                 </div>
+              )}
 
-                {selectedProject && (
-                  <div>
-                    <label className="block text-sm text-[var(--text-secondary)] mb-2">Request Type</label>
-                    {isLoadingRequestTypes ? (
-                      <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-blue-500" />
-                        Loading request types...
-                      </div>
-                    ) : (
-                      <select
-                        value={selectedRequestType}
-                        onChange={(e) => setSelectedRequestType(e.target.value)}
-                        className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-blue-500/50"
-                      >
-                        <option value="">Choose a request type...</option>
-                        {jiraRequestTypes.map(rt => (
-                          <option key={rt.id} value={rt.id}>{rt.name}{rt.description ? ` — ${rt.description}` : ''}</option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                )}
+              {selectedProject && selectedRequestType && (
+                <button
+                  onClick={saveProjectSelection}
+                  disabled={isSavingProject}
+                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {isSavingProject ? 'Saving...' : 'Save Project Selection'}
+                </button>
+              )}
+            </div>
+          )}
 
-                {selectedProject && selectedRequestType && (
-                  <button
-                    onClick={saveProjectSelection}
-                    disabled={isSavingProject}
-                    className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {isSavingProject ? 'Saving...' : 'Save Project Selection'}
-                  </button>
-                )}
+          {/* Step 2: Project selected, create automation rule (hidden when readOnly) */}
+          {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && jiraStatus.projectKey && !jiraStatus.automationRuleCreated && !readOnly && (
+            <div className="px-6 pb-6 space-y-4">
+              <div className="space-y-1 text-sm text-[var(--text-secondary)]">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  Connected to <span className="text-[var(--text-primary)] font-medium">{jiraStatus.cloudUrl}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                  Project: <span className="text-[var(--text-primary)] font-medium">{jiraStatus.projectKey}</span>
+                </div>
               </div>
-            )}
 
-            {/* Step 2: Project selected, create automation rule */}
-            {jiraStatus?.configured && jiraStatus.authMode === 'oauth' && jiraStatus.projectKey && !jiraStatus.automationRuleCreated && (
-              <div className="px-6 pb-6 space-y-4">
-                <div className="space-y-1 text-sm text-[var(--text-secondary)]">
+              <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
+                <p className="text-xs text-[var(--text-secondary)]">
+                  <strong className="text-[var(--text-secondary)]">One-time setup:</strong> Enter your Atlassian email and API token to create automation rules. This creates two rules: one for comment notifications and one for status change notifications. The token is used once and is not stored.
+                </p>
+                <p className="text-xs text-[var(--text-muted)] mt-1">
+                  Generate a token at{' '}
+                  <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
+                    id.atlassian.com/manage-profile/security/api-tokens
+                  </a>
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-2">Atlassian Email</label>
+                <input
+                  type="email"
+                  value={automationForm.email}
+                  onChange={(e) => setAutomationForm({ ...automationForm, email: e.target.value })}
+                  placeholder="you@example.com"
+                  className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token (one-time use)</label>
+                <input
+                  type="password"
+                  value={automationForm.apiToken}
+                  onChange={(e) => setAutomationForm({ ...automationForm, apiToken: e.target.value })}
+                  placeholder="Your Atlassian API token"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50"
+                />
+              </div>
+
+              <button
+                onClick={createAutomationRule}
+                disabled={isCreatingRule || !automationForm.email || !automationForm.apiToken}
+                className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
+              >
+                {isCreatingRule ? 'Creating Rule...' : 'Create Automation Rule'}
+              </button>
+            </div>
+          )}
+
+          {/* Step 3 / Legacy: Fully configured */}
+          {jiraStatus?.configured && (getJiraOnboardingStep() === 3 || getJiraOnboardingStep() === 4) && (
+            <div className="px-6 pb-6 space-y-4">
+              <div className="space-y-1 text-sm text-[var(--text-secondary)]">
+                {jiraStatus.cloudUrl && (
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     Connected to <span className="text-[var(--text-primary)] font-medium">{jiraStatus.cloudUrl}</span>
                   </div>
+                )}
+                {jiraStatus.projectKey && (
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                     Project: <span className="text-[var(--text-primary)] font-medium">{jiraStatus.projectKey}</span>
                   </div>
-                </div>
-
-                <div className="p-3 bg-blue-500/5 border border-blue-500/10 rounded-lg">
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    <strong className="text-[var(--text-secondary)]">One-time setup:</strong> Enter your Atlassian email and API token to create automation rules. This creates two rules: one for comment notifications and one for status change notifications. The token is used once and is not stored.
-                  </p>
-                  <p className="text-xs text-[var(--text-muted)] mt-1">
-                    Generate a token at{' '}
-                    <a href="https://id.atlassian.com/manage-profile/security/api-tokens" target="_blank" rel="noopener noreferrer" className="text-blue-400 hover:underline">
-                      id.atlassian.com/manage-profile/security/api-tokens
-                    </a>
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Atlassian Email</label>
-                  <input
-                    type="email"
-                    value={automationForm.email}
-                    onChange={(e) => setAutomationForm({ ...automationForm, email: e.target.value })}
-                    placeholder="you@example.com"
-                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">API Token (one-time use)</label>
-                  <input
-                    type="password"
-                    value={automationForm.apiToken}
-                    onChange={(e) => setAutomationForm({ ...automationForm, apiToken: e.target.value })}
-                    placeholder="Your Atlassian API token"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    data-lpignore="true"
-                    data-1p-ignore="true"
-                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-blue-500/50"
-                  />
-                </div>
-
-                <button
-                  onClick={createAutomationRule}
-                  disabled={isCreatingRule || !automationForm.email || !automationForm.apiToken}
-                  className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {isCreatingRule ? 'Creating Rule...' : 'Create Automation Rule'}
-                </button>
+                )}
+                <p className="text-xs text-[var(--text-muted)] pt-1">
+                  Connected on {jiraStatus.connectedAt ? new Date(jiraStatus.connectedAt).toLocaleDateString() : 'Unknown'}
+                  {jiraStatus.authMode === 'oauth' ? ' via OAuth' : ' via API token'}
+                </p>
               </div>
-            )}
 
-            {/* Step 3 / Legacy: Fully configured */}
-            {jiraStatus?.configured && (getJiraOnboardingStep() === 3 || getJiraOnboardingStep() === 4) && (
-              <div className="px-6 pb-6 space-y-4">
-                <div className="space-y-1 text-sm text-[var(--text-secondary)]">
-                  {jiraStatus.cloudUrl && (
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      Connected to <span className="text-[var(--text-primary)] font-medium">{jiraStatus.cloudUrl}</span>
-                    </div>
-                  )}
-                  {jiraStatus.projectKey && (
-                    <div className="flex items-center gap-2">
-                      <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                      Project: <span className="text-[var(--text-primary)] font-medium">{jiraStatus.projectKey}</span>
-                    </div>
-                  )}
-                  <p className="text-xs text-[var(--text-muted)] pt-1">
-                    Connected on {jiraStatus.connectedAt ? new Date(jiraStatus.connectedAt).toLocaleDateString() : 'Unknown'}
-                    {jiraStatus.authMode === 'oauth' ? ' via OAuth' : ' via API token'}
-                  </p>
-                </div>
-
-                {/* Automation Rules Section */}
-                {jiraStatus.authMode === 'oauth' && (
-                  <div className="p-4 bg-[var(--bg-primary)] rounded-lg border border-[var(--border-primary)]">
-                    <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">Automation Rules</h4>
-                    {jiraStatus.automationRuleCreated ? (
-                      <div className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                          Comment notification rule active
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
-                          <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
-                          Status change notification rule active
-                        </div>
-                        <p className="text-xs text-[var(--text-muted)] mt-2">
-                          Verify rules at: Jira → Project Settings → Automation
-                        </p>
+              {/* Automation Rules Section */}
+              {jiraStatus.authMode === 'oauth' && (
+                <div className="p-4 bg-[var(--bg-primary)]/50 rounded-lg border border-white/[0.04]">
+                  <h4 className="text-sm font-medium text-[var(--text-primary)] mb-2">Automation Rules</h4>
+                  {jiraStatus.automationRuleCreated ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        Comment notification rule active
                       </div>
-                    ) : (
-                      <p className="text-sm text-yellow-400/80">
-                        Automation rules not configured. Webhook notifications disabled.
+                      <div className="flex items-center gap-2 text-sm text-[var(--text-secondary)]">
+                        <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        Status change notification rule active
+                      </div>
+                      <p className="text-xs text-[var(--text-muted)] mt-2">
+                        Verify rules at: Jira → Project Settings → Automation
                       </p>
-                    )}
-                  </div>
-                )}
-
-                <button
-                  onClick={() => deleteIntegration('jira')}
-                  disabled={isDeleting === 'jira'}
-                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {isDeleting === 'jira' ? 'Disconnecting...' : 'Disconnect'}
-                </button>
-              </div>
-            )}
-          </div>
-
-          {/* Discord Bot Card */}
-          <div className="bg-[var(--bg-secondary)] rounded-2xl border border-[var(--border-primary)] overflow-hidden">
-            <div className="p-6 flex items-start justify-between">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center">
-                  <svg className="w-6 h-6 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
-                  </svg>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-yellow-400/80">
+                      Automation rules not configured. Webhook notifications disabled.
+                    </p>
+                  )}
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold">Discord Bot</h3>
-                  <p className="text-sm text-[var(--text-secondary)]">Ticket creation & notifications via Discord</p>
-                </div>
+              )}
+
+              <button
+                onClick={() => deleteIntegration('jira')}
+                disabled={isDeleting === 'jira'}
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
+              >
+                {isDeleting === 'jira' ? 'Disconnecting...' : 'Disconnect'}
+              </button>
+            </div>
+          )}
+        </FloatingPanel>
+
+        {/* Discord Bot Card */}
+        <FloatingPanel noPadding>
+          <div className="p-6 flex items-start justify-between">
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-indigo-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                <svg className="w-6 h-6 text-indigo-400" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M20.317 4.37a19.791 19.791 0 0 0-4.885-1.515.074.074 0 0 0-.079.037c-.21.375-.444.864-.608 1.25a18.27 18.27 0 0 0-5.487 0 12.64 12.64 0 0 0-.617-1.25.077.077 0 0 0-.079-.037A19.736 19.736 0 0 0 3.677 4.37a.07.07 0 0 0-.032.027C.533 9.046-.32 13.58.099 18.057a.082.082 0 0 0 .031.057 19.9 19.9 0 0 0 5.993 3.03.078.078 0 0 0 .084-.028c.462-.63.874-1.295 1.226-1.994a.076.076 0 0 0-.041-.106 13.107 13.107 0 0 1-1.872-.892.077.077 0 0 1-.008-.128 10.2 10.2 0 0 0 .372-.292.074.074 0 0 1 .077-.01c3.928 1.793 8.18 1.793 12.062 0a.074.074 0 0 1 .078.01c.12.098.246.198.373.292a.077.077 0 0 1-.006.127 12.299 12.299 0 0 1-1.873.892.077.077 0 0 0-.041.107c.36.698.772 1.362 1.225 1.993a.076.076 0 0 0 .084.028 19.839 19.839 0 0 0 6.002-3.03.077.077 0 0 0 .032-.054c.5-5.177-.838-9.674-3.549-13.66a.061.061 0 0 0-.031-.03z" />
+                </svg>
               </div>
-              <div className="flex items-center gap-2">
-                {discordBotStatus?.configured && (
-                  <span className={`px-3 py-1 text-xs rounded-full ${
-                    discordBotStatus.connected
-                      ? 'bg-green-500/20 text-green-400'
-                      : 'bg-orange-500/20 text-orange-400'
-                  }`}>
-                    {discordBotStatus.connected ? 'Online' : 'Offline'}
-                  </span>
-                )}
-                <span className={`px-3 py-1 text-sm rounded-full ${
-                  discordBotStatus?.configured
-                    ? 'bg-green-500/20 text-green-400'
-                    : 'bg-yellow-500/20 text-yellow-400'
-                }`}>
-                  {discordBotStatus?.configured ? 'Connected' : 'Not Connected'}
-                </span>
+              <div>
+                <h3 className="text-lg font-semibold text-[var(--text-primary)]">Discord Bot</h3>
+                <p className="text-sm text-[var(--text-secondary)]">Ticket creation & notifications via Discord</p>
               </div>
             </div>
-
-            {/* Connected State */}
-            {discordBotStatus?.configured && activeForm !== 'discord-bot' && (
-              <div className="px-6 pb-6">
-                <div className="text-sm text-[var(--text-secondary)] mb-4 space-y-1">
-                  <p>Guild ID: <span className="text-[var(--text-primary)] font-mono">{discordBotStatus.guildId}</span></p>
-                  <p>
-                    Connected on {discordBotStatus.connectedAt ? new Date(discordBotStatus.connectedAt).toLocaleDateString() : 'Unknown'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => deleteIntegration('discord-bot')}
-                  disabled={isDeleting === 'discord-bot'}
-                  className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {isDeleting === 'discord-bot' ? 'Disconnecting...' : 'Disconnect'}
-                </button>
-              </div>
-            )}
-
-            {/* Setup Form */}
-            {!discordBotStatus?.configured && activeForm !== 'discord-bot' && (
-              <div className="px-6 pb-6">
-                <button
-                  onClick={() => { setActiveForm('discord-bot'); setError(null); setSuccess(null); }}
-                  className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition"
-                >
-                  Connect Discord Bot
-                </button>
-              </div>
-            )}
-
-            {/* Staff Mappings — visible when Discord Bot + Jira both connected */}
-            {discordBotStatus?.configured && jiraStatus?.configured && activeForm !== 'discord-bot' && (
-              <div className="px-6 pb-6 border-t border-[var(--border-primary)] pt-4">
-                <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Staff Mappings</h4>
-                <p className="text-xs text-[var(--text-muted)] mb-4">
-                  Map Discord users to Jira accounts so they can use <code className="text-indigo-400">/claim</code> to assign tickets.
-                </p>
-
-                {/* Existing mappings */}
-                {staffMappings.length > 0 && (
-                  <div className="space-y-2 mb-4">
-                    {staffMappings.map((m) => (
-                      <div key={m.id} className="flex items-center justify-between bg-[var(--bg-primary)] rounded-lg px-3 py-2">
-                        <div className="flex items-center gap-3 text-sm">
-                          <span className="text-[var(--text-secondary)]">{m.displayName || 'Unnamed'}</span>
-                          <span className="text-[var(--text-muted)]">|</span>
-                          <span className="font-mono text-xs text-[var(--text-secondary)]">{m.discordUserId}</span>
-                          {m.jiraAccountId ? (
-                            <>
-                              <span className="text-[var(--text-muted)]">→</span>
-                              <span className="font-mono text-xs text-[var(--text-secondary)]">{m.jiraAccountId}</span>
-                            </>
-                          ) : (
-                            <span className="text-xs text-amber-400/60">(Discord only)</span>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => deleteStaffMapping(m.id)}
-                          disabled={isDeletingStaff === m.id}
-                          className="text-red-400/60 hover:text-red-400 text-xs transition disabled:opacity-50"
-                        >
-                          {isDeletingStaff === m.id ? '...' : 'Remove'}
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {/* Add new mapping form */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="text"
-                      value={staffForm.displayName}
-                      onChange={(e) => setStaffForm({ ...staffForm, displayName: e.target.value })}
-                      placeholder="Display name (optional)"
-                      className="px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
-                    />
-                    <input
-                      type="text"
-                      value={staffForm.discordUserId}
-                      onChange={(e) => setStaffForm({ ...staffForm, discordUserId: e.target.value })}
-                      placeholder="Discord User ID"
-                      className="px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
-                    />
-                  </div>
-                  <div>
-                    {isLoadingJiraUsers ? (
-                      <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-2">
-                        <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-500" />
-                        Loading Jira users...
-                      </div>
-                    ) : jiraUsers.length > 0 ? (
-                      <select
-                        value={staffForm.jiraAccountId}
-                        onChange={(e) => {
-                          const selectedUser = jiraUsers.find(u => u.accountId === e.target.value);
-                          setStaffForm({
-                            ...staffForm,
-                            jiraAccountId: e.target.value,
-                            displayName: staffForm.displayName || selectedUser?.displayName || '',
-                          });
-                        }}
-                        className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500/50"
-                      >
-                        <option value="">No Jira account (optional)</option>
-                        {jiraUsers.map(u => (
-                          <option key={u.accountId} value={u.accountId}>
-                            {u.displayName}{u.email ? ` (${u.email})` : ''}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        type="text"
-                        value={staffForm.jiraAccountId}
-                        onChange={(e) => setStaffForm({ ...staffForm, jiraAccountId: e.target.value })}
-                        placeholder="Jira Account ID (optional)"
-                        className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
-                      />
-                    )}
-                    {jiraUsers.length === 0 && !isLoadingJiraUsers && jiraStatus?.authMode === 'oauth' && (
-                      <button onClick={fetchJiraUsers} className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 transition">
-                        Load Jira users
-                      </button>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={addStaffMapping}
-                  disabled={isSavingStaff || !staffForm.discordUserId}
-                  className="mt-2 px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
-                >
-                  {isSavingStaff ? 'Adding...' : 'Add Staff'}
-                </button>
-              </div>
-            )}
-
-            {activeForm === 'discord-bot' && (
-              <div className="px-6 pb-6 space-y-4">
-                <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-lg">
-                  <p className="text-xs text-[var(--text-secondary)]">
-                    Create a bot at{' '}
-                    <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
-                      discord.com/developers/applications
-                    </a>
-                    . Enable the <strong className="text-[var(--text-secondary)]">Server Members Intent</strong> and <strong className="text-[var(--text-secondary)]">Message Content Intent</strong> under Privileged Gateway Intents. Copy the bot token and your server&apos;s Guild ID.
-                  </p>
-                </div>
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Bot Token</label>
-                  <input
-                    type="password"
-                    value={discordBotForm.botToken}
-                    onChange={(e) => setDiscordBotForm({ ...discordBotForm, botToken: e.target.value })}
-                    placeholder="Your Discord bot token"
-                    autoComplete="off"
-                    autoCorrect="off"
-                    autoCapitalize="off"
-                    spellCheck={false}
-                    data-lpignore="true"
-                    data-1p-ignore="true"
-                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm text-[var(--text-secondary)] mb-2">Guild ID (Server ID)</label>
-                  <input
-                    type="text"
-                    value={discordBotForm.guildId}
-                    onChange={(e) => setDiscordBotForm({ ...discordBotForm, guildId: e.target.value })}
-                    placeholder="123456789012345678"
-                    className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-[var(--border-primary)] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
-                  />
-                </div>
-                <div className="flex gap-3">
-                  <button
-                    onClick={saveDiscordBot}
-                    disabled={isSaving || !discordBotForm.botToken || !discordBotForm.guildId}
-                    className="px-4 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] rounded-lg text-sm font-medium transition disabled:opacity-50"
-                  >
-                    {isSaving ? 'Connecting...' : 'Save & Connect'}
-                  </button>
-                  <button
-                    onClick={() => { setActiveForm(null); setDiscordBotForm({ botToken: '', guildId: '' }); setError(null); }}
-                    className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            )}
+            <div className="flex items-center gap-2">
+              {discordBotStatus?.configured && (
+                <span className={`px-3 py-1 text-xs rounded-full ${
+                  discordBotStatus.connected
+                    ? 'bg-green-500/20 text-green-400'
+                    : 'bg-orange-500/20 text-orange-400'
+                }`}>
+                  {discordBotStatus.connected ? 'Online' : 'Offline'}
+                </span>
+              )}
+              <span className={`px-3 py-1 text-sm rounded-full ${
+                discordBotStatus?.configured
+                  ? 'bg-green-500/20 text-green-400'
+                  : 'bg-yellow-500/20 text-yellow-400'
+              }`}>
+                {discordBotStatus?.configured ? 'Connected' : 'Not Connected'}
+              </span>
+            </div>
           </div>
 
-        </div>
-      </main>
+          {/* Connected State */}
+          {discordBotStatus?.configured && activeForm !== 'discord-bot' && (
+            <div className="px-6 pb-6">
+              <div className="text-sm text-[var(--text-secondary)] mb-4 space-y-1">
+                <p>Guild ID: <span className="text-[var(--text-primary)] font-mono">{discordBotStatus.guildId}</span></p>
+                <p>
+                  Connected on {discordBotStatus.connectedAt ? new Date(discordBotStatus.connectedAt).toLocaleDateString() : 'Unknown'}
+                </p>
+              </div>
+              <button
+                onClick={() => deleteIntegration('discord-bot')}
+                disabled={isDeleting === 'discord-bot'}
+                className="px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
+              >
+                {isDeleting === 'discord-bot' ? 'Disconnecting...' : 'Disconnect'}
+              </button>
+            </div>
+          )}
+
+          {/* Setup Form (hidden when readOnly) */}
+          {!discordBotStatus?.configured && activeForm !== 'discord-bot' && !readOnly && (
+            <div className="px-6 pb-6">
+              <button
+                onClick={() => { setActiveForm('discord-bot'); setError(null); setSuccess(null); }}
+                className="px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition"
+              >
+                Connect Discord Bot
+              </button>
+            </div>
+          )}
+
+          {/* Staff Mappings — visible when Discord Bot + Jira both connected (hidden when readOnly) */}
+          {discordBotStatus?.configured && jiraStatus?.configured && activeForm !== 'discord-bot' && !readOnly && (
+            <div className="px-6 pb-6 border-t border-white/[0.06] pt-4">
+              <h4 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Staff Mappings</h4>
+              <p className="text-xs text-[var(--text-muted)] mb-4">
+                Map Discord users to Jira accounts so they can use <code className="text-indigo-400">/claim</code> to assign tickets.
+              </p>
+
+              {/* Existing mappings */}
+              {staffMappings.length > 0 && (
+                <div className="space-y-2 mb-4">
+                  {staffMappings.map((m) => (
+                    <div key={m.id} className="flex items-center justify-between bg-[var(--bg-primary)]/50 rounded-lg px-3 py-2">
+                      <div className="flex items-center gap-3 text-sm">
+                        <span className="text-[var(--text-secondary)]">{m.displayName || 'Unnamed'}</span>
+                        <span className="text-[var(--text-muted)]">|</span>
+                        <span className="font-mono text-xs text-[var(--text-secondary)]">{m.discordUserId}</span>
+                        {m.jiraAccountId ? (
+                          <>
+                            <span className="text-[var(--text-muted)]">→</span>
+                            <span className="font-mono text-xs text-[var(--text-secondary)]">{m.jiraAccountId}</span>
+                          </>
+                        ) : (
+                          <span className="text-xs text-amber-400/60">(Discord only)</span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => deleteStaffMapping(m.id)}
+                        disabled={isDeletingStaff === m.id}
+                        className="text-red-400/60 hover:text-red-400 text-xs transition disabled:opacity-50"
+                      >
+                        {isDeletingStaff === m.id ? '...' : 'Remove'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Add new mapping form */}
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-2">
+                  <input
+                    type="text"
+                    value={staffForm.displayName}
+                    onChange={(e) => setStaffForm({ ...staffForm, displayName: e.target.value })}
+                    placeholder="Display name (optional)"
+                    className="px-3 py-2 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
+                  />
+                  <input
+                    type="text"
+                    value={staffForm.discordUserId}
+                    onChange={(e) => setStaffForm({ ...staffForm, discordUserId: e.target.value })}
+                    placeholder="Discord User ID"
+                    className="px-3 py-2 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
+                  />
+                </div>
+                <div>
+                  {isLoadingJiraUsers ? (
+                    <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] py-2">
+                      <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-indigo-500" />
+                      Loading Jira users...
+                    </div>
+                  ) : jiraUsers.length > 0 ? (
+                    <select
+                      value={staffForm.jiraAccountId}
+                      onChange={(e) => {
+                        const selectedUser = jiraUsers.find(u => u.accountId === e.target.value);
+                        setStaffForm({
+                          ...staffForm,
+                          jiraAccountId: e.target.value,
+                          displayName: staffForm.displayName || selectedUser?.displayName || '',
+                        });
+                      }}
+                      className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-sm text-[var(--text-primary)] focus:outline-none focus:border-indigo-500/50"
+                    >
+                      <option value="">No Jira account (optional)</option>
+                      {jiraUsers.map(u => (
+                        <option key={u.accountId} value={u.accountId}>
+                          {u.displayName}{u.email ? ` (${u.email})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type="text"
+                      value={staffForm.jiraAccountId}
+                      onChange={(e) => setStaffForm({ ...staffForm, jiraAccountId: e.target.value })}
+                      placeholder="Jira Account ID (optional)"
+                      className="w-full px-3 py-2 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
+                    />
+                  )}
+                  {jiraUsers.length === 0 && !isLoadingJiraUsers && jiraStatus?.authMode === 'oauth' && (
+                    <button onClick={fetchJiraUsers} className="mt-1 text-xs text-indigo-400 hover:text-indigo-300 transition">
+                      Load Jira users
+                    </button>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={addStaffMapping}
+                disabled={isSavingStaff || !staffForm.discordUserId}
+                className="mt-2 px-4 py-2 bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-400 rounded-lg text-sm font-medium transition disabled:opacity-50"
+              >
+                {isSavingStaff ? 'Adding...' : 'Add Staff'}
+              </button>
+            </div>
+          )}
+
+          {activeForm === 'discord-bot' && !readOnly && (
+            <div className="px-6 pb-6 space-y-4">
+              <div className="p-3 bg-indigo-500/5 border border-indigo-500/10 rounded-lg">
+                <p className="text-xs text-[var(--text-secondary)]">
+                  Create a bot at{' '}
+                  <a href="https://discord.com/developers/applications" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:underline">
+                    discord.com/developers/applications
+                  </a>
+                  . Enable the <strong className="text-[var(--text-secondary)]">Server Members Intent</strong> and <strong className="text-[var(--text-secondary)]">Message Content Intent</strong> under Privileged Gateway Intents. Copy the bot token and your server&apos;s Guild ID.
+                </p>
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-2">Bot Token</label>
+                <input
+                  type="password"
+                  value={discordBotForm.botToken}
+                  onChange={(e) => setDiscordBotForm({ ...discordBotForm, botToken: e.target.value })}
+                  placeholder="Your Discord bot token"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  data-lpignore="true"
+                  data-1p-ignore="true"
+                  className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-[var(--text-secondary)] mb-2">Guild ID (Server ID)</label>
+                <input
+                  type="text"
+                  value={discordBotForm.guildId}
+                  onChange={(e) => setDiscordBotForm({ ...discordBotForm, guildId: e.target.value })}
+                  placeholder="123456789012345678"
+                  className="w-full px-4 py-3 bg-[var(--bg-primary)] border border-white/[0.06] rounded-lg text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-indigo-500/50"
+                />
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={saveDiscordBot}
+                  disabled={isSaving || !discordBotForm.botToken || !discordBotForm.guildId}
+                  className="px-4 py-2 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] rounded-lg text-sm font-medium transition disabled:opacity-50"
+                >
+                  {isSaving ? 'Connecting...' : 'Save & Connect'}
+                </button>
+                <button
+                  onClick={() => { setActiveForm(null); setDiscordBotForm({ botToken: '', guildId: '' }); setError(null); }}
+                  className="px-4 py-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)] text-sm transition"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </FloatingPanel>
+      </div>
     </div>
   );
 }

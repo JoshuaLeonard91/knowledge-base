@@ -7,15 +7,13 @@
  * Theme preview is shown within the selector cards — no global DOM mutation needed.
  */
 
-import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { usePlatform } from '../../PlatformProvider';
+import { useState, useEffect } from 'react';
+import { useDashboard } from '@/components/dashboard/DashboardContext';
+import { FloatingPanel } from '@/components/dashboard/FloatingPanel';
 import { ThemeSelector } from '@/components/dashboard/ThemeSelector';
 
 export default function SettingsPage() {
-  const router = useRouter();
-  const { siteName } = usePlatform();
+  const { isLoading: contextLoading } = useDashboard();
 
   const [isLoading, setIsLoading] = useState(true);
   const [savedTheme, setSavedTheme] = useState('dark');
@@ -31,10 +29,7 @@ export default function SettingsPage() {
     const fetchTheme = async () => {
       try {
         const res = await fetch('/api/dashboard/settings/theme');
-        if (res.status === 401) {
-          router.push('/signup');
-          return;
-        }
+        if (!res.ok) return;
         const data = await res.json();
         setSavedTheme(data.theme || 'dark');
         setSelectedTheme(data.theme || 'dark');
@@ -45,7 +40,7 @@ export default function SettingsPage() {
       }
     };
     fetchTheme();
-  }, [router]);
+  }, []);
 
   const handleSelect = (themeId: string) => {
     setSelectedTheme(themeId);
@@ -65,7 +60,6 @@ export default function SettingsPage() {
     setSuccess(null);
 
     try {
-      // Get CSRF token
       const csrfRes = await fetch('/api/auth/session');
       const csrfData = await csrfRes.json();
 
@@ -94,102 +88,75 @@ export default function SettingsPage() {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || contextLoading) {
     return (
-      <div className="min-h-screen bg-[var(--bg-primary)]">
-        <header className="border-b border-[var(--border-primary)] bg-[var(--bg-primary)] backdrop-blur-sm sticky top-0 z-50">
-          <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-            <Link href="/dashboard" className="text-xl font-bold text-[var(--text-primary)]">
-              {siteName}
-            </Link>
-            <Link href="/dashboard" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition">
-              &larr; Back to Dashboard
-            </Link>
-          </nav>
-        </header>
-        <main className="max-w-4xl mx-auto py-12 px-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 w-32 bg-[var(--bg-tertiary)] rounded" />
-            <div className="h-4 w-64 bg-[var(--bg-tertiary)] rounded" />
-            <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-8">
-              {Array.from({ length: 9 }).map((_, i) => (
-                <div key={i} className="h-40 bg-[var(--bg-tertiary)] rounded-xl" />
-              ))}
-            </div>
+      <div className="space-y-4">
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 w-32 bg-[var(--bg-tertiary)] rounded" />
+          <div className="h-4 w-64 bg-[var(--bg-tertiary)] rounded" />
+          <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3 mt-8">
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div key={i} className="h-40 bg-[var(--bg-tertiary)] rounded-xl" />
+            ))}
           </div>
-        </main>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      {/* Header */}
-      <header className="border-b border-[var(--border-primary)] bg-[var(--bg-primary)] backdrop-blur-sm sticky top-0 z-50">
-        <nav className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link href="/dashboard" className="text-xl font-bold text-[var(--text-primary)]">
-            {siteName}
-          </Link>
-          <Link href="/dashboard" className="text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition">
-            &larr; Back to Dashboard
-          </Link>
-        </nav>
-      </header>
+    <div>
+      <h1 className="text-2xl font-bold mb-1 text-[var(--text-primary)]">Appearance</h1>
+      <p className="text-[var(--text-secondary)] text-sm mb-6">Customize your portal appearance.</p>
 
-      {/* Content */}
-      <main className="max-w-4xl mx-auto py-12 px-6">
-        <h1 className="text-3xl font-bold mb-2 text-[var(--text-primary)]">Settings</h1>
-        <p className="text-[var(--text-secondary)] mb-8">Customize your portal appearance.</p>
-
-        {/* Success */}
-        {success && (
-          <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
-            <p className="text-green-400 text-sm">{success}</p>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
-            <p className="text-red-400 text-sm">{error}</p>
-          </div>
-        )}
-
-        {/* Theme Section */}
-        <div className="bg-[var(--bg-secondary)] border border-[var(--border-primary)] rounded-2xl p-6">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Color Theme</h2>
-          <p className="text-sm text-[var(--text-secondary)] mb-6">
-            Choose a color theme for your portal. The theme applies to your tenant subdomain.
-          </p>
-
-          <ThemeSelector
-            selectedTheme={selectedTheme}
-            onSelect={handleSelect}
-            disabled={isSaving}
-          />
-
-          {/* Actions */}
-          {hasChanges && (
-            <div className="flex items-center gap-3 mt-6 pt-6 border-t border-[var(--border-primary)]">
-              <button
-                onClick={handleSave}
-                disabled={isSaving}
-                className="px-5 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition disabled:opacity-50"
-              >
-                {isSaving ? 'Saving...' : 'Save Changes'}
-              </button>
-              <button
-                onClick={handleDiscard}
-                disabled={isSaving}
-                className="px-5 py-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium rounded-lg transition"
-              >
-                Discard
-              </button>
-              <span className="text-sm text-[var(--text-muted)] ml-auto">Unsaved changes</span>
-            </div>
-          )}
+      {/* Success */}
+      {success && (
+        <div className="mb-6 p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+          <p className="text-green-400 text-sm">{success}</p>
         </div>
-      </main>
+      )}
+
+      {/* Error */}
+      {error && (
+        <div className="mb-6 p-4 bg-red-500/10 border border-red-500/20 rounded-lg">
+          <p className="text-red-400 text-sm">{error}</p>
+        </div>
+      )}
+
+      {/* Theme Section */}
+      <FloatingPanel>
+        <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Color Theme</h2>
+        <p className="text-sm text-[var(--text-secondary)] mb-6">
+          Choose a color theme for your portal. The theme applies to your tenant subdomain.
+        </p>
+
+        <ThemeSelector
+          selectedTheme={selectedTheme}
+          onSelect={handleSelect}
+          disabled={isSaving}
+        />
+
+        {/* Actions */}
+        {hasChanges && (
+          <div className="flex items-center gap-3 mt-6 pt-6 border-t border-white/[0.06]">
+            <button
+              onClick={handleSave}
+              disabled={isSaving}
+              className="px-5 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition disabled:opacity-50"
+            >
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+            <button
+              onClick={handleDiscard}
+              disabled={isSaving}
+              className="px-5 py-2.5 text-[var(--text-secondary)] hover:text-[var(--text-primary)] font-medium rounded-lg transition"
+            >
+              Discard
+            </button>
+            <span className="text-sm text-[var(--text-muted)] ml-auto">Unsaved changes</span>
+          </div>
+        )}
+      </FloatingPanel>
     </div>
   );
 }

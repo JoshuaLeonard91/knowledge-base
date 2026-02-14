@@ -30,6 +30,7 @@ export interface ClientTenantConfig {
     // NOTE: customDomain excluded - internal config
   } | null;
   jiraConnected: boolean;
+  subscriptionActive: boolean;
 }
 
 const TenantContext = createContext<ClientTenantConfig | null>(null);

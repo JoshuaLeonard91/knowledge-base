@@ -13,7 +13,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { randomBytes } from 'crypto';
-import { requireAuth, requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
+import { requireAuth, requireTenantOwner, requireSubscribedTenantOwner, securityHeaders } from '@/lib/api/auth';
 import { hasActiveAccess } from '@/lib/subscription/helpers';
 import { prisma } from '@/lib/db/client';
 import { encryptToString, decryptFromString } from '@/lib/security/crypto';
@@ -44,12 +44,14 @@ export async function GET() {
       },
     });
 
-    if (!user || !hasActiveAccess(user.subscription)) {
+    if (!user) {
       return NextResponse.json(
-        { error: 'Active subscription required' },
-        { status: 403, headers: securityHeaders }
+        { error: 'User not found' },
+        { status: 404, headers: securityHeaders }
       );
     }
+
+    const isActive = hasActiveAccess(user.subscription);
 
     if (user.tenants.length === 0) {
       return NextResponse.json(
@@ -68,7 +70,7 @@ export async function GET() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://helpportal.app';
     const webhookUrl = config ? `${appUrl}/api/webhooks/hygraph/${tenant.id}` : null;
 
-    // Return status only - NEVER return actual credentials
+    // Return status — hide secrets when subscription expired
     return NextResponse.json(
       {
         configured: !!config,
@@ -76,8 +78,9 @@ export async function GET() {
         connectedAt: config?.createdAt || null,
         webhookUrl,
         hasWebhookSecret: !!config?.webhookSecret,
-        // Decrypt webhook secret for display (tenant needs to copy it into Hygraph)
-        webhookSecret: config?.webhookSecret ? decryptFromString(config.webhookSecret) : null,
+        // Only show secret to active subscribers
+        webhookSecret: isActive && config?.webhookSecret ? decryptFromString(config.webhookSecret) : null,
+        readOnly: !isActive,
       },
       { headers: securityHeaders }
     );
@@ -172,11 +175,11 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * DELETE - Remove Hygraph configuration
+ * DELETE - Remove Hygraph configuration (allowed even with expired subscription)
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const auth = await requireSubscribedTenantOwner(request);
+    const auth = await requireTenantOwner(request);
     if ('response' in auth) return auth.response;
     const { tenant } = auth;
 

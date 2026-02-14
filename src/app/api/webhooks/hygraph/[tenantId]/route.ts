@@ -17,6 +17,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { revalidateTag } from 'next/cache';
 import { prisma } from '@/lib/db/client';
 import { decryptFromString } from '@/lib/security/crypto';
+import { hasActiveAccess } from '@/lib/subscription/helpers';
 import { hygraph } from '@/lib/hygraph';
 
 export const dynamic = 'force-dynamic';
@@ -141,6 +142,24 @@ export async function POST(
   if (!verifySignature(body, signature, secret)) {
     console.error(`[Webhook/Hygraph] Invalid signature for ${tenantId}`);
     return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+  }
+
+  // Block webhook processing for expired tenant subscriptions
+  if (tenantId !== 'main') {
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: tenantId },
+      select: { ownerId: true },
+    });
+    if (tenant?.ownerId) {
+      const owner = await prisma.user.findUnique({
+        where: { id: tenant.ownerId },
+        include: { subscription: true },
+      });
+      if (!owner || !hasActiveAccess(owner.subscription)) {
+        console.log(`[Webhook/Hygraph] Skipping: subscription inactive for ${tenantId}`);
+        return NextResponse.json({ ok: true, skipped: 'subscription_inactive' });
+      }
+    }
   }
 
   // Parse the webhook payload
