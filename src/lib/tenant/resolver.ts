@@ -27,7 +27,7 @@ export interface TenantContext {
   plan: string;
   hygraph: {
     endpoint: string;
-    token: string;
+    token: string | null;
   } | null;
   jira: {
     connected: boolean;
@@ -131,10 +131,11 @@ export function transformTenantToContext(tenant: TenantWithConfig): TenantContex
   let hygraph: TenantContext['hygraph'] = null;
   if (tenant.hygraphConfig) {
     try {
-      hygraph = {
-        endpoint: decryptFromString(tenant.hygraphConfig.endpoint),
-        token: decryptFromString(tenant.hygraphConfig.token),
-      };
+      const endpoint = decryptFromString(tenant.hygraphConfig.endpoint);
+      const token = tenant.hygraphConfig.token
+        ? decryptFromString(tenant.hygraphConfig.token)
+        : null;
+      hygraph = { endpoint, token };
     } catch {
       console.error('[Tenant] Failed to decrypt Hygraph config for:', tenant.slug);
     }
