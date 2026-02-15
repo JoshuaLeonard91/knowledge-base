@@ -32,41 +32,45 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
   const resolveIcon = (iconName: string) => getIcon(iconName, House);
 
   // Filter out contact/pricing/ticket links from CMS — we add our own below in fixed order
+  // Cap at 6 CMS links max to prevent navbar overflow
+  const MAX_CMS_LINKS = 6;
   const displayLinks = useMemo(() => {
-    return navLinks.filter((link) => {
-      if (link.url === '/support/contact' || link.url === '/contact') return false;
-      if (link.url === '/pricing' || link.url === '/support/pricing') return false;
-      if (link.url === '/support/ticket' || link.url === '/ticket') return false;
-      return true;
-    });
+    return navLinks
+      .filter((link) => {
+        if (link.url === '/support/contact' || link.url === '/contact') return false;
+        if (link.url === '/pricing' || link.url === '/support/pricing') return false;
+        if (link.url === '/support/ticket' || link.url === '/ticket') return false;
+        return true;
+      })
+      .slice(0, MAX_CMS_LINKS);
   }, [navLinks]);
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-50 glass">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-16 gap-6">
           {/* Logo - goes to landing page if configured, otherwise support hub */}
-          <Link href={isMainDomain || hasLandingPage ? '/' : '/support'} className="flex items-center gap-3 group shrink-0">
+          <Link href={isMainDomain || hasLandingPage ? '/' : '/support'} className="flex items-center gap-2.5 group shrink-0">
             {settings.logoIcon ? (
-              <div className="w-10 h-10 shrink-0 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
+              <div className="w-8 h-8 shrink-0 rounded-lg overflow-hidden shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
                 <Image
                   src={settings.logoIcon}
                   alt={settings.siteName}
-                  width={40}
-                  height={40}
+                  width={32}
+                  height={32}
                   className="w-full h-full object-cover"
                 />
               </div>
             ) : (
-              <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
-                <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
+              <div className="w-8 h-8 shrink-0 rounded-lg bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
+                <svg className="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
             )}
             <div className="hidden sm:block whitespace-nowrap">
-              <span className="text-lg font-bold text-[var(--text-primary)]">{settings.siteName}</span>
-              <span className="text-xs text-[var(--text-muted)] block -mt-1">{settings.subtitle}</span>
+              <span className="text-base font-bold text-[var(--text-primary)]">{settings.siteName}</span>
+              <span className="text-xs text-[var(--text-muted)] block -mt-0.5">{settings.subtitle}</span>
             </div>
           </Link>
 
@@ -130,9 +134,9 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
           </div>
 
           {/* Auth Section */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3 shrink-0">
             {isLoading ? (
-              <div className="hidden sm:block w-[160px] h-[38px] bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+              <div className="hidden sm:block w-[140px] h-[34px] bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
             ) : user ? (
               <UserMenu />
             ) : (

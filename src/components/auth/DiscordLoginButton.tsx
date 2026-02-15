@@ -20,11 +20,11 @@ export function DiscordLoginButton() {
     <button
       onClick={handleLogin}
       disabled={showLoading}
-      className="btn-discord btn group relative overflow-hidden whitespace-nowrap"
+      className="btn-discord btn group relative overflow-hidden whitespace-nowrap !px-4 !py-2 !text-sm"
     >
       {/* Discord Logo */}
       <svg
-        className="w-5 h-5 relative z-10"
+        className="w-4 h-4 relative z-10"
         viewBox="0 0 24 24"
         fill="currentColor"
       >
