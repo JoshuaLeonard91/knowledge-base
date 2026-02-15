@@ -7,7 +7,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useTenant } from '@/lib/tenant/context';
 import { DiscordLoginButton } from '../auth/DiscordLoginButton';
 import { UserMenu } from './UserMenu';
-import { List, X, Phone, House, CurrencyDollar } from '@phosphor-icons/react';
+import { List, X, Phone, House, CurrencyDollar, PaperPlaneTilt } from '@phosphor-icons/react';
 import { getIcon } from '@/lib/icons';
 import { useState, useMemo } from 'react';
 import type { HeaderSettings, NavLink } from '@/lib/cms';
@@ -31,11 +31,12 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
   // Get icon component from name, fallback to House
   const resolveIcon = (iconName: string) => getIcon(iconName, House);
 
-  // Filter out contact/pricing links from CMS — we add our own below based on page flags
+  // Filter out contact/pricing/ticket links from CMS — we add our own below in fixed order
   const displayLinks = useMemo(() => {
     return navLinks.filter((link) => {
       if (link.url === '/support/contact' || link.url === '/contact') return false;
       if (link.url === '/pricing' || link.url === '/support/pricing') return false;
+      if (link.url === '/support/ticket' || link.url === '/ticket') return false;
       return true;
     });
   }, [navLinks]);
@@ -78,7 +79,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
                 <Link
                   key={link.id}
                   href={link.url}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                     isActive
                       ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
                       : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
@@ -92,7 +93,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
             {hasPricingPage && (
               <Link
                 href="/support/pricing"
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                   pathname === '/pricing' || pathname === '/support/pricing'
                     ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
@@ -105,7 +106,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
             {hasContactPage && (
               <Link
                 href="/support/contact"
-                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
                   pathname === '/contact' || pathname === '/support/contact'
                     ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
                     : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
@@ -115,6 +116,17 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
                 Contact
               </Link>
             )}
+            <Link
+              href="/support/ticket"
+              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all ${
+                pathname === '/support/ticket'
+                  ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+              }`}
+            >
+              <PaperPlaneTilt size={18} weight="duotone" />
+              Submit Ticket
+            </Link>
           </div>
 
           {/* Auth Section */}
@@ -195,6 +207,18 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
                 Contact
               </Link>
             )}
+            <Link
+              href="/support/ticket"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg text-sm font-medium transition-all ${
+                pathname === '/support/ticket'
+                  ? 'bg-[var(--accent-primary)]/10 text-[var(--accent-primary)]'
+                  : 'text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]'
+              }`}
+            >
+              <PaperPlaneTilt size={20} weight="duotone" />
+              Submit Ticket
+            </Link>
             {!user && !isLoading && (
               <div className="pt-2 border-t border-[var(--border-primary)]">
                 <DiscordLoginButton />
