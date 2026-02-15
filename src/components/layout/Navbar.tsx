@@ -27,7 +27,6 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isMainDomain = !tenant;
-  const isOnSupportPage = pathname?.startsWith('/support');
 
   // Get icon component from name, fallback to House
   const resolveIcon = (iconName: string) => getIcon(iconName, House);
@@ -73,7 +72,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
             {displayLinks.map((link) => {
-              const isActive = pathname === link.url || (link.url === '/support' && isOnSupportPage);
+              const isActive = link.url === '/support' ? pathname === '/support' : pathname === link.url || (link.url !== '/' && pathname?.startsWith(link.url));
               const IconComponent = resolveIcon(link.icon);
               return (
                 <Link
@@ -150,7 +149,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
         <div className="md:hidden border-t border-[var(--border-primary)] animate-slide-down">
           <div className="px-4 py-4 space-y-2">
             {displayLinks.map((link) => {
-              const isActive = pathname === link.url || (link.url === '/support' && isOnSupportPage);
+              const isActive = link.url === '/support' ? pathname === '/support' : pathname === link.url || (link.url !== '/' && pathname?.startsWith(link.url));
               const IconComponent = resolveIcon(link.icon);
               return (
                 <Link
