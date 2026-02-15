@@ -46,9 +46,9 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo - goes to landing page if configured, otherwise support hub */}
-          <Link href={isMainDomain || hasLandingPage ? '/' : '/support'} className="flex items-center gap-3 group">
+          <Link href={isMainDomain || hasLandingPage ? '/' : '/support'} className="flex items-center gap-3 group shrink-0 min-w-0 max-w-[220px]">
             {settings.logoIcon ? (
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
+              <div className="w-10 h-10 shrink-0 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
                 <Image
                   src={settings.logoIcon}
                   alt={settings.siteName}
@@ -58,15 +58,15 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
                 />
               </div>
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
+              <div className="w-10 h-10 shrink-0 rounded-xl bg-gradient-to-br from-[var(--accent-primary)] to-[var(--accent-secondary)] flex items-center justify-center shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
                 <svg className="w-6 h-6 text-white" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </div>
             )}
-            <div className="hidden sm:block">
-              <span className="text-lg font-bold text-[var(--text-primary)]">{settings.siteName}</span>
-              <span className="text-xs text-[var(--text-muted)] block -mt-1">{settings.subtitle}</span>
+            <div className="hidden sm:block min-w-0">
+              <span className="text-lg font-bold text-[var(--text-primary)] block truncate">{settings.siteName}</span>
+              <span className="text-xs text-[var(--text-muted)] block -mt-1 truncate">{settings.subtitle}</span>
             </div>
           </Link>
 
