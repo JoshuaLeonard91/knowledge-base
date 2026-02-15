@@ -32,6 +32,7 @@ import type { FileUploadModalData } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { getTicketCategories, getTicketCategoriesForTenant } from '@/lib/cms';
 import { sanitizeString } from '@/lib/validation';
+import { sanitizeFilename, verifyFileSignature } from '@/lib/security/uploads';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
 import { sendTicketCreationDM } from '../notifications';
 import { logTicketCreated } from '../log';
@@ -343,7 +344,13 @@ export async function handleTicketModal(
           try {
             const response = await fetch(attachment.url);
             const buffer = Buffer.from(await response.arrayBuffer());
-            await provider.addAttachment!(ticketId, buffer, attachment.name, attachment.contentType || 'application/octet-stream');
+            const mimeType = attachment.contentType || 'application/octet-stream';
+            if (!verifyFileSignature(buffer, mimeType)) {
+              console.warn('[TicketCommand] File signature mismatch, skipping:', attachment.name);
+              return;
+            }
+            const safeName = sanitizeFilename(attachment.name);
+            await provider.addAttachment!(ticketId, buffer, safeName, mimeType);
           } catch (err) {
             console.error('[TicketCommand] Failed to upload attachment:', attachment.name, err);
           }

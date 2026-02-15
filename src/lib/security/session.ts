@@ -48,6 +48,52 @@ const TOKEN_VERSION = 'v1';
 const HANDOFF_TOKEN_VERSION = 'h1';
 const HANDOFF_EXPIRY_MS = 5 * 1000; // 5 seconds - very short lived
 
+// ============================================
+// SESSION DENY-LIST — In-memory revocation
+// ============================================
+// Maps session ID → expiry timestamp. Entries are auto-evicted once expired.
+// This is sufficient for single-instance deployments. For multi-instance,
+// replace with Redis or a shared store.
+
+const sessionDenyList = new Map<string, number>();
+const DENY_LIST_MAX_SIZE = 10_000;
+const DENY_LIST_CLEANUP_INTERVAL = 60 * 60 * 1000; // 1 hour
+
+/** Evict expired entries from the deny-list */
+function cleanupDenyList() {
+  const now = Date.now();
+  for (const [sid, exp] of sessionDenyList) {
+    if (exp < now) sessionDenyList.delete(sid);
+  }
+}
+
+// Periodic cleanup to prevent unbounded growth
+setInterval(cleanupDenyList, DENY_LIST_CLEANUP_INTERVAL).unref();
+
+/**
+ * Revoke a session by its ID. The session will be rejected by parseSessionToken()
+ * until it would have naturally expired.
+ */
+export function revokeSession(sid: string, expiresAt?: number): void {
+  // Evict expired entries if map is getting large
+  if (sessionDenyList.size > DENY_LIST_MAX_SIZE) {
+    cleanupDenyList();
+  }
+  sessionDenyList.set(sid, expiresAt || (Date.now() + SESSION_DURATION_MS));
+}
+
+/** Check if a session ID has been revoked */
+export function isSessionRevoked(sid: string): boolean {
+  const exp = sessionDenyList.get(sid);
+  if (exp === undefined) return false;
+  // Auto-evict if expired
+  if (exp < Date.now()) {
+    sessionDenyList.delete(sid);
+    return false;
+  }
+  return true;
+}
+
 /**
  * Create a new session token
  */
@@ -111,6 +157,11 @@ export function parseSessionToken(token: string): ParsedSession {
     const now = Date.now();
     if (payload.exp < now) {
       return { valid: false, expired: true, payload, error: 'Session expired' };
+    }
+
+    // Check deny-list (revoked sessions)
+    if (isSessionRevoked(payload.sid)) {
+      return { valid: false, expired: false, payload: null, error: 'Session revoked' };
     }
 
     return { valid: true, expired: false, payload };

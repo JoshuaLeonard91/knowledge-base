@@ -23,6 +23,7 @@ import {
 import type { FileUploadModalData } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { refreshTicketDM } from '../helpers';
+import { sanitizeFilename, verifyFileSignature } from '@/lib/security/uploads';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
 
 /**
@@ -152,7 +153,13 @@ async function handleReplyModal(
         try {
           const response = await fetch(attachment.url);
           const buffer = Buffer.from(await response.arrayBuffer());
-          await provider.addAttachment(ticketId, buffer, attachment.name, attachment.contentType || 'application/octet-stream');
+          const mimeType = attachment.contentType || 'application/octet-stream';
+          if (!verifyFileSignature(buffer, mimeType)) {
+            console.warn('[ReplyModal] File signature mismatch, skipping:', attachment.name);
+            continue;
+          }
+          const safeName = sanitizeFilename(attachment.name);
+          await provider.addAttachment(ticketId, buffer, safeName, mimeType);
         } catch (err) {
           console.error('[ReplyModal] Failed to upload attachment:', attachment.name, err);
         }

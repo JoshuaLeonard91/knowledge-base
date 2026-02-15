@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
 import { getSession, getDiscordAccessToken } from '@/lib/auth';
-import { SESSION_COOKIE_CONFIG } from '@/lib/security/session';
+import { SESSION_COOKIE_CONFIG, parseSessionToken, revokeSession } from '@/lib/security/session';
 import { revokeDiscordToken } from '@/lib/discord/oauth';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import {
@@ -23,6 +24,17 @@ export async function POST(request: NextRequest) {
     }
     // Get user before destroying session (for logging)
     const user = await getSession();
+
+    // Revoke session token server-side (deny-list)
+    // This invalidates the token even if the cookie clearing fails
+    const cookieStore = await cookies();
+    const sessionCookie = cookieStore.get(SESSION_COOKIE_CONFIG.name);
+    if (sessionCookie?.value) {
+      const parsed = parseSessionToken(sessionCookie.value);
+      if (parsed.payload?.sid) {
+        revokeSession(parsed.payload.sid, parsed.payload.exp);
+      }
+    }
 
     // Revoke Discord access token if present
     // This invalidates the token on Discord's side for security

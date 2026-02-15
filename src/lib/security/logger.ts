@@ -367,11 +367,16 @@ export function logTicketSubmission(params: {
 }
 
 /**
- * Extract client IP from request headers
+ * Extract client IP from request headers.
+ * Uses the RIGHTMOST x-forwarded-for entry (appended by trusted proxy).
  */
 export function getClientIp(headers: Headers): string {
+  const xff = headers.get('x-forwarded-for');
+  if (xff) {
+    const ips = xff.split(',').map(ip => ip.trim()).filter(Boolean);
+    if (ips.length > 0) return ips[ips.length - 1];
+  }
   return (
-    headers.get('x-forwarded-for')?.split(',')[0].trim() ||
     headers.get('x-real-ip') ||
     headers.get('cf-connecting-ip') ||
     'unknown'

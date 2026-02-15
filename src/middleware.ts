@@ -99,9 +99,20 @@ const RATE_LIMITS = {
 /**
  * Get client IP from request
  */
+/**
+ * Get client IP from request.
+ * Uses the RIGHTMOST x-forwarded-for entry — the one appended by the
+ * trusted reverse proxy (DigitalOcean App Platform). The leftmost entry
+ * is client-controlled and can be spoofed to bypass rate limiting.
+ */
 function getClientIp(request: NextRequest): string {
+  const xff = request.headers.get('x-forwarded-for');
+  if (xff) {
+    const ips = xff.split(',').map(ip => ip.trim()).filter(Boolean);
+    // Rightmost = appended by the trusted proxy (DO App Platform)
+    if (ips.length > 0) return ips[ips.length - 1];
+  }
   return (
-    request.headers.get('x-forwarded-for')?.split(',')[0].trim() ||
     request.headers.get('x-real-ip') ||
     request.headers.get('cf-connecting-ip') ||
     '127.0.0.1'

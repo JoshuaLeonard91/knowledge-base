@@ -1,39 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { randomUUID } from 'crypto';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
+import { verifyFileSignature, sanitizeFilename } from '@/lib/security/uploads';
 import { refreshTicketDM } from '@/lib/discord-bot/helpers';
 import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
-
-/** Magic number signatures for server-side file type verification */
-const MAGIC_SIGNATURES: Record<string, number[]> = {
-  'image/png': [0x89, 0x50, 0x4e, 0x47],
-  'image/jpeg': [0xff, 0xd8, 0xff],
-  'image/gif': [0x47, 0x49, 0x46],
-  'image/webp': [0x52, 0x49, 0x46, 0x46], // RIFF header
-  'application/pdf': [0x25, 0x50, 0x44, 0x46], // %PDF
-};
-
-/** Verify file content matches declared MIME type */
-function verifyFileSignature(buffer: Buffer, mimeType: string): boolean {
-  const expected = MAGIC_SIGNATURES[mimeType];
-  if (!expected) return true; // No signature to check (text, docx) — allow
-  if (buffer.length < expected.length) return false;
-  return expected.every((byte, i) => byte === buffer[i]);
-}
-
-/** Sanitize filename: strip path traversal, special chars, generate safe name */
-function sanitizeFilename(name: string): string {
-  const cleaned = name
-    .replace(/\0/g, '')
-    .replace(/[/\\]/g, '_')
-    .replace(/\.\./g, '_')
-    .replace(/[^a-zA-Z0-9._-]/g, '_')
-    .substring(0, 255);
-  const ext = cleaned.split('.').pop() || 'bin';
-  return `${randomUUID()}.${ext}`;
-}
 
 export async function GET(
   request: NextRequest,
