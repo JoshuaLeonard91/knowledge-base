@@ -46,7 +46,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Logo - goes to landing page if configured, otherwise support hub */}
-          <Link href={isMainDomain || hasLandingPage ? '/' : '/support'} className="flex items-center gap-3 group shrink-0 min-w-0 max-w-[220px]">
+          <Link href={isMainDomain || hasLandingPage ? '/' : '/support'} className="flex items-center gap-3 group shrink-0">
             {settings.logoIcon ? (
               <div className="w-10 h-10 shrink-0 rounded-xl overflow-hidden shadow-lg group-hover:shadow-[var(--shadow-glow)] transition-shadow">
                 <Image
@@ -64,9 +64,9 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
                 </svg>
               </div>
             )}
-            <div className="hidden sm:block min-w-0">
-              <span className="text-lg font-bold text-[var(--text-primary)] block truncate">{settings.siteName}</span>
-              <span className="text-xs text-[var(--text-muted)] block -mt-1 truncate">{settings.subtitle}</span>
+            <div className="hidden sm:block whitespace-nowrap">
+              <span className="text-lg font-bold text-[var(--text-primary)]">{settings.siteName}</span>
+              <span className="text-xs text-[var(--text-muted)] block -mt-1">{settings.subtitle}</span>
             </div>
           </Link>
 
