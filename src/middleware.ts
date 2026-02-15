@@ -285,8 +285,8 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // Skip middleware for Stripe webhook - needs raw body for signature verification
-  if (pathname === '/api/stripe/webhook') {
+  // Skip middleware for Stripe webhooks - needs raw body for signature verification
+  if (pathname === '/api/stripe/webhook' || pathname === '/api/checkout/webhook') {
     return NextResponse.next();
   }
 

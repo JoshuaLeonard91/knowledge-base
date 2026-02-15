@@ -2,7 +2,6 @@ import { notFound } from 'next/navigation';
 import Link from 'next/link';
 import { getArticleBySlug, getRelatedArticles, getCategories, getArticles, withCategoryColors } from '@/lib/cms';
 import { ArticleCard } from '@/components/support/ArticleCard';
-import { ArticleFeedback } from './ArticleFeedback';
 import { ArticleViewTracker } from './ArticleViewTracker';
 import { HeaderLink } from './HeaderLink';
 import { RichTextRenderer } from '@/components/content/RichTextRenderer';
@@ -370,9 +369,6 @@ export default async function ArticlePage({ params }: ArticlePageProps) {
               </div>
             </div>
           )}
-
-          {/* Feedback */}
-          <ArticleFeedback articleSlug={article.slug} />
 
           {/* Related Articles */}
           {relatedArticles.length > 0 && (
