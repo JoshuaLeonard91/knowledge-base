@@ -15,7 +15,7 @@
     "@graphcms/rich-text-react-renderer": "^0.6.2",
     "@graphcms/rich-text-types": "^0.5.1",
     "@phosphor-icons/react": "^2.1.10",
-    "@prisma/client": "^6.19.2",
+    "@prisma/client": "^7.4.0",
     "clsx": "^2.1.1",
     "discord.js": "^14.25.1",
     "isomorphic-dompurify": "2.24.0",
