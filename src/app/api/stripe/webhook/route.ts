@@ -23,6 +23,7 @@ import {
   handleSubscriptionDeleted,
 } from '@/lib/stripe/webhooks';
 import Stripe from 'stripe';
+import { isDuplicateEvent, isEventTimestampValid } from '@/lib/security/webhooks';
 
 // Route segment config - ensure raw body is preserved
 export const dynamic = 'force-dynamic';
@@ -62,6 +63,17 @@ export async function POST(request: NextRequest) {
       { error: 'Invalid signature' },
       { status: 400 }
     );
+  }
+
+  // Reject stale events (replay attack prevention)
+  if (!isEventTimestampValid(event.created)) {
+    console.warn('[Stripe Webhook] Rejected stale event:', event.id);
+    return NextResponse.json({ error: 'Event too old' }, { status: 400 });
+  }
+
+  // Idempotency: skip already-processed events
+  if (isDuplicateEvent(event.id)) {
+    return NextResponse.json({ received: true, deduplicated: true });
   }
 
   // Handle the event

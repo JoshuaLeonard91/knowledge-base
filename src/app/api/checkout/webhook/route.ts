@@ -12,6 +12,7 @@ import Stripe from 'stripe';
 import { stripe } from '@/lib/stripe';
 import { prisma } from '@/lib/db/client';
 import { SubscriptionStatus } from '@/generated/prisma';
+import { isDuplicateEvent, isEventTimestampValid } from '@/lib/security/webhooks';
 
 // Disable body parsing for webhook verification
 export const runtime = 'nodejs';
@@ -44,6 +45,17 @@ export async function POST(request: NextRequest) {
   } catch (err) {
     console.error('[Webhook] Signature verification failed');
     return NextResponse.json({ error: 'Invalid signature' }, { status: 400 });
+  }
+
+  // Reject stale events (replay attack prevention)
+  if (!isEventTimestampValid(event.created)) {
+    console.warn('[Webhook] Rejected stale event:', event.id);
+    return NextResponse.json({ error: 'Event too old' }, { status: 400 });
+  }
+
+  // Idempotency: skip already-processed events
+  if (isDuplicateEvent(event.id)) {
+    return NextResponse.json({ received: true, deduplicated: true });
   }
 
   try {

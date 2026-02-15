@@ -36,6 +36,7 @@ import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/a
 import { getTicketCategories, getTicketCategoriesForTenant } from '@/lib/cms';
 import { sanitizeString } from '@/lib/validation';
 import { sanitizeFilename, verifyFileSignature } from '@/lib/security/uploads';
+import { safeFetch } from '@/lib/security/ssrf';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
 import { botManager } from '../manager';
 import { sendTicketCreationDM } from '../notifications';
@@ -480,7 +481,7 @@ export async function handlePanelModal(
       await Promise.all(
         validAttachments.map(async (attachment) => {
           try {
-            const response = await fetch(attachment.url);
+            const response = await safeFetch(attachment.url);
             const buffer = Buffer.from(await response.arrayBuffer());
             const mimeType = attachment.contentType || 'application/octet-stream';
             if (!verifyFileSignature(buffer, mimeType)) {

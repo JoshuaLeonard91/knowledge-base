@@ -24,6 +24,7 @@ import type { FileUploadModalData } from 'discord.js';
 import { getTicketProvider, getTicketProviderForTenant } from '@/lib/ticketing/adapter';
 import { refreshTicketDM } from '../helpers';
 import { sanitizeFilename, verifyFileSignature } from '@/lib/security/uploads';
+import { safeFetch } from '@/lib/security/ssrf';
 import { MAIN_DOMAIN_BOT_ID } from '../constants';
 
 /**
@@ -151,7 +152,7 @@ async function handleReplyModal(
     if (fileField?.attachments?.size && provider.addAttachment) {
       for (const [, attachment] of fileField.attachments) {
         try {
-          const response = await fetch(attachment.url);
+          const response = await safeFetch(attachment.url);
           const buffer = Buffer.from(await response.arrayBuffer());
           const mimeType = attachment.contentType || 'application/octet-stream';
           if (!verifyFileSignature(buffer, mimeType)) {

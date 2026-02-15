@@ -1,0 +1,18 @@
+version: 2
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "JoshuaLeonard91"
+    labels:
+      - "dependencies"
+    # Group minor/patch updates to reduce PR noise
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"

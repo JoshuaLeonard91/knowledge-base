@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Authentication module with Discord OAuth + Mock fallback
  *

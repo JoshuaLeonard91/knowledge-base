@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Prisma Client Singleton
  *

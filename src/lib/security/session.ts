@@ -94,6 +94,45 @@ export function isSessionRevoked(sid: string): boolean {
   return true;
 }
 
+// ============================================
+// IDLE SESSION TIMEOUT
+// ============================================
+// Tracks last activity per session ID. Sessions idle for > IDLE_TIMEOUT_MS
+// are rejected even if they haven't expired (absolute timeout still applies).
+
+const IDLE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
+const sessionActivity = new Map<string, number>();
+const ACTIVITY_MAX_SIZE = 50_000;
+const ACTIVITY_CLEANUP_INTERVAL = 10 * 60 * 1000; // 10 minutes
+
+function cleanupActivity() {
+  const cutoff = Date.now() - IDLE_TIMEOUT_MS;
+  for (const [sid, lastActive] of sessionActivity) {
+    if (lastActive < cutoff) sessionActivity.delete(sid);
+  }
+}
+
+setInterval(cleanupActivity, ACTIVITY_CLEANUP_INTERVAL).unref();
+
+/** Record session activity (called when session is validated) */
+export function touchSession(sid: string): void {
+  if (sessionActivity.size > ACTIVITY_MAX_SIZE) {
+    cleanupActivity();
+  }
+  sessionActivity.set(sid, Date.now());
+}
+
+/** Check if session has been idle too long */
+export function isSessionIdle(sid: string): boolean {
+  const lastActive = sessionActivity.get(sid);
+  if (lastActive === undefined) {
+    // First time seeing this session — not idle, just record it
+    touchSession(sid);
+    return false;
+  }
+  return (Date.now() - lastActive) > IDLE_TIMEOUT_MS;
+}
+
 /**
  * Create a new session token
  */
@@ -163,6 +202,14 @@ export function parseSessionToken(token: string): ParsedSession {
     if (isSessionRevoked(payload.sid)) {
       return { valid: false, expired: false, payload: null, error: 'Session revoked' };
     }
+
+    // Check idle timeout (30 minutes of inactivity)
+    if (isSessionIdle(payload.sid)) {
+      return { valid: false, expired: false, payload: null, error: 'Session idle timeout' };
+    }
+
+    // Update activity timestamp
+    touchSession(payload.sid);
 
     return { valid: true, expired: false, payload };
   } catch (err) {
@@ -249,7 +296,9 @@ export function generateSessionId(): string {
  * This is the recommended approach for multi-tenant SaaS.
  */
 export const SESSION_COOKIE_CONFIG = {
-  name: 'session',
+  // __Host- prefix enforces Secure + Path=/ + no Domain, preventing cookie
+  // injection from sibling subdomains. Only used in production (requires HTTPS).
+  name: process.env.NODE_ENV === 'production' ? '__Host-session' : 'session',
   httpOnly: true,
   secure: process.env.NODE_ENV === 'production',
   // NOTE: 'lax' is required (not 'strict') because OAuth callback redirects

@@ -22,8 +22,8 @@ import type { NextRequest } from 'next/server';
 // Routes that require authentication (main domain)
 const PROTECTED_ROUTES = ['/dashboard', '/onboarding'];
 
-// Session cookie name (must match auth module)
-const SESSION_COOKIE_NAME = 'session';
+// Session cookie name (must match SESSION_COOKIE_CONFIG in session.ts)
+const SESSION_COOKIE_NAME = process.env.NODE_ENV === 'production' ? '__Host-session' : 'session';
 
 // ==========================================
 // MULTI-TENANT SUBDOMAIN EXTRACTION
@@ -261,14 +261,41 @@ function syncDevTenantCookie(response: NextResponse, request: NextRequest): void
 }
 
 /**
- * Middleware function
+ * Nonce-based Content Security Policy
+ *
+ * Generates a fresh nonce per request for script-src. Modern browsers that
+ * support nonces ignore 'unsafe-inline' in script-src (backward-compatible
+ * fallback for older browsers). 'strict-dynamic' allows scripts loaded by
+ * nonced scripts (Next.js dynamic chunks).
  */
-/** Apply security headers to a response */
-function applySecurityHeaders(response: NextResponse): void {
+function buildCsp(nonce: string): string {
+  return [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline'`,
+    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com",
+    "img-src 'self' data: https: blob: https://cdn.discordapp.com",
+    "font-src 'self' data: https://fonts.gstatic.com",
+    "connect-src 'self' https://discord.com https://*.atlassian.net https://*.atlassian.com https://api.atlassian.com https://*.hygraph.com https://*.graphassets.com https://api.stripe.com",
+    "frame-src 'none'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self' https://discord.com",
+    "object-src 'none'",
+    "upgrade-insecure-requests",
+    "report-uri /api/csp-report",
+  ].join('; ');
+}
+
+/** Apply security headers + nonce-based CSP to a response */
+function applySecurityHeaders(response: NextResponse, nonce: string): void {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
   response.headers.set('Permissions-Policy', 'geolocation=(), microphone=(), camera=()');
+  response.headers.set('Cross-Origin-Opener-Policy', 'same-origin');
+  response.headers.set('Cross-Origin-Resource-Policy', 'same-origin');
+  response.headers.set('Content-Security-Policy', buildCsp(nonce));
   if (process.env.NODE_ENV === 'production') {
     response.headers.set('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   }
@@ -282,19 +309,11 @@ export async function middleware(request: NextRequest) {
   // Defense-in-depth: strip internal header that could bypass middleware (CVE-2025-29927)
   request.headers.delete('x-middleware-subrequest');
 
+  // Generate per-request nonce for CSP script-src
+  const nonce = Buffer.from(crypto.randomUUID()).toString('base64');
+
   // Extract tenant subdomain
   const tenantSlug = extractTenantSubdomain(request);
-
-  // Skip middleware for NextAuth routes - let Auth.js handle everything
-  if (pathname.startsWith('/api/auth/')) {
-    const response = NextResponse.next();
-    // Still add tenant header for auth routes
-    if (tenantSlug) {
-      response.headers.set('x-tenant-slug', tenantSlug);
-    }
-    syncDevTenantCookie(response, request);
-    return response;
-  }
 
   // Skip middleware for Stripe webhooks - needs raw body for signature verification
   if (pathname === '/api/stripe/webhook' || pathname === '/api/checkout/webhook') {
@@ -310,6 +329,42 @@ export async function middleware(request: NextRequest) {
   if (!pathname.startsWith('/api/') && isSuspiciousRequest(request)) {
     // Block without logging detailed info that could be exploited
     return new NextResponse('Forbidden', { status: 403 });
+  }
+
+  // Rate-limit auth routes BEFORE the early return so they are actually protected
+  if (pathname.startsWith('/api/auth/')) {
+    const rateLimitKey = `${ip}:auth`;
+    const tenantKey = tenantSlug ? `tenant:${tenantSlug}:auth` : null;
+    const result = checkRateLimit(rateLimitKey, RATE_LIMITS.auth);
+
+    // Also enforce per-tenant limit if on a subdomain
+    if (tenantKey) {
+      checkRateLimit(tenantKey, RATE_LIMITS.auth);
+    }
+
+    if (!result.allowed) {
+      const retryAfter = Math.ceil((result.reset - Date.now()) / 1000);
+      return new NextResponse(
+        JSON.stringify({ success: false, error: 'Too many requests', code: 'RATE_LIMIT' }),
+        {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(retryAfter),
+          },
+        }
+      );
+    }
+
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-nonce', nonce);
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
+    if (tenantSlug) {
+      response.headers.set('x-tenant-slug', tenantSlug);
+    }
+    applySecurityHeaders(response, nonce);
+    syncDevTenantCookie(response, request);
+    return response;
   }
 
   // ==========================================
@@ -345,7 +400,7 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Rate limiting for API routes with per-endpoint limits
+  // Rate limiting for API routes with per-endpoint + per-tenant limits
   if (pathname.startsWith('/api/')) {
     // Determine rate limit type based on endpoint and method
     const rateLimitType = getRateLimitType(pathname, method);
@@ -353,6 +408,26 @@ export async function middleware(request: NextRequest) {
     const rateLimitKey = `${ip}:${rateLimitType}`;
 
     const result = checkRateLimit(rateLimitKey, config);
+
+    // Per-tenant rate limiting: prevent one tenant from exhausting shared resources
+    if (tenantSlug) {
+      const tenantKey = `tenant:${tenantSlug}:${rateLimitType}`;
+      const tenantResult = checkRateLimit(tenantKey, config);
+      if (!tenantResult.allowed && result.allowed) {
+        // Tenant limit exceeded even though IP limit is fine
+        const retryAfter = Math.ceil((tenantResult.reset - Date.now()) / 1000);
+        return new NextResponse(
+          JSON.stringify({ success: false, error: 'Too many requests', code: 'RATE_LIMIT' }),
+          {
+            status: 429,
+            headers: {
+              'Content-Type': 'application/json',
+              'Retry-After': String(retryAfter),
+            },
+          }
+        );
+      }
+    }
 
     if (!result.allowed) {
       const retryAfter = Math.ceil((result.reset - Date.now()) / 1000);
@@ -377,14 +452,16 @@ export async function middleware(request: NextRequest) {
       );
     }
 
-    // Continue with rate limit headers and tenant slug
-    const response = NextResponse.next();
+    // Continue with rate limit headers, nonce, and tenant slug
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-nonce', nonce);
+    const response = NextResponse.next({ request: { headers: requestHeaders } });
     response.headers.set('X-RateLimit-Limit', String(config.maxRequests));
     response.headers.set('X-RateLimit-Remaining', String(result.remaining));
     response.headers.set('X-RateLimit-Reset', String(Math.ceil(result.reset / 1000)));
 
     // Apply security headers to all API responses
-    applySecurityHeaders(response);
+    applySecurityHeaders(response, nonce);
     response.headers.set('Cache-Control', 'no-store, private');
 
     // Add tenant header for API routes
@@ -397,8 +474,10 @@ export async function middleware(request: NextRequest) {
   }
 
   // Continue for non-API routes with tenant header + security headers
-  const response = NextResponse.next();
-  applySecurityHeaders(response);
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set('x-nonce', nonce);
+  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  applySecurityHeaders(response, nonce);
   if (tenantSlug) {
     response.headers.set('x-tenant-slug', tenantSlug);
   }

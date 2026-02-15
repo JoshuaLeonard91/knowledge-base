@@ -1,24 +1,8 @@
 import type { NextConfig } from "next";
 
-/**
- * Content Security Policy
- * Restricts what resources can be loaded
- */
-const ContentSecurityPolicy = [
-  "default-src 'self'",
-  "script-src 'self' 'unsafe-inline'", // unsafe-inline needed for Next.js
-  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com",
-  "img-src 'self' data: https: blob: https://cdn.discordapp.com",
-  "font-src 'self' data: https://fonts.gstatic.com",
-  "connect-src 'self' https://discord.com https://*.atlassian.net https://*.atlassian.com https://api.atlassian.com https://*.hygraph.com https://*.graphassets.com https://api.stripe.com",
-  "frame-src 'none'",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self' https://discord.com",
-  "object-src 'none'",
-  "upgrade-insecure-requests",
-].join("; ");
+// NOTE: Content Security Policy is set per-request in middleware with a
+// cryptographic nonce for script-src. Do NOT add CSP here — it would
+// conflict with the nonce-based policy.
 
 const nextConfig: NextConfig = {
   // Prevent bundler from processing discord.js (native modules like zlib-sync)
@@ -62,21 +46,27 @@ const nextConfig: NextConfig = {
             key: "Referrer-Policy",
             value: "strict-origin-when-cross-origin",
           },
-          // XSS Protection (legacy, but still useful)
+          // Disable legacy XSS filter (can introduce vulnerabilities; CSP is the replacement)
           {
             key: "X-XSS-Protection",
-            value: "1; mode=block",
+            value: "0",
+          },
+          // Isolate browsing context from cross-origin windows
+          {
+            key: "Cross-Origin-Opener-Policy",
+            value: "same-origin",
+          },
+          // Prevent cross-origin resource loading
+          {
+            key: "Cross-Origin-Resource-Policy",
+            value: "same-origin",
           },
           // Permissions Policy (formerly Feature Policy)
           {
             key: "Permissions-Policy",
             value: "camera=(), microphone=(), geolocation=(), interest-cohort=()",
           },
-          // Content Security Policy
-          {
-            key: "Content-Security-Policy",
-            value: ContentSecurityPolicy,
-          },
+          // CSP is set per-request in middleware (nonce-based script-src)
           // HTTP Strict Transport Security (HSTS)
           // Only enable in production with HTTPS
           ...(process.env.NODE_ENV === "production"

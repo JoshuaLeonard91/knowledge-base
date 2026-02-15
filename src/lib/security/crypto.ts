@@ -1,3 +1,5 @@
+import 'server-only';
+
 /**
  * Cryptographic utilities for enterprise security
  *
