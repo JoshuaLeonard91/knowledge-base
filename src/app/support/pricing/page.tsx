@@ -70,6 +70,32 @@ export default async function SupportPricingPage() {
         currentProductSlug={currentProductSlug}
         isMainDomain={isMainDomain}
       />
+
+      {/* FAQ Section */}
+      {pageContent.faqs.length > 0 && (
+        <section className="py-20 px-6 border-t border-[var(--border-primary)]">
+          <div className="max-w-3xl mx-auto">
+            <h2 className="text-3xl font-bold text-center mb-12 text-[var(--text-primary)]">
+              {pageContent.faqTitle}
+            </h2>
+            <div className="space-y-8">
+              {pageContent.faqs.map((faq, index) => (
+                <div key={index}>
+                  <h3 className="text-lg font-semibold mb-2 text-[var(--text-primary)]">{faq.question}</h3>
+                  <p className="text-[var(--text-secondary)]">{faq.answer}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Footer Note */}
+      {pageContent.footerNote && (
+        <div className="text-center pb-8 px-6">
+          <p className="text-sm text-[var(--text-muted)]">{pageContent.footerNote}</p>
+        </div>
+      )}
     </div>
   );
 }
