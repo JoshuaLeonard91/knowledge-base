@@ -1,4 +1,4 @@
-import { getSafeUser, getSessionId } from '@/lib/auth';
+import { getSafeUser, getSessionId, getAuthMode } from '@/lib/auth';
 import {
   createSafeResponse,
   createErrorResponse,
@@ -19,11 +19,14 @@ export async function GET() {
       csrfToken = await setCsrfCookie(sessionId || undefined);
     }
 
+    const authMode = getAuthMode();
+
     if (!user) {
       return createSafeResponse({
         authenticated: false,
         user: null,
         csrf: csrfToken,
+        authMode,
       });
     }
 
@@ -32,6 +35,7 @@ export async function GET() {
       authenticated: true,
       user,
       csrf: csrfToken,
+      authMode,
     });
   } catch {
     return createErrorResponse('server', 500);

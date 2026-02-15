@@ -120,16 +120,14 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
 
           {/* Auth Section */}
           <div className="flex items-center gap-4">
-            {!isLoading && (
-              <>
-                {user ? (
-                  <UserMenu />
-                ) : (
-                  <div className="hidden sm:block">
-                    <DiscordLoginButton />
-                  </div>
-                )}
-              </>
+            {isLoading ? (
+              <div className="hidden sm:block w-[160px] h-[38px] bg-[var(--bg-tertiary)] rounded-lg animate-pulse" />
+            ) : user ? (
+              <UserMenu />
+            ) : (
+              <div className="hidden sm:block">
+                <DiscordLoginButton />
+              </div>
             )}
 
             {/* Mobile menu button */}

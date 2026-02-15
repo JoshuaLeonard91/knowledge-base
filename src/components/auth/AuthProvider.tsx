@@ -19,20 +19,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'discord' | 'mock' | null>(null);
 
-  // Check auth mode on mount
-  useEffect(() => {
-    async function checkAuthMode() {
-      try {
-        const res = await fetch('/api/auth/login');
-        const data = await res.json();
-        setAuthMode(data.mode || 'mock');
-      } catch {
-        setAuthMode('mock');
-      }
-    }
-    checkAuthMode();
-  }, []);
-
   const checkSession = useCallback(async () => {
     try {
       const res = await fetch('/api/auth/session', {
@@ -40,6 +26,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         cache: 'no-store',
       });
       const data = await res.json();
+      if (data.authMode) setAuthMode(data.authMode);
       if (data.authenticated && data.user) {
         setUser(data.user);
       } else {
@@ -65,18 +52,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [checkSession]);
 
-  const login = async () => {
+  const login = useCallback(async () => {
     setIsLoading(true);
     try {
+      // Check auth mode and handle accordingly — single call on user action,
+      // not on every page mount.
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         credentials: 'include',
       });
       const data = await res.json();
 
-      // Discord OAuth - redirect to Discord
-      if (data.mode === 'discord' && data.redirectUrl) {
-        window.location.href = data.redirectUrl;
+      // Discord OAuth - redirect to Discord with current page as callback
+      if (data.mode === 'discord') {
+        const callbackUrl = window.location.pathname;
+        window.location.href = `/api/auth/discord?callbackUrl=${encodeURIComponent(callbackUrl)}`;
         return;
       }
 
@@ -89,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   const logout = async () => {
     setIsLoading(true);

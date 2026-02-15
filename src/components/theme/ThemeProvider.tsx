@@ -15,7 +15,6 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [uiMode, setUIModeState] = useState<UIMode>('classic');
-  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   // Fetch preferences from secure httpOnly cookie via API
@@ -37,7 +36,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         // Failed to load preferences, use default
         console.warn('Failed to load preferences, using defaults');
       } finally {
-        setMounted(true);
         setIsLoading(false);
       }
     }
@@ -82,11 +80,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     [uiMode, setUIMode, toggleUIMode, isLoading]
   );
 
-  // Prevent hydration mismatch - show nothing until mounted
-  if (!mounted) {
-    return <>{children}</>;
-  }
-
+  // Always provide context — initial render uses default 'classic' mode which
+  // matches server render, avoiding hydration mismatch. Once preferences load,
+  // only consumers of useTheme() re-render — not the entire tree.
   return (
     <ThemeContext.Provider value={contextValue}>
       {children}
