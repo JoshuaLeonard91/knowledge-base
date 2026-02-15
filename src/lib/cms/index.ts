@@ -279,14 +279,6 @@ export const getServiceTiers = cache(async (): Promise<ServiceTier[]> => {
 });
 
 /**
- * Check if pricing page should be shown (has service tiers configured)
- */
-export async function hasPricingPage(): Promise<boolean> {
-  const tiers = await getServiceTiers();
-  return tiers.length > 0;
-}
-
-/**
  * Get SLA highlights from the CMS
  */
 export async function getSLAHighlights(): Promise<SLAHighlight[]> {
@@ -662,7 +654,7 @@ export const getHeaderData = cache(async (): Promise<{
   // Tenants without Hygraph get empty data
   if (await isTenantContext()) {
     return {
-      settings: { siteName: '', subtitle: '', logoIcon: undefined, copyrightText: '', privacyPolicyUrl: '', termsOfServiceUrl: '' },
+      settings: { siteName: '', subtitle: '', logoIcon: undefined },
       navLinks: [],
       hasContactPage: false,
       hasLandingPage: false,
@@ -676,9 +668,6 @@ export const getHeaderData = cache(async (): Promise<{
       siteName: 'Support Portal',
       subtitle: 'Help Center',
       logoIcon: undefined,
-      copyrightText: 'Support Portal',
-      privacyPolicyUrl: '/privacy',
-      termsOfServiceUrl: '/terms',
     },
     navLinks: [
       { id: 'default-1', title: 'Support Hub', url: '/support', icon: 'House', order: 1 },

@@ -6,7 +6,7 @@
  */
 
 import { PricingPage } from '@/components/checkout';
-import { getServiceTiers, getHeaderData, getPricingPageContent } from '@/lib/cms';
+import { getServiceTiers, getPricingPageContent } from '@/lib/cms';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { getSession, isAuthenticated } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
@@ -18,9 +18,8 @@ export default async function SupportPricingPage() {
   const isMainDomain = !tenant;
 
   // Fetch data in parallel
-  const [products, headerData, pageContent, authenticated] = await Promise.all([
+  const [products, pageContent, authenticated] = await Promise.all([
     getServiceTiers(),
-    getHeaderData(),
     getPricingPageContent(),
     isAuthenticated(),
   ]);
@@ -59,12 +58,10 @@ export default async function SupportPricingPage() {
     }
   }
 
-  const siteName = headerData.settings.siteName || 'Support Portal';
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-[var(--bg-tertiary)] to-[var(--bg-primary)]">
       <PricingPage
-        title={isMainDomain ? pageContent.pageTitle : `${siteName} Plans`}
+        title={pageContent.pageTitle || 'Choose Your Plan'}
         subtitle={isMainDomain ? pageContent.pageSubtitle : 'Choose the plan that works best for you'}
         products={products}
         currentProductSlug={currentProductSlug}

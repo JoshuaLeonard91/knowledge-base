@@ -179,7 +179,7 @@ export interface NavigationLink {
 }
 
 // Legacy type aliases for backwards compatibility
-export type HeaderSettings = Pick<SiteSettings, 'siteName' | 'subtitle' | 'logoIcon' | 'copyrightText' | 'privacyPolicyUrl' | 'termsOfServiceUrl'>;
+export type HeaderSettings = Pick<SiteSettings, 'siteName' | 'subtitle' | 'logoIcon'>;
 export type FooterSettings = SiteSettings;
 export type NavLink = Omit<NavigationLink, 'location' | 'external'> & { icon: string };
 export type FooterLink = NavigationLink & { section: 'quickLinks' | 'resources' | 'community' };
@@ -1793,9 +1793,6 @@ export class HygraphClient {
         siteSettingsEntries(first: 1) {
           siteName
           subtitle
-          copyrightText
-          privacyPolicyUrl
-          termsOfServiceUrl
         }
         navigationLinks(
           where: { location: header }
@@ -1835,9 +1832,6 @@ export class HygraphClient {
       siteName: s?.siteName || 'Support Portal',
       subtitle: s?.subtitle || 'Help Center',
       logoIcon: logoIconUrl,
-      copyrightText: s?.copyrightText || s?.siteName || 'Support Portal',
-      privacyPolicyUrl: s?.privacyPolicyUrl || '',
-      termsOfServiceUrl: s?.termsOfServiceUrl || '',
     };
 
     // Nav links with defaults if none exist
@@ -1883,7 +1877,7 @@ export class HygraphClient {
 
     if (available.has('siteSettingsEntries')) {
       queryParts.push(`siteSettingsEntries(first: 1) {
-        siteName subtitle copyrightText privacyPolicyUrl termsOfServiceUrl logoIcon { url }
+        siteName subtitle logoIcon { url }
       }`);
     }
     if (available.has('navigationLinks')) {
@@ -1920,9 +1914,6 @@ export class HygraphClient {
       siteName: s?.siteName || 'Support Portal',
       subtitle: s?.subtitle || 'Help Center',
       logoIcon: s?.logoIcon?.url,
-      copyrightText: s?.copyrightText || s?.siteName || 'Support Portal',
-      privacyPolicyUrl: s?.privacyPolicyUrl || '',
-      termsOfServiceUrl: s?.termsOfServiceUrl || '',
     };
 
     let navLinks: NavLink[];
