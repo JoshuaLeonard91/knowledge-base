@@ -94,6 +94,7 @@ function SidebarContent({ onNavClick }: { onNavClick?: () => void }) {
   const handleLogout = useCallback(async () => {
     try {
       const csrfRes = await fetch('/api/auth/session');
+      if (!csrfRes.ok) throw new Error('Failed to fetch session');
       const csrfData = await csrfRes.json();
       await fetch('/api/auth/logout', {
         method: 'POST',

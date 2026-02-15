@@ -331,8 +331,10 @@ export async function middleware(request: NextRequest) {
     return new NextResponse('Forbidden', { status: 403 });
   }
 
-  // Rate-limit auth routes BEFORE the early return so they are actually protected
-  if (pathname.startsWith('/api/auth/')) {
+  // Rate-limit auth ACTION routes (login, callback, logout, set-session)
+  // Session checks (/api/auth/session) use the general API rate limit since
+  // they fire on every page load and tab-focus — 100/min is appropriate.
+  if (pathname.startsWith('/api/auth/') && pathname !== '/api/auth/session') {
     const rateLimitKey = `${ip}:auth`;
     const tenantKey = tenantSlug ? `tenant:${tenantSlug}:auth` : null;
     const result = checkRateLimit(rateLimitKey, RATE_LIMITS.auth);

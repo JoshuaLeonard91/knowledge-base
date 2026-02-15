@@ -52,12 +52,14 @@ export function MainHeader({ siteName }: MainHeaderProps) {
     setIsLoggingOut(true);
     try {
       const csrfRes = await fetch('/api/auth/session');
+      if (!csrfRes.ok) throw new Error('Failed to fetch session');
       const csrfData = await csrfRes.json();
-      await fetch('/api/auth/logout', {
+      const logoutRes = await fetch('/api/auth/logout', {
         method: 'POST',
         credentials: 'include',
         headers: { 'X-CSRF-Token': csrfData.csrf },
       });
+      if (!logoutRes.ok) throw new Error('Logout request failed');
       setUserStatus({ isLoggedIn: false, hasDashboard: false });
       setShowUserMenu(false);
       router.refresh();

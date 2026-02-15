@@ -86,6 +86,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Get CSRF token for logout request
       const csrfRes = await fetch('/api/auth/session');
+      if (!csrfRes.ok) throw new Error('Failed to fetch session');
       const csrfData = await csrfRes.json();
 
       // Clear our session
