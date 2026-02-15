@@ -66,43 +66,55 @@ export function useHistory(): UseHistoryReturn {
     loadHistory();
   }, []);
 
+  // Track whether a save is pending (dirty) so we can flush on unmount
+  const dirtyRef = useRef(false);
+
+  // Persist current history to server via preferences API
+  const persistNow = useCallback(async () => {
+    dirtyRef.current = false;
+    try {
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
+      await fetch('/api/preferences', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfData.csrf,
+        },
+        body: JSON.stringify({
+          preferences: {
+            recentSearches: recentSearchesRef.current,
+            viewedArticles: viewedArticlesRef.current,
+          },
+        }),
+      });
+    } catch {
+      console.error('Failed to save history');
+    }
+  }, []);
+
   // Debounced save to preferences API - stable reference, uses refs
   const saveHistory = useCallback(() => {
+    dirtyRef.current = true;
     if (saveTimeoutRef.current) {
       clearTimeout(saveTimeoutRef.current);
     }
+    saveTimeoutRef.current = setTimeout(persistNow, DEBOUNCE_MS);
+  }, [persistNow]);
 
-    saveTimeoutRef.current = setTimeout(async () => {
-      try {
-        const csrfRes = await fetch('/api/auth/session');
-        const csrfData = await csrfRes.json();
-        await fetch('/api/preferences', {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-CSRF-Token': csrfData.csrf,
-          },
-          body: JSON.stringify({
-            preferences: {
-              recentSearches: recentSearchesRef.current,
-              viewedArticles: viewedArticlesRef.current,
-            },
-          }),
-        });
-      } catch {
-        console.error('Failed to save history');
-      }
-    }, DEBOUNCE_MS);
-  }, []);
-
-  // Cleanup timeout on unmount
+  // Flush pending save on unmount instead of discarding it
   useEffect(() => {
     return () => {
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
+      // Fire-and-forget: the fetch completes during SPA navigations
+      if (dirtyRef.current) {
+        persistNow();
+      }
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const addSearch = useCallback((query: string) => {

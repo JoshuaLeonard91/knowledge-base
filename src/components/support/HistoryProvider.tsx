@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, ReactNode } from 'react';
+import { createContext, useContext, useMemo, ReactNode } from 'react';
 import { useHistory } from '@/lib/hooks/useHistory';
 import { SearchHistoryItem, ViewHistoryItem } from '@/types';
 
@@ -18,8 +18,17 @@ const HistoryContext = createContext<HistoryContextType | null>(null);
 export function HistoryProvider({ children }: { children: ReactNode }) {
   const history = useHistory();
 
+  const value = useMemo(() => history, [
+    history.recentSearches,
+    history.viewedArticles,
+    history.isLoaded,
+    history.addSearch,
+    history.addView,
+    history.clearHistory,
+  ]);
+
   return (
-    <HistoryContext.Provider value={history}>
+    <HistoryContext.Provider value={value}>
       {children}
     </HistoryContext.Provider>
   );

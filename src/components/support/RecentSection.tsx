@@ -1,6 +1,6 @@
 'use client';
 
-import { useHistory } from '@/lib/hooks/useHistory';
+import { useHistoryContext } from './HistoryProvider';
 import { MagnifyingGlass, Clock, FileText, Trash, ArrowRight } from '@phosphor-icons/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -17,7 +17,7 @@ function formatTimeAgo(timestamp: number): string {
 }
 
 export function RecentSection() {
-  const { recentSearches, viewedArticles, clearHistory, isLoaded } = useHistory();
+  const { recentSearches, viewedArticles, clearHistory, isLoaded } = useHistoryContext();
   const router = useRouter();
 
   // Don't render until loaded
