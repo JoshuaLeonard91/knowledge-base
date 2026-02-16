@@ -8,7 +8,6 @@
 export {
   stripe,
   SUBSCRIPTION_PRICE_ID,
-  createCheckoutSession,
   createGenericCheckoutSession,
   createPortalSession,
   cancelSubscriptionAtPeriodEnd,

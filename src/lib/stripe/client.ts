@@ -17,73 +17,8 @@ export const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, {
   typescript: true,
 });
 
-// Price IDs for subscription and setup fee
-export const SUBSCRIPTION_PRICE_ID = process.env.STRIPE_PRICE_ID; // $5/month recurring
-export const SETUP_FEE_PRICE_ID = process.env.STRIPE_SETUP_FEE_PRICE_ID; // $10 one-time
-
-/**
- * Create a Stripe Checkout session for subscription with setup fee
- *
- * Includes:
- * - $10 one-time setup fee
- * - $5/month recurring subscription
- */
-export async function createCheckoutSession({
-  userId,
-  userEmail,
-  discordId,
-  successUrl,
-  cancelUrl,
-}: {
-  userId: string;
-  userEmail?: string | null;
-  discordId: string;
-  successUrl: string;
-  cancelUrl: string;
-}): Promise<Stripe.Checkout.Session> {
-  if (!SUBSCRIPTION_PRICE_ID) {
-    throw new Error('STRIPE_PRICE_ID environment variable is required');
-  }
-
-  // Build line items - subscription is required, setup fee is optional
-  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = [
-    {
-      price: SUBSCRIPTION_PRICE_ID,
-      quantity: 1,
-    },
-  ];
-
-  // Add one-time setup fee if configured
-  if (SETUP_FEE_PRICE_ID) {
-    lineItems.unshift({
-      price: SETUP_FEE_PRICE_ID,
-      quantity: 1,
-    });
-  }
-
-  // Create checkout session
-  const session = await stripe.checkout.sessions.create({
-    mode: 'subscription',
-    payment_method_types: ['card'],
-    line_items: lineItems,
-    success_url: successUrl,
-    cancel_url: cancelUrl,
-    customer_email: userEmail || undefined,
-    metadata: {
-      userId,
-      discordId,
-    },
-    subscription_data: {
-      metadata: {
-        userId,
-        discordId,
-      },
-    },
-    allow_promotion_codes: true,
-  });
-
-  return session;
-}
+// Price ID for the Pro subscription ($5/month recurring)
+export const SUBSCRIPTION_PRICE_ID = process.env.STRIPE_PRICE_ID;
 
 /**
  * Create a Stripe Customer Portal session
