@@ -52,7 +52,7 @@ async function handleMainDomainCheckout(
   customerId: string
 ): Promise<void> {
   // For main domain, the checkout creates a TenantUser with null tenantId
-  // We need to find the corresponding User record via discordId
+  // We need to find the corresponding User record via userId FK
   const tenantUser = await prisma.tenantUser.findUnique({
     where: { id: tenantUserId },
   });
@@ -62,21 +62,31 @@ async function handleMainDomainCheckout(
     return;
   }
 
-  // Find or create the User record
-  let user = await prisma.user.findUnique({
-    where: { discordId: tenantUser.discordId },
-  });
+  // Find the User record via userId FK
+  let user = tenantUser.userId
+    ? await prisma.user.findUnique({ where: { id: tenantUser.userId } })
+    : null;
 
   if (!user) {
-    // Create User if doesn't exist
-    user = await prisma.user.create({
-      data: {
-        discordId: tenantUser.discordId,
-        discordUsername: tenantUser.discordUsername,
-        discordAvatar: tenantUser.discordAvatar,
-        stripeCustomerId: customerId,
-      },
-    });
+    // Create User if doesn't exist (legacy fallback via discordId)
+    if (tenantUser.discordId) {
+      user = await prisma.user.findUnique({ where: { discordId: tenantUser.discordId } });
+    }
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          displayName: tenantUser.displayName,
+          avatarUrl: tenantUser.avatarUrl,
+          discordId: tenantUser.discordId,
+          stripeCustomerId: customerId,
+        },
+      });
+    } else {
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: customerId },
+      });
+    }
   } else {
     // Update user with Stripe customer ID
     await prisma.user.update({

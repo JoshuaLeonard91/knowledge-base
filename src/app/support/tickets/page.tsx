@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { DiscordLoginButton } from '@/components/auth/DiscordLoginButton';
+import { LoginButton } from '@/components/auth/LoginButton';
 import Link from 'next/link';
 import {
   SpinnerGap, Ticket, Clock, CheckCircle, Circle, ArrowRight,
@@ -138,7 +138,7 @@ export default function MyTicketsPage() {
             <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
               Please log in with Discord to view your tickets.
             </p>
-            <DiscordLoginButton />
+            <LoginButton />
           </div>
         </div>
       </div>

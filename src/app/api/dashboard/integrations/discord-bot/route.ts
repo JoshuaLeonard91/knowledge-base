@@ -23,7 +23,7 @@ export async function GET() {
     const tenantContext = await getTenantFromRequest();
 
     const user = await prisma.user.findUnique({
-      where: { discordId: session.id },
+      where: { id: session.id },
       include: {
         subscription: true,
         tenants: {

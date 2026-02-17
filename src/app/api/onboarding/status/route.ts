@@ -10,7 +10,7 @@
 import { NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import {
-  getUserByDiscordId,
+  getUserById,
   hasActiveAccess,
   getSignupStep,
 } from '@/lib/subscription/helpers';
@@ -36,7 +36,7 @@ export async function GET() {
     }
 
     // Get user from database
-    const user = await getUserByDiscordId(session.id);
+    const user = await getUserById(session.id);
 
     // User not in database yet
     if (!user) {

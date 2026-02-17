@@ -5,7 +5,7 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '../auth/AuthProvider';
 import { useTenant } from '@/lib/tenant/context';
-import { DiscordLoginButton } from '../auth/DiscordLoginButton';
+import { LoginButton } from '../auth/LoginButton';
 import { UserMenu } from './UserMenu';
 import { List, X, Phone, House, CurrencyDollar, PaperPlaneTilt } from '@phosphor-icons/react';
 import { getIcon } from '@/lib/icons';
@@ -141,7 +141,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
               <UserMenu />
             ) : (
               <div className="hidden sm:block">
-                <DiscordLoginButton />
+                <LoginButton />
               </div>
             )}
 
@@ -225,7 +225,7 @@ export function Navbar({ settings, navLinks, hasContactPage, hasLandingPage, has
             </Link>
             {!user && !isLoading && (
               <div className="pt-2 border-t border-[var(--border-primary)]">
-                <DiscordLoginButton />
+                <LoginButton />
               </div>
             )}
           </div>

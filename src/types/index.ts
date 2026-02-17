@@ -27,29 +27,13 @@ export interface ArticleCategory {
   color?: string; // Optional color override from CMS
 }
 
-// User types (for mock auth)
-export interface MockServer {
-  id: string;
-  name: string;
-  icon: string;
-  memberCount: number;
-}
-
-export interface MockUser {
-  id: string;
-  username: string;
-  discriminator: string;
-  avatar: string;
-  servers: MockServer[];
-}
-
-// Public user data (safe to send to client)
-export interface PublicUser {
-  id: string;
-  username: string;
-  discriminator: string;
-  avatar: string;
-  serverCount: number;
+// Authenticated user (returned by getSession — server-side only)
+export interface SessionUser {
+  id: string;           // Internal User.id (cuid)
+  provider: string;     // 'discord' | 'google' | 'github' | 'mock'
+  displayName: string;
+  avatar: string | null;
+  email: string | null;
 }
 
 // Ticket types

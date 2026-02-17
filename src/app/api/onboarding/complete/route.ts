@@ -148,12 +148,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      const tenantUser = await prisma.tenantUser.findUnique({
+      const tenantUser = await prisma.tenantUser.findFirst({
         where: {
-          tenantId_discordId: {
-            tenantId,
-            discordId: session.id,
-          },
+          tenantId,
+          userId: session.id,
         },
       });
 
@@ -181,7 +179,7 @@ export async function POST(request: NextRequest) {
     // Main domain - create a new tenant
     // First, get the main User record
     let user = await prisma.user.findUnique({
-      where: { discordId: session.id },
+      where: { id: session.id },
       include: { subscription: true },
     });
 
@@ -197,7 +195,7 @@ export async function POST(request: NextRequest) {
       const synced = await syncSubscriptionWithStripe(user.subscription);
       if (synced) {
         user = await prisma.user.findUnique({
-          where: { discordId: session.id },
+          where: { id: session.id },
           include: { subscription: true },
         }) || user;
       }

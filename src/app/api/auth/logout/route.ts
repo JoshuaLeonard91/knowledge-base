@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { revalidatePath } from 'next/cache';
-import { getSession, getDiscordAccessToken } from '@/lib/auth';
+import { getSession, getAccessToken } from '@/lib/auth';
 import { SESSION_COOKIE_CONFIG, parseSessionToken, revokeSession } from '@/lib/security/session';
-import { revokeDiscordToken } from '@/lib/discord/oauth';
 import { validateCsrfRequest } from '@/lib/security/csrf';
 import {
   logLogout,
@@ -36,15 +35,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Revoke Discord access token if present
-    // This invalidates the token on Discord's side for security
-    const accessToken = await getDiscordAccessToken();
-    if (accessToken) {
+    // Revoke provider access token if present
+    // This invalidates the token on the provider's side for security
+    const authInfo = await getAccessToken();
+    if (authInfo) {
       // Don't await - revocation shouldn't block logout
-      // If it fails, the session is still cleared locally
-      revokeDiscordToken(accessToken).catch(() => {
-        console.error('[Logout] Token revocation failed');
-      });
+      // Token revocation will be handled by provider-specific logic
+      import('@/lib/oauth/revoke').then(({ revokeProviderToken }) =>
+        revokeProviderToken(authInfo.provider, authInfo.token).catch(() => {
+          console.error('[Logout] Token revocation failed');
+        })
+      );
     }
 
     // Log logout event

@@ -33,7 +33,7 @@ export default async function SupportPricingPage() {
       if (isMainDomain) {
         // Main domain: Check User subscription (platform level)
         const user = await prisma.user.findUnique({
-          where: { discordId: session.id },
+          where: { id: session.id },
           include: { subscription: true },
         });
         if (user?.subscription?.status === 'ACTIVE') {
@@ -41,12 +41,10 @@ export default async function SupportPricingPage() {
         }
       } else {
         // Tenant subdomain: Check TenantUser subscription
-        const tenantUser = await prisma.tenantUser.findUnique({
+        const tenantUser = await prisma.tenantUser.findFirst({
           where: {
-            tenantId_discordId: {
-              tenantId: tenant.id,
-              discordId: session.id,
-            },
+            tenantId: tenant.id,
+            userId: session.id,
           },
           include: { subscription: true },
         });

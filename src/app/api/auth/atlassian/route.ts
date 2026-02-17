@@ -41,7 +41,7 @@ export async function GET(request: NextRequest) {
     // Resolve tenant from session + request context
     const tenantContext = await getTenantFromRequest();
     const user = await prisma.user.findUnique({
-      where: { discordId: session.id },
+      where: { id: session.id },
       include: { tenants: true },
     });
 

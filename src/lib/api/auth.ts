@@ -10,7 +10,7 @@ import { validateCsrfRequest } from '@/lib/security/csrf';
 import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { prisma } from '@/lib/db/client';
 import { hasActiveAccess } from '@/lib/subscription/helpers';
-import type { PublicUser } from '@/types';
+import type { SessionUser } from '@/types';
 import type { Tenant } from '@/generated/prisma';
 
 /** Standard security headers applied to all dashboard API responses */
@@ -21,11 +21,11 @@ export const securityHeaders = {
 
 const MUTATION_METHODS = ['POST', 'PUT', 'PATCH', 'DELETE'];
 
-type AuthSuccess = { session: PublicUser };
+type AuthSuccess = { session: SessionUser };
 type AuthError = { response: NextResponse };
 export type AuthResult = AuthSuccess | AuthError;
 
-type TenantAuthSuccess = { session: PublicUser; tenant: Tenant };
+type TenantAuthSuccess = { session: SessionUser; tenant: Tenant };
 type TenantAuthError = { response: NextResponse };
 export type TenantAuthResult = TenantAuthSuccess | TenantAuthError;
 
@@ -67,7 +67,7 @@ export async function requireTenantOwner(request?: NextRequest): Promise<TenantA
   const tenantContext = await getTenantFromRequest();
 
   const user = await prisma.user.findUnique({
-    where: { discordId: session.id },
+    where: { id: session.id },
     include: { tenants: true },
   });
 
@@ -101,7 +101,7 @@ export async function requireSubscribedTenantOwner(request?: NextRequest): Promi
   const { session, tenant } = result;
 
   const user = await prisma.user.findUnique({
-    where: { discordId: session.id },
+    where: { id: session.id },
     include: { subscription: true },
   });
 

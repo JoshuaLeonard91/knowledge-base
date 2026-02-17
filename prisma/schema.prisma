@@ -17,11 +17,14 @@ datasource db {
 
 model User {
   id              String    @id @default(cuid())
-  discordId       String    @unique          // Discord user ID (snowflake)
-  discordUsername String                     // For display
-  discordAvatar   String?                    // Avatar URL
 
-  email           String?                    // Optional email for billing notifications
+  // Generic display fields (populated from OAuthIdentity on login)
+  displayName     String
+  avatarUrl       String?
+  email           String?                    // For billing notifications
+
+  // Keep discordId as optional for Discord bot cross-reference
+  discordId       String?   @unique
 
   // Stripe
   stripeCustomerId String?  @unique          // Stripe customer ID
@@ -29,12 +32,35 @@ model User {
   // Relations
   subscription    Subscription?
   tenants         Tenant[]                   // User can own multiple tenants (future-proof)
+  oauthIdentity   OAuthIdentity?             // 1:1 with OAuth provider identity
 
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
   @@index([discordId])
   @@index([stripeCustomerId])
+}
+
+// ==========================================
+// OAUTH IDENTITY (Provider-agnostic login)
+// ==========================================
+
+model OAuthIdentity {
+  id          String   @id @default(cuid())
+  userId      String   @unique              // 1:1 with User (no account linking)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  provider    String                        // 'discord' | 'google' | 'github'
+  providerId  String                        // ID from the OAuth provider
+  email       String?                       // Email from provider
+  username    String                        // Display name from provider
+  avatar      String?                       // Avatar URL from provider
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([provider, providerId])          // One identity per provider+ID
+  @@index([userId])
 }
 
 // ==========================================
@@ -345,20 +371,23 @@ model TenantUser {
   tenantId        String?  // null = main domain user
   tenant          Tenant?  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
-  // Discord OAuth identity
-  discordId       String
-  discordUsername String
-  discordAvatar   String?
+  // Generic identity (provider-agnostic)
+  userId          String?                    // FK to User (nullable for backward compat)
+  provider        String   @default("discord")  // 'discord' | 'google' | 'github'
+  providerId      String                     // ID from the provider
+  displayName     String
+  avatarUrl       String?
   email           String?
+
+  // Keep for Discord bot DM functionality
+  discordId       String?
+  discordNotifications Boolean @default(false)
 
   // Stripe customer ID (main domain only)
   stripeCustomerId String?
 
   // Status
   status          TenantUserStatus @default(ACTIVE)
-
-  // Discord bot DM opt-in
-  discordNotifications Boolean @default(false)
 
   // Relations
   subscription    TenantSubscription?
@@ -369,9 +398,10 @@ model TenantUser {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 
-  @@unique([tenantId, discordId])
+  @@unique([tenantId, provider, providerId]) // One identity per tenant+provider+ID
   @@index([tenantId])
-  @@index([discordId])
+  @@index([userId])
+  @@index([discordId])                       // Keep for Discord bot lookups
 }
 
 enum TenantUserStatus {

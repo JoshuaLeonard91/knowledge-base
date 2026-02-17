@@ -12,7 +12,7 @@
 import { NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import {
-  getUserByDiscordId,
+  getUserById,
   formatSubscriptionStatus,
   hasActiveAccess,
   getSignupStep,
@@ -40,7 +40,7 @@ export async function GET() {
     }
 
     // Get user with subscription from database
-    let user = await getUserByDiscordId(session.id);
+    let user = await getUserById(session.id);
 
     // User not in database yet (hasn't completed signup)
     if (!user) {
@@ -58,7 +58,7 @@ export async function GET() {
       const synced = await syncSubscriptionWithStripe(user.subscription);
       if (synced) {
         // Re-fetch user to get updated subscription data
-        user = await getUserByDiscordId(session.id) || user;
+        user = await getUserById(session.id) || user;
       }
     }
 

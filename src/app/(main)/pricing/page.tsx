@@ -36,19 +36,17 @@ export default async function PricingPage() {
     if (session) {
       if (isMainDomain) {
         const user = await prisma.user.findUnique({
-          where: { discordId: session.id },
+          where: { id: session.id },
           include: { subscription: true },
         });
         if (user?.subscription?.status === 'ACTIVE') {
           currentProductSlug = 'pro';
         }
       } else {
-        const tenantUser = await prisma.tenantUser.findUnique({
+        const tenantUser = await prisma.tenantUser.findFirst({
           where: {
-            tenantId_discordId: {
-              tenantId: tenant.id,
-              discordId: session.id,
-            },
+            tenantId: tenant.id,
+            userId: session.id,
           },
           include: { subscription: true },
         });

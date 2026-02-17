@@ -59,13 +59,13 @@ export async function getUserWithSubscription(
 }
 
 /**
- * Get user by Discord ID with subscription and tenants
+ * Get user by ID with subscription and tenants
  */
-export async function getUserByDiscordId(
-  discordId: string
+export async function getUserById(
+  userId: string
 ): Promise<UserWithSubscription | null> {
   return prisma.user.findUnique({
-    where: { discordId },
+    where: { id: userId },
     include: {
       subscription: true,
       tenants: true,
@@ -84,36 +84,6 @@ export async function getUserByStripeCustomerId(
     include: {
       subscription: true,
       tenants: true,
-    },
-  });
-}
-
-/**
- * Create or update user from Discord login
- */
-export async function upsertUserFromDiscord({
-  discordId,
-  discordUsername,
-  discordAvatar,
-  email,
-}: {
-  discordId: string;
-  discordUsername: string;
-  discordAvatar?: string | null;
-  email?: string | null;
-}): Promise<User> {
-  return prisma.user.upsert({
-    where: { discordId },
-    create: {
-      discordId,
-      discordUsername,
-      discordAvatar,
-      email,
-    },
-    update: {
-      discordUsername,
-      discordAvatar,
-      email,
     },
   });
 }

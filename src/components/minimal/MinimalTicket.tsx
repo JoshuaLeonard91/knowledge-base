@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CaretLeft, PaperPlaneTilt, CheckCircle, WarningCircle, SpinnerGap } from '@phosphor-icons/react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { DiscordLoginButton } from '@/components/auth/DiscordLoginButton';
+import { LoginButton } from '@/components/auth/LoginButton';
 
 interface MinimalTicketProps {
   onBack: () => void;
@@ -124,7 +124,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         <p className="text-[var(--text-secondary)] mb-6">
           Please log in with Discord to submit a support ticket.
         </p>
-        <DiscordLoginButton />
+        <LoginButton />
         <button
           onClick={onBack}
           className="mt-6 text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"

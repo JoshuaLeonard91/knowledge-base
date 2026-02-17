@@ -30,7 +30,7 @@ export async function GET() {
       );
     }
 
-    const tickets = await provider.listTickets(user.id, user.username);
+    const tickets = await provider.listTickets(user.id, user.displayName);
 
     return NextResponse.json({
       success: true,

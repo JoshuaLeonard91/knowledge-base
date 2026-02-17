@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
-import { DiscordLoginButton } from '../auth/DiscordLoginButton';
+import { LoginButton } from '../auth/LoginButton';
 import { SearchResult, TicketSeverity } from '@/types';
 import { TicketCategory } from '@/lib/cms';
 import {
@@ -41,7 +41,9 @@ export function TicketForm({ categories }: TicketFormProps) {
   const [submitResult, setSubmitResult] = useState<{ success: boolean; message: string; ticketId?: string } | null>(null);
   const [suggestions, setSuggestions] = useState<SearchResult[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(true);
-  const [discordNotify, setDiscordNotify] = useState(true);
+  const [discordNotify, setDiscordNotify] = useState(user?.provider === 'discord');
+  const [discordUserId, setDiscordUserId] = useState('');
+  const [discordUserIdError, setDiscordUserIdError] = useState('');
   const [csrfToken, setCsrfToken] = useState('');
 
   // Fetch CSRF token on mount
@@ -105,6 +107,7 @@ export function TicketForm({ categories }: TicketFormProps) {
           severity: selectedSeverity,
           description,
           discordNotify,
+          ...(user?.provider !== 'discord' && discordUserId.trim() ? { discordUserId: discordUserId.trim() } : {}),
         }),
       });
 
@@ -150,9 +153,9 @@ export function TicketForm({ categories }: TicketFormProps) {
           Authentication Required
         </h2>
         <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
-          Please log in with Discord to submit a support ticket.
+          Please log in to submit a support ticket.
         </p>
-        <DiscordLoginButton />
+        <LoginButton />
       </div>
     );
   }
@@ -324,26 +327,61 @@ export function TicketForm({ categories }: TicketFormProps) {
         </div>
       )}
 
-      {/* Discord DM Notifications */}
-      <label className="flex items-start gap-3 p-4 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] cursor-pointer select-none">
-        <input
-          type="checkbox"
-          checked={discordNotify}
-          onChange={(e) => setDiscordNotify(e.target.checked)}
-          className="mt-0.5 h-4 w-4 rounded border-[var(--border-primary)] accent-[var(--accent-primary)]"
-        />
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <DiscordLogo size={16} weight="duotone" className="text-[#5865F2]" />
-            <span className="text-sm font-medium text-[var(--text-primary)]">
-              Receive ticket updates via Discord DM
-            </span>
-          </div>
-          <p className="text-xs text-[var(--text-muted)] mt-1">
-            Get notified in your Discord DMs when our team replies to this ticket.
+      {/* Discord User ID (only for non-Discord users) */}
+      {user?.provider !== 'discord' && (
+        <div>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+            Discord User ID <span className="text-[var(--text-muted)] font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={discordUserId}
+            onChange={(e) => {
+              const val = e.target.value;
+              setDiscordUserId(val);
+              if (val && !/^\d{17,19}$/.test(val.trim())) {
+                setDiscordUserIdError('Discord user IDs are 17-19 digit numbers.');
+              } else {
+                setDiscordUserIdError('');
+              }
+              // Auto-toggle DM checkbox based on valid Discord ID
+              if (!val.trim()) setDiscordNotify(false);
+            }}
+            placeholder="e.g. 123456789012345678"
+            className={`input ${discordUserIdError ? 'border-[var(--accent-danger)]' : ''}`}
+          />
+          {discordUserIdError && (
+            <p className="text-sm text-[var(--accent-danger)] mt-1">{discordUserIdError}</p>
+          )}
+          <p className="text-xs text-[var(--text-muted)] mt-2">
+            Provide your Discord user ID to receive ticket updates via Discord DM.
+            Right-click your username in Discord → Copy User ID.
           </p>
         </div>
-      </label>
+      )}
+
+      {/* Discord DM Notifications — shown for Discord users or when Discord ID is provided */}
+      {(user?.provider === 'discord' || (discordUserId.trim() && !discordUserIdError)) && (
+        <label className="flex items-start gap-3 p-4 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] cursor-pointer select-none">
+          <input
+            type="checkbox"
+            checked={discordNotify}
+            onChange={(e) => setDiscordNotify(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-[var(--border-primary)] accent-[var(--accent-primary)]"
+          />
+          <div className="flex-1">
+            <div className="flex items-center gap-2">
+              <DiscordLogo size={16} weight="duotone" className="text-[#5865F2]" />
+              <span className="text-sm font-medium text-[var(--text-primary)]">
+                Receive ticket updates via Discord DM
+              </span>
+            </div>
+            <p className="text-xs text-[var(--text-muted)] mt-1">
+              Get notified in your Discord DMs when our team replies to this ticket.
+            </p>
+          </div>
+        </label>
+      )}
 
       {/* Submit */}
       <button

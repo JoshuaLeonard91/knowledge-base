@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
 
   // Verify the user owns this tenant
   const user = await prisma.user.findUnique({
-    where: { discordId: session.id },
+    where: { id: session.id },
     include: { tenants: true },
   });
 

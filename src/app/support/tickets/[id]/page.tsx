@@ -2,7 +2,7 @@
 
 import { useState, useEffect, use } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
-import { DiscordLoginButton } from '@/components/auth/DiscordLoginButton';
+import { LoginButton } from '@/components/auth/LoginButton';
 import Link from 'next/link';
 import {
   SpinnerGap, CaretLeft, Clock, CheckCircle, Circle,
@@ -311,7 +311,7 @@ export default function TicketDetailPage({ params }: { params: Promise<{ id: str
             <p className="text-[var(--text-secondary)] mb-6 max-w-md mx-auto">
               Please log in with Discord to view this ticket.
             </p>
-            <DiscordLoginButton />
+            <LoginButton />
           </div>
         </div>
       </div>

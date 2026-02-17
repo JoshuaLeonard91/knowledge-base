@@ -35,12 +35,10 @@ export async function GET(request: NextRequest) {
     if (authenticated) {
       const session = await getSession();
       if (session) {
-        const tenantUser = await prisma.tenantUser.findUnique({
+        const tenantUser = await prisma.tenantUser.findFirst({
           where: {
-            tenantId_discordId: {
-              tenantId: tenant?.id || 'main',
-              discordId: session.id,
-            },
+            tenantId: tenant?.id || null,
+            userId: session.id,
           },
           include: { subscription: true },
         });

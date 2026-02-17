@@ -34,7 +34,7 @@ export async function GET() {
 
     // Get user's tenant and validate against request context
     const user = await prisma.user.findUnique({
-      where: { discordId: session.id },
+      where: { id: session.id },
       include: {
         subscription: true,
         tenants: {

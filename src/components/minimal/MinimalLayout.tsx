@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/components/auth/AuthProvider';
-import { DiscordLoginButton } from '@/components/auth/DiscordLoginButton';
+import { LoginButton } from '@/components/auth/LoginButton';
 import { SignOut } from '@phosphor-icons/react';
 
 interface MinimalLayoutProps {
@@ -49,7 +49,7 @@ export function MinimalLayout({ children }: MinimalLayoutProps) {
                     </button>
                   </div>
                 ) : (
-                  <DiscordLoginButton />
+                  <LoginButton />
                 )}
               </>
             )}

@@ -103,11 +103,10 @@ export async function POST(request: NextRequest) {
     const product = MAIN_DOMAIN_PRODUCT;
 
     // Get or create TenantUser for main domain (tenantId = null)
-    // Note: Can't use findUnique with null in composite key, use findFirst instead
     let tenantUser = await prisma.tenantUser.findFirst({
       where: {
         tenantId: null,
-        discordId: session.id,
+        userId: session.id,
       },
     });
 
@@ -115,17 +114,19 @@ export async function POST(request: NextRequest) {
       tenantUser = await prisma.tenantUser.create({
         data: {
           tenantId: null,
-          discordId: session.id,
-          discordUsername: session.username,
-          discordAvatar: session.avatar,
-          // Email will be collected during Stripe checkout
+          userId: session.id,
+          provider: session.provider,
+          providerId: session.id,
+          displayName: session.displayName,
+          avatarUrl: session.avatar,
+          discordId: session.provider === 'discord' ? session.id : null,
         },
       });
     }
 
     // Check if user already has an active subscription (on User model for main domain)
     const user = await prisma.user.findUnique({
-      where: { discordId: session.id },
+      where: { id: session.id },
       include: { subscription: true },
     });
 

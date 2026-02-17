@@ -1,19 +1,18 @@
 import 'server-only';
 
 /**
- * Authentication module with Discord OAuth + Mock fallback
+ * Authentication module — Provider-agnostic
  *
  * Features:
- * - Real Discord OAuth with custom session management
- * - Mock mode for development (when Discord credentials not configured)
- * - Encrypted session tokens
+ * - Multi-provider OAuth (Discord, Google, GitHub)
+ * - Mock mode for development
+ * - Encrypted session tokens (AES-256-GCM + HMAC-SHA256)
  * - httpOnly secure cookies
  * - No sensitive data exposed to client
  */
 
 import { cookies } from 'next/headers';
-import { mockUser, mockServers } from './data/servers';
-import { PublicUser, MockUser, MockServer } from '@/types';
+import { SessionUser } from '@/types';
 import {
   createSessionToken,
   parseSessionToken,
@@ -25,9 +24,9 @@ import {
 import { SafeUser, sanitizeUserResponse } from './security/sanitize';
 
 /**
- * Check if Discord OAuth is configured
+ * Check if any OAuth provider is configured
  */
-function isDiscordConfigured(): boolean {
+function isOAuthConfigured(): boolean {
   return !!(
     process.env.DISCORD_CLIENT_ID &&
     process.env.DISCORD_CLIENT_SECRET &&
@@ -37,47 +36,22 @@ function isDiscordConfigured(): boolean {
 
 /**
  * Check if mock mode is enabled
- * In production, mock mode requires explicit opt-in and Discord must be unconfigured
  */
 function isMockMode(): boolean {
-  if (process.env.NODE_ENV === 'production' && !isDiscordConfigured()) {
-    console.error('[SECURITY] Discord OAuth not configured in production! Authentication will fail. Set DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, and AUTH_SECRET.');
-    return false; // Deny access rather than silently falling back to mock
+  if (process.env.NODE_ENV === 'production' && !isOAuthConfigured()) {
+    console.error('[SECURITY] No OAuth provider configured in production! Authentication will fail.');
+    return false;
   }
-  return process.env.MOCK_AUTH === 'true' || !isDiscordConfigured();
-}
-
-/**
- * Convert full user to public user (strips sensitive server data)
- * NEVER expose internal IDs or server details
- */
-function toPublicUser(user: MockUser): PublicUser {
-  return {
-    id: user.id,
-    username: user.username,
-    discriminator: user.discriminator,
-    avatar: user.avatar,
-    serverCount: user.servers.length,
-  };
-}
-
-/**
- * Convert to safe user (for client responses - no IDs)
- */
-function toSafeUser(user: { username: string; avatar?: string | null }): SafeUser {
-  return sanitizeUserResponse({
-    username: user.username,
-    avatar: user.avatar || undefined,
-  })!;
+  return process.env.MOCK_AUTH === 'true' || !isOAuthConfigured();
 }
 
 /**
  * Get session from our encrypted cookie
- * Works for both Discord OAuth and mock mode
+ * Works for all OAuth providers and mock mode
  */
 async function getSessionFromCookie(): Promise<{
   userId: string;
-  provider: 'discord' | 'mock';
+  provider: 'discord' | 'google' | 'github' | 'mock';
   data: Record<string, unknown>;
 } | null> {
   const cookieStore = await cookies();
@@ -115,103 +89,59 @@ async function getSessionFromCookie(): Promise<{
 }
 
 /**
- * Get Discord access token from session (for token revocation on logout)
- * Returns null if not a Discord session or no token stored
+ * Get access token and provider from session (for token revocation on logout)
  */
-export async function getDiscordAccessToken(): Promise<string | null> {
+export async function getAccessToken(): Promise<{ provider: string; token: string } | null> {
   const session = await getSessionFromCookie();
+  if (!session) return null;
 
-  if (!session || session.provider !== 'discord') {
-    return null;
-  }
+  const token = session.data.accessToken as string;
+  if (!token) return null;
 
-  return (session.data.accessToken as string) || null;
+  return { provider: session.provider, token };
 }
 
 /**
- * Get current session
- * Uses our custom encrypted session cookie for both Discord and mock
+ * Get current session — returns generic SessionUser
+ * session.id is the internal User.id (cuid), NOT a provider-specific ID
  */
-export async function getSession(): Promise<PublicUser | null> {
+export async function getSession(): Promise<SessionUser | null> {
   const session = await getSessionFromCookie();
+  if (!session) return null;
 
-  if (!session) {
-    return null;
-  }
-
-  // Discord OAuth session
-  if (session.provider === 'discord') {
+  // Mock session
+  if (session.provider === 'mock') {
     return {
       id: session.userId,
-      username: (session.data.username as string) || 'User',
-      discriminator: (session.data.discriminator as string) || '0',
-      avatar: (session.data.avatar as string) || '/avatars/default.png',
-      serverCount: (session.data.guildCount as number) || 0,
+      provider: 'mock',
+      displayName: (session.data.displayName as string) || 'DemoUser',
+      avatar: (session.data.avatar as string) || null,
+      email: null,
     };
   }
 
-  // Mock session - verify it's the mock user
-  if (session.provider === 'mock' && session.userId === mockUser.id) {
-    return toPublicUser(mockUser);
-  }
-
-  return null;
+  // OAuth session (Discord, Google, GitHub)
+  return {
+    id: session.userId,
+    provider: session.provider,
+    displayName: (session.data.displayName as string) || 'User',
+    avatar: (session.data.avatar as string) || null,
+    email: (session.data.email as string) || null,
+  };
 }
 
 /**
  * Get safe user for client responses (no IDs exposed)
  */
 export async function getSafeUser(): Promise<SafeUser | null> {
-  const session = await getSessionFromCookie();
+  const session = await getSession();
+  if (!session) return null;
 
-  if (!session) {
-    return null;
-  }
-
-  // Discord OAuth session
-  if (session.provider === 'discord') {
-    return toSafeUser({
-      username: (session.data.username as string) || 'User',
-      avatar: session.data.avatar as string | null,
-    });
-  }
-
-  // Mock session
-  if (session.provider === 'mock' && session.userId === mockUser.id) {
-    return toSafeUser(mockUser);
-  }
-
-  return null;
-}
-
-/**
- * Get full user data (server-side only, for ticket form server list)
- * NEVER expose this to client responses
- */
-export async function getFullUser(): Promise<MockUser | null> {
-  const session = await getSessionFromCookie();
-
-  if (!session) {
-    return null;
-  }
-
-  // Discord OAuth session
-  if (session.provider === 'discord') {
-    return {
-      id: session.userId,
-      username: (session.data.username as string) || 'User',
-      discriminator: (session.data.discriminator as string) || '0',
-      avatar: (session.data.avatar as string) || '/avatars/default.png',
-      servers: mockServers, // Use mock servers for now
-    };
-  }
-
-  // Mock session
-  if (session.provider === 'mock' && session.userId === mockUser.id) {
-    return mockUser;
-  }
-
-  return null;
+  return sanitizeUserResponse({
+    displayName: session.displayName,
+    avatarUrl: session.avatar || undefined,
+    provider: session.provider,
+  });
 }
 
 /**
@@ -239,17 +169,16 @@ export async function getSessionId(): Promise<string | null> {
 
 /**
  * Create session (mock mode only)
- * For Discord OAuth, the callback handler creates the session
+ * For OAuth providers, the callback handler creates the session
  */
 export async function createSession(): Promise<SafeUser> {
-  // Mock mode - create encrypted session
   const cookieStore = await cookies();
 
   const token = createSessionToken({
-    userId: mockUser.id,
+    userId: 'mock-user-id',
     provider: 'mock',
     data: {
-      username: mockUser.username,
+      displayName: 'DemoUser',
     },
   });
 
@@ -261,7 +190,10 @@ export async function createSession(): Promise<SafeUser> {
     maxAge: SESSION_COOKIE_CONFIG.maxAge,
   });
 
-  return toSafeUser(mockUser);
+  return {
+    displayName: 'DemoUser',
+    isAuthenticated: true,
+  };
 }
 
 /**
@@ -270,14 +202,12 @@ export async function createSession(): Promise<SafeUser> {
 export async function destroySession(): Promise<void> {
   const cookieStore = await cookies();
 
-  // Delete the session cookie by setting it with maxAge: 0
-  // No domain = subdomain-specific (matches how it was set)
   cookieStore.set(SESSION_COOKIE_CONFIG.name, '', {
     httpOnly: SESSION_COOKIE_CONFIG.httpOnly,
     secure: SESSION_COOKIE_CONFIG.secure,
     sameSite: SESSION_COOKIE_CONFIG.sameSite,
     path: SESSION_COOKIE_CONFIG.path,
-    maxAge: 0, // Immediate expiration
+    maxAge: 0,
   });
 }
 
@@ -292,14 +222,6 @@ export function isValidTokenFormat(token: string): boolean {
 /**
  * Get authentication mode
  */
-export function getAuthMode(): 'discord' | 'mock' {
-  return isMockMode() ? 'mock' : 'discord';
-}
-
-/**
- * Get user's servers/guilds
- */
-export async function getUserServers(): Promise<MockServer[]> {
-  const user = await getFullUser();
-  return user?.servers || [];
+export function getAuthMode(): 'oauth' | 'mock' {
+  return isMockMode() ? 'mock' : 'oauth';
 }

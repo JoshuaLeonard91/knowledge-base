@@ -26,7 +26,7 @@ import {
 export interface SessionPayload {
   sid: string; // Session ID (random, not user ID)
   uid: string; // User identifier (encrypted internally)
-  provider: 'discord' | 'mock'; // Auth provider
+  provider: 'discord' | 'google' | 'github' | 'mock'; // Auth provider
   exp: number; // Expiration timestamp (ms)
   iat: number; // Issued at timestamp (ms)
   data?: Record<string, unknown>; // Additional encrypted data
@@ -138,7 +138,7 @@ export function isSessionIdle(sid: string): boolean {
  */
 export function createSessionToken(params: {
   userId: string;
-  provider: 'discord' | 'mock';
+  provider: 'discord' | 'google' | 'github' | 'mock';
   data?: Record<string, unknown>;
   expiresIn?: number; // Override default duration (ms)
 }): string {

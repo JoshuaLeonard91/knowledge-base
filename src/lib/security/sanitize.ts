@@ -65,6 +65,7 @@ const GENERIC_ERRORS: Record<string, string> = {
 export interface SafeUser {
   displayName: string;
   avatarUrl?: string;
+  provider?: string;
   isAuthenticated: boolean;
 }
 
@@ -112,6 +113,7 @@ export function sanitizeUserResponse(user: {
   displayName?: string;
   avatar?: string;
   avatarUrl?: string;
+  provider?: string;
   id?: string;
 } | null): SafeUser | null {
   if (!user) return null;
@@ -119,6 +121,7 @@ export function sanitizeUserResponse(user: {
   return {
     displayName: user.displayName || user.username || 'User',
     avatarUrl: user.avatarUrl || user.avatar,
+    provider: user.provider,
     isAuthenticated: true,
   };
 }

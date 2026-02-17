@@ -150,7 +150,7 @@ export async function POST(request: NextRequest) {
       priority,
       labels,
       discordUserId: user.id,
-      discordUsername: user.username,
+      discordUsername: user.displayName,
       discordServerId: sanitizedServerId,
       });
 
@@ -163,22 +163,41 @@ export async function POST(request: NextRequest) {
       ticketId = result.ticketId || generateTicketId();
     }
 
+    // Resolve Discord ID for DM notifications
+    // Discord users: look up from DB. Non-Discord users: accept optional field from form.
+    let discordId: string | null = null;
+    if (user.provider === 'discord') {
+      const dbUser = await prisma.user.findUnique({
+        where: { id: user.id },
+        select: { discordId: true },
+      });
+      discordId = dbUser?.discordId || null;
+    } else if (body.discordUserId && /^\d{17,19}$/.test(body.discordUserId)) {
+      discordId = body.discordUserId;
+    }
+
     // Update Discord DM notification preference
     if (typeof discordNotify === 'boolean') {
       try {
         const existingUser = await prisma.tenantUser.findFirst({
-          where: { tenantId: null, discordId: user.id },
+          where: { tenantId: null, userId: user.id },
         });
         if (existingUser) {
           await prisma.tenantUser.update({
             where: { id: existingUser.id },
-            data: { discordNotifications: discordNotify },
+            data: {
+              discordNotifications: discordNotify,
+              ...(discordId ? { discordId } : {}),
+            },
           });
         } else {
           await prisma.tenantUser.create({
             data: {
-              discordId: user.id,
-              discordUsername: user.username,
+              userId: user.id,
+              provider: user.provider,
+              providerId: user.id,
+              displayName: user.displayName,
+              discordId: discordId || null,
               discordNotifications: discordNotify,
             },
           });
@@ -196,17 +215,20 @@ export async function POST(request: NextRequest) {
     });
 
     // Fire-and-forget: send Discord DM with ticket confirmation + create tracker
-    const botId = tenantId || MAIN_DOMAIN_BOT_ID;
-    resolveTenantSlug(botId).then(slug => {
-      sendTicketCreationDM({
-        botId,
-        tenantSlug: slug,
-        ticketId,
-        severity: sanitizedSeverity,
-        description: descValidation.sanitized || description,
-        discordUserId: user.id,
-      }).catch(err => console.error('[Ticket API] DM failed:', err));
-    }).catch(err => console.error('[Ticket API] Slug resolve failed:', err));
+    // Only attempt if we have a valid Discord snowflake ID
+    if (discordId) {
+      const botId = tenantId || MAIN_DOMAIN_BOT_ID;
+      resolveTenantSlug(botId).then(slug => {
+        sendTicketCreationDM({
+          botId,
+          tenantSlug: slug,
+          ticketId,
+          severity: sanitizedSeverity,
+          description: descValidation.sanitized || description,
+          discordUserId: discordId!,
+        }).catch(err => console.error('[Ticket API] DM failed:', err));
+      }).catch(err => console.error('[Ticket API] Slug resolve failed:', err));
+    }
 
     // Return sanitized response - only ticket reference, no internal data
     return createSuccessResponse({

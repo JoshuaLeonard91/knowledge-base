@@ -10,7 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { isAuthenticated, getSession } from '@/lib/auth';
 import { createPortalSession } from '@/lib/stripe/client';
-import { getUserByDiscordId } from '@/lib/subscription/helpers';
+import { getUserById } from '@/lib/subscription/helpers';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 
 export async function POST(request: NextRequest) {
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Get user from database
-    const user = await getUserByDiscordId(session.id);
+    const user = await getUserById(session.id);
     if (!user || !user.stripeCustomerId) {
       return NextResponse.json(
         { success: false, error: 'No billing account found' },

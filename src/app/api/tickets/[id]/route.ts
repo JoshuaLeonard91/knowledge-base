@@ -5,6 +5,7 @@ import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
 import { verifyFileSignature, sanitizeFilename } from '@/lib/security/uploads';
 import { refreshTicketDM } from '@/lib/discord-bot/helpers';
 import { MAIN_DOMAIN_BOT_ID } from '@/lib/discord-bot/constants';
+import { prisma } from '@/lib/db/client';
 
 export async function GET(
   request: NextRequest,
@@ -39,7 +40,7 @@ export async function GET(
       );
     }
 
-    // Get ticket via provider (ownership verified internally)
+    // Get ticket via provider (ownership verified internally via CUID)
     const ticket = await provider.getTicket(ticketId, user.id);
 
     if (!ticket) {
@@ -50,10 +51,17 @@ export async function GET(
     }
 
     // Fire-and-forget: refresh the Discord DM with latest data from Jira
+    // Only attempt if user has a Discord ID (DM tracker uses Discord snowflake)
     const botId = tenantId || MAIN_DOMAIN_BOT_ID;
-    refreshTicketDM(botId, ticketId, user.id).catch(err =>
-      console.error('[API] DM refresh on ticket view failed:', err)
-    );
+    const dbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { discordId: true },
+    });
+    if (dbUser?.discordId) {
+      refreshTicketDM(botId, ticketId, dbUser.discordId).catch(err =>
+        console.error('[API] DM refresh on ticket view failed:', err)
+      );
+    }
 
     return NextResponse.json({
       success: true,
@@ -190,7 +198,7 @@ export async function POST(
       ticketId,
       message: message.trim(),
       discordUserId: user.id,
-      discordUsername: user.username,
+      discordUsername: user.displayName,
     });
 
     if (!success) {
@@ -212,10 +220,17 @@ export async function POST(
     }
 
     // Fire-and-forget: refresh the Discord DM with the new comment
+    // Only attempt if user has a Discord ID (DM tracker uses Discord snowflake)
     const botId = tenantId || MAIN_DOMAIN_BOT_ID;
-    refreshTicketDM(botId, ticketId, user.id).catch(err =>
-      console.error('[API] DM refresh after comment failed:', err)
-    );
+    const commentDbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { discordId: true },
+    });
+    if (commentDbUser?.discordId) {
+      refreshTicketDM(botId, ticketId, commentDbUser.discordId).catch(err =>
+        console.error('[API] DM refresh after comment failed:', err)
+      );
+    }
 
     return NextResponse.json({ success: true });
   } catch {
@@ -306,10 +321,17 @@ export async function PATCH(
     const updated = await provider.getTicket(ticketId, user.id);
 
     // Fire-and-forget: refresh the Discord DM with the new status
+    // Only attempt if user has a Discord ID (DM tracker uses Discord snowflake)
     const botId = tenantId || MAIN_DOMAIN_BOT_ID;
-    refreshTicketDM(botId, ticketId, user.id).catch(err =>
-      console.error('[API] DM refresh after status change failed:', err)
-    );
+    const statusDbUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      select: { discordId: true },
+    });
+    if (statusDbUser?.discordId) {
+      refreshTicketDM(botId, ticketId, statusDbUser.discordId).catch(err =>
+        console.error('[API] DM refresh after status change failed:', err)
+      );
+    }
 
     return NextResponse.json({
       success: true,

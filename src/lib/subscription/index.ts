@@ -7,9 +7,8 @@
 export {
   hasActiveAccess,
   getUserWithSubscription,
-  getUserByDiscordId,
+  getUserById,
   getUserByStripeCustomerId,
-  upsertUserFromDiscord,
   getSignupStep,
   formatSubscriptionStatus,
   type UserWithSubscription,
