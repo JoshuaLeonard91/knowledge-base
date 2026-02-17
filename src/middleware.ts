@@ -331,10 +331,11 @@ export async function middleware(request: NextRequest) {
     return new NextResponse('Forbidden', { status: 403 });
   }
 
-  // Rate-limit auth ACTION routes (login, callback, logout, set-session)
-  // Session checks (/api/auth/session) use the general API rate limit since
-  // they fire on every page load and tab-focus — 100/min is appropriate.
-  if (pathname.startsWith('/api/auth/') && pathname !== '/api/auth/session') {
+  // Rate-limit auth ACTION routes (callback, logout, set-session, OAuth initiation)
+  // Excluded from strict auth limit:
+  //   /api/auth/session — fires on every page load and tab-focus (100/min general limit)
+  //   /api/auth/login   — provider config check, fires on every LoginButton mount
+  if (pathname.startsWith('/api/auth/') && pathname !== '/api/auth/session' && pathname !== '/api/auth/login') {
     const rateLimitKey = `${ip}:auth`;
     const tenantKey = tenantSlug ? `tenant:${tenantSlug}:auth` : null;
     const result = checkRateLimit(rateLimitKey, RATE_LIMITS.auth);
