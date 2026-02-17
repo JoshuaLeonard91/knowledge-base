@@ -49,8 +49,16 @@ export async function GET() {
     }
 
     const tenant = tenantContext
-      ? user.tenants.find((t) => t.slug === tenantContext.slug) || user.tenants[0]
+      ? user.tenants.find((t) => t.slug === tenantContext.slug)
       : user.tenants[0];
+
+    if (!tenant) {
+      return NextResponse.json(
+        { error: 'Tenant access denied' },
+        { status: 403, headers: securityHeaders }
+      );
+    }
+
     const config = tenant.discordBotConfig;
 
     // Check if bot is actually connected

@@ -274,7 +274,7 @@ function buildCsp(nonce: string): string {
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic' 'unsafe-inline'`,
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "style-src-elem 'self' 'unsafe-inline' https://fonts.googleapis.com",
-    "img-src 'self' data: https: blob: https://cdn.discordapp.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com",
+    "img-src 'self' data: blob: https://cdn.discordapp.com https://lh3.googleusercontent.com https://avatars.githubusercontent.com https://*.graphassets.com https://media.graphassets.com",
     "font-src 'self' data: https://fonts.gstatic.com",
     "connect-src 'self' https://discord.com https://*.atlassian.net https://*.atlassian.com https://api.atlassian.com https://*.hygraph.com https://*.graphassets.com https://api.stripe.com",
     "frame-src 'none'",
@@ -316,8 +316,12 @@ export async function middleware(request: NextRequest) {
   const tenantSlug = extractTenantSubdomain(request);
 
   // Skip middleware for Stripe webhooks - needs raw body for signature verification
+  // Still apply minimal security headers (no body parsing required)
   if (pathname === '/api/stripe/webhook' || pathname === '/api/checkout/webhook') {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Cache-Control', 'no-store, private');
+    return response;
   }
 
   // Validate HTTP method
