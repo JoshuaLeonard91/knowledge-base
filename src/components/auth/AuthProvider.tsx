@@ -1,7 +1,8 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, Suspense, ReactNode } from 'react';
 import { SafeUser } from '@/lib/security/sanitize';
+import { AuthNotification } from './AuthNotification';
 
 interface AuthContextType {
   user: SafeUser | null;
@@ -119,6 +120,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
+      <Suspense fallback={null}>
+        <AuthNotification />
+      </Suspense>
     </AuthContext.Provider>
   );
 }

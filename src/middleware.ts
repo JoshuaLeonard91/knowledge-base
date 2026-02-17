@@ -331,11 +331,17 @@ export async function middleware(request: NextRequest) {
     return new NextResponse('Forbidden', { status: 403 });
   }
 
-  // Rate-limit auth ACTION routes (callback, logout, set-session, OAuth initiation)
+  // Rate-limit auth ACTION routes (OAuth initiation, logout)
   // Excluded from strict auth limit:
-  //   /api/auth/session — fires on every page load and tab-focus (100/min general limit)
-  //   /api/auth/login   — provider config check, fires on every LoginButton mount
-  if (pathname.startsWith('/api/auth/') && pathname !== '/api/auth/session' && pathname !== '/api/auth/login') {
+  //   /api/auth/session    — fires on every page load and tab-focus (100/min general limit)
+  //   /api/auth/login      — provider config check, fires on every LoginButton mount
+  //   /api/auth/callback/* — OAuth provider redirects back here (requires valid state token)
+  //   /api/auth/set-session — handoff step (requires valid 5s handoff token)
+  const isAuthExempt = pathname === '/api/auth/session'
+    || pathname === '/api/auth/login'
+    || pathname.startsWith('/api/auth/callback/')
+    || pathname === '/api/auth/set-session';
+  if (pathname.startsWith('/api/auth/') && !isAuthExempt) {
     const rateLimitKey = `${ip}:auth`;
     const tenantKey = tenantSlug ? `tenant:${tenantSlug}:auth` : null;
     const result = checkRateLimit(rateLimitKey, RATE_LIMITS.auth);
@@ -346,6 +352,18 @@ export async function middleware(request: NextRequest) {
     }
 
     if (!result.allowed) {
+      // For browser-navigated auth routes (OAuth initiation), redirect to login
+      // with error param instead of returning raw JSON
+      const isOAuthInit = pathname.match(/^\/api\/auth\/(?:discord|google|github)$/);
+      if (isOAuthInit) {
+        const forwardedHost = request.headers.get('x-forwarded-host') || request.headers.get('host') || request.nextUrl.host;
+        const forwardedProto = request.headers.get('x-forwarded-proto') || 'https';
+        const appDomain = process.env.APP_DOMAIN || 'helpportal.app';
+        const isAllowedHost = forwardedHost === appDomain || forwardedHost.endsWith(`.${appDomain}`) || forwardedHost === 'localhost' || forwardedHost.startsWith('localhost:');
+        const origin = isAllowedHost ? `${forwardedProto}://${forwardedHost}` : `https://${appDomain}`;
+        return NextResponse.redirect(new URL('/support/login?error=RateLimit', origin));
+      }
+
       const retryAfter = Math.ceil((result.reset - Date.now()) / 1000);
       return new NextResponse(
         JSON.stringify({ success: false, error: 'Too many requests', code: 'RATE_LIMIT' }),

@@ -237,6 +237,11 @@ a { text-decoration: none; transition: color 0.2s ease; }
   }
 }
 
+@keyframes shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+
 /* Page transition animation */
 @keyframes pageEnter {
   from {
