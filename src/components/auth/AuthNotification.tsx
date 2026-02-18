@@ -85,7 +85,6 @@ export function AuthNotification() {
   const [isExiting, setIsExiting] = useState(false);
   const [countdown, setCountdown] = useState(0);
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
-  const hasShownWelcome = useRef(false);
   const prevUser = useRef(user);
 
   // --- Callbacks (declared before effects that use them) ---
@@ -137,9 +136,12 @@ export function AuthNotification() {
   }, [searchParams]);
 
   // Detect successful login (user appeared)
+  // Uses sessionStorage so the flag persists across hard navigations
+  // (e.g., Stripe redirect → success page → dashboard)
   useEffect(() => {
-    if (user && !prevUser.current && !hasShownWelcome.current) {
-      hasShownWelcome.current = true;
+    const alreadyShown = sessionStorage.getItem('welcomeShown') === 'true';
+    if (user && !prevUser.current && !alreadyShown) {
+      sessionStorage.setItem('welcomeShown', 'true');
       setNotification({
         type: 'success',
         title: 'Welcome back!',
@@ -150,6 +152,10 @@ export function AuthNotification() {
 
       // Auto-dismiss success after 3 seconds
       dismissTimerRef.current = setTimeout(() => dismiss(), 3000);
+    }
+    // Clear flag on logout so it shows again next login
+    if (!user && prevUser.current) {
+      sessionStorage.removeItem('welcomeShown');
     }
     prevUser.current = user;
   }, [user, dismiss]);
