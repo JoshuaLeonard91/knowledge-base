@@ -197,7 +197,7 @@ export default function BillingPage() {
 
         <p className="text-[var(--text-secondary)] mb-6">{data.status.description}</p>
 
-        {data.subscription && (
+        {data.subscription && data.subscription.status !== 'EXPIRED' && (
           <div className="grid grid-cols-2 gap-4 mb-6">
             <div className="bg-[var(--bg-primary)]/50 rounded-lg p-4">
               <p className="text-sm text-[var(--text-muted)] mb-1">Billing Period Ends</p>
