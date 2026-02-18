@@ -26,6 +26,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include',
         cache: 'no-store',
       });
+      // Silently treat rate-limited session checks as unauthenticated
+      // (visibility-change listener will retry automatically)
+      if (res.status === 429) {
+        return;
+      }
       const data = await res.json();
       if (data.authMode) setAuthMode(data.authMode);
       if (data.authenticated && data.user) {
@@ -87,6 +92,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // Get CSRF token for logout request
       const csrfRes = await fetch('/api/auth/session');
+      if (csrfRes.status === 429) {
+        window.location.href = window.location.pathname + '?error=RateLimit';
+        return;
+      }
       if (!csrfRes.ok) throw new Error('Failed to fetch session');
       const csrfData = await csrfRes.json();
 
@@ -96,6 +105,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: 'include',
         headers: { 'X-CSRF-Token': csrfData.csrf },
       });
+
+      if (res.status === 429) {
+        window.location.href = window.location.pathname + '?error=RateLimit';
+        return;
+      }
 
       if (res.ok) {
         setUser(null);

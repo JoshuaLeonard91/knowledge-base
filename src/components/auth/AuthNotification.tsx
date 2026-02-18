@@ -25,11 +25,11 @@ interface NotificationState {
 const ERROR_MESSAGES: Record<string, { title: string; message: string }> = {
   RateLimit: {
     title: 'Too Many Attempts',
-    message: 'You\'ve made too many login attempts. Please wait before trying again.',
+    message: 'You\'ve made too many requests. Please wait before trying again.',
   },
   RATE_LIMIT: {
     title: 'Too Many Attempts',
-    message: 'You\'ve made too many login attempts. Please wait before trying again.',
+    message: 'You\'ve made too many requests. Please wait before trying again.',
   },
   InvalidState: {
     title: 'Session Expired',

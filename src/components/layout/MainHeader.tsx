@@ -52,6 +52,10 @@ export function MainHeader({ siteName }: MainHeaderProps) {
     setIsLoggingOut(true);
     try {
       const csrfRes = await fetch('/api/auth/session');
+      if (csrfRes.status === 429) {
+        window.location.href = window.location.pathname + '?error=RateLimit';
+        return;
+      }
       if (!csrfRes.ok) throw new Error('Failed to fetch session');
       const csrfData = await csrfRes.json();
       const logoutRes = await fetch('/api/auth/logout', {
@@ -59,6 +63,10 @@ export function MainHeader({ siteName }: MainHeaderProps) {
         credentials: 'include',
         headers: { 'X-CSRF-Token': csrfData.csrf },
       });
+      if (logoutRes.status === 429) {
+        window.location.href = window.location.pathname + '?error=RateLimit';
+        return;
+      }
       if (!logoutRes.ok) throw new Error('Logout request failed');
       setUserStatus({ isLoggedIn: false, hasDashboard: false });
       setShowUserMenu(false);
