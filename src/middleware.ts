@@ -177,9 +177,14 @@ function isValidMethod(method: string): boolean {
  * Determine rate limit type based on endpoint and method
  */
 function getRateLimitType(pathname: string, method: string): keyof typeof RATE_LIMITS {
-  // Auth routes have their own limit
+  // Auth ACTION routes (login initiation, logout) get strict limits.
+  // Session/callback/set-session are high-frequency or one-shot — use general limit.
   if (pathname.startsWith('/api/auth/')) {
-    return 'auth';
+    const isHighFrequency = pathname === '/api/auth/session'
+      || pathname === '/api/auth/login'
+      || pathname.startsWith('/api/auth/callback/')
+      || pathname === '/api/auth/set-session';
+    return isHighFrequency ? 'api' : 'auth';
   }
 
   // Sensitive endpoints with POST method get stricter limits
