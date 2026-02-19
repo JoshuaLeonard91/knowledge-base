@@ -13,6 +13,7 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { prisma } from '@/lib/db/client';
 import { getTenantFromRequest } from '@/lib/tenant';
 import { validateCsrfRequest } from '@/lib/security/csrf';
+import { validateSubdomain } from '@/lib/validation';
 import { Prisma } from '@/generated/prisma';
 import { hasActiveAccess, syncSubscriptionWithStripe } from '@/lib/subscription/helpers';
 
@@ -24,43 +25,6 @@ const securityHeaders = {
 
 // Valid theme IDs
 const VALID_THEMES = ['dark', 'light', 'spooky', 'arctic', 'dusk', 'ember', 'twilight', 'pastel', 'oceanic'];
-
-// Reserved subdomains that cannot be used
-const RESERVED_SUBDOMAINS = [
-  'www', 'api', 'app', 'admin', 'dashboard', 'support', 'help',
-  'mail', 'email', 'blog', 'docs', 'status', 'cdn', 'static',
-  'assets', 'img', 'images', 'auth', 'login', 'signup', 'register',
-  'account', 'settings', 'billing', 'checkout', 'payment', 'stripe',
-  'webhook', 'webhooks', 'dev', 'staging', 'prod', 'test', 'demo',
-];
-
-// Validate subdomain format
-function isValidSubdomain(subdomain: string): { valid: boolean; error?: string } {
-  if (!subdomain) {
-    return { valid: false, error: 'Subdomain is required' };
-  }
-  if (subdomain.length < 3) {
-    return { valid: false, error: 'Subdomain must be at least 3 characters' };
-  }
-  if (subdomain.length > 32) {
-    return { valid: false, error: 'Subdomain must be 32 characters or less' };
-  }
-  if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subdomain) && subdomain.length > 2) {
-    return { valid: false, error: 'Subdomain must start and end with a letter or number' };
-  }
-  if (/^[a-z0-9]$/.test(subdomain) || /^[a-z0-9]{2}$/.test(subdomain)) {
-    // Allow 1-2 char subdomains if they match pattern
-  } else if (!/^[a-z0-9][a-z0-9-]*[a-z0-9]$/.test(subdomain)) {
-    return { valid: false, error: 'Subdomain can only contain lowercase letters, numbers, and hyphens' };
-  }
-  if (subdomain.includes('--')) {
-    return { valid: false, error: 'Subdomain cannot contain consecutive hyphens' };
-  }
-  if (RESERVED_SUBDOMAINS.includes(subdomain)) {
-    return { valid: false, error: 'This subdomain is reserved' };
-  }
-  return { valid: true };
-}
 
 // Sanitize onboarding data to prevent XSS
 function sanitizeOnboardingData(data: Record<string, unknown>): Record<string, unknown> {
@@ -254,8 +218,8 @@ export async function POST(request: NextRequest) {
     // Create new tenant
     const subdomain = sanitizedData.subdomain as string;
 
-    // Validate subdomain format
-    const subdomainValidation = isValidSubdomain(subdomain);
+    // Validate subdomain (format, length, reserved, profanity)
+    const subdomainValidation = validateSubdomain(subdomain);
     if (!subdomainValidation.valid) {
       return NextResponse.json(
         { error: subdomainValidation.error },

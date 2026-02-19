@@ -118,7 +118,7 @@ export function OnboardingStep({
             </div>
             {subdomainError && <p className="mt-2 text-sm text-red-400">{subdomainError}</p>}
             <p className="mt-2 text-sm text-white/40">
-              Only lowercase letters, numbers, and hyphens allowed
+              Lowercase letters, numbers, and hyphens. Must contain at least one letter.
             </p>
           </div>
         )}

@@ -12,50 +12,13 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { getUserById, hasActiveAccess, syncSubscriptionWithStripe } from '@/lib/subscription/helpers';
 import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
+import { validateSubdomain } from '@/lib/validation';
 
 // Security headers for API responses
 const securityHeaders = {
   'X-Content-Type-Options': 'nosniff',
   'Cache-Control': 'no-store, private',
 };
-
-// Reserved subdomains that can't be used
-const RESERVED_SUBDOMAINS = [
-  'www',
-  'app',
-  'api',
-  'admin',
-  'mail',
-  'smtp',
-  'ftp',
-  'blog',
-  'shop',
-  'store',
-  'support',
-  'help',
-  'docs',
-  'status',
-  'cdn',
-  'assets',
-  'static',
-  'media',
-  'images',
-  'staging',
-  'dev',
-  'test',
-  'demo',
-  'portal',
-  'dashboard',
-  'billing',
-  'account',
-  'login',
-  'signup',
-  'register',
-  'auth',
-];
-
-// Subdomain validation regex
-const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 // GET handler for quick subdomain availability check (used by onboarding wizard)
 export async function GET(request: NextRequest) {
@@ -71,39 +34,15 @@ export async function GET(request: NextRequest) {
 
     const subdomain = request.nextUrl.searchParams.get('subdomain');
 
-    if (!subdomain) {
-      return NextResponse.json({ available: false, message: 'Subdomain is required' }, { headers: securityHeaders });
-    }
-
-    const normalizedSubdomain = subdomain.toLowerCase().trim();
-
-    // Validate format
-    if (!SUBDOMAIN_REGEX.test(normalizedSubdomain)) {
-      return NextResponse.json({
-        available: false,
-        message: 'Invalid format. Use lowercase letters, numbers, and hyphens.',
-      }, { headers: securityHeaders });
-    }
-
-    // Check length
-    if (normalizedSubdomain.length < 3 || normalizedSubdomain.length > 63) {
-      return NextResponse.json({
-        available: false,
-        message: 'Subdomain must be 3-63 characters.',
-      }, { headers: securityHeaders });
-    }
-
-    // Check reserved
-    if (RESERVED_SUBDOMAINS.includes(normalizedSubdomain)) {
-      return NextResponse.json({
-        available: false,
-        message: 'This subdomain is reserved.',
-      }, { headers: securityHeaders });
+    // Validate format, length, reserved words, profanity
+    const validation = validateSubdomain(subdomain);
+    if (!validation.valid) {
+      return NextResponse.json({ available: false, message: validation.error }, { headers: securityHeaders });
     }
 
     // Check if taken
     const existingTenant = await prisma.tenant.findUnique({
-      where: { slug: normalizedSubdomain },
+      where: { slug: validation.normalized },
     });
 
     if (existingTenant) {
@@ -166,55 +105,19 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { subdomain } = body;
 
-    if (!subdomain || typeof subdomain !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Subdomain is required' },
-        { status: 400, headers: securityHeaders }
-      );
-    }
-
-    // Normalize subdomain
-    const normalizedSubdomain = subdomain.toLowerCase().trim();
-
-    // Validate format
-    if (!SUBDOMAIN_REGEX.test(normalizedSubdomain)) {
+    // Validate format, length, reserved words, profanity
+    const validation = validateSubdomain(subdomain);
+    if (!validation.valid) {
       return NextResponse.json({
         success: true,
         available: false,
-        reason: 'Invalid format. Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number.',
-      }, { headers: securityHeaders });
-    }
-
-    // Check minimum length
-    if (normalizedSubdomain.length < 3) {
-      return NextResponse.json({
-        success: true,
-        available: false,
-        reason: 'Subdomain must be at least 3 characters long.',
-      }, { headers: securityHeaders });
-    }
-
-    // Check maximum length
-    if (normalizedSubdomain.length > 63) {
-      return NextResponse.json({
-        success: true,
-        available: false,
-        reason: 'Subdomain must be no more than 63 characters long.',
-      }, { headers: securityHeaders });
-    }
-
-    // Check reserved subdomains
-    if (RESERVED_SUBDOMAINS.includes(normalizedSubdomain)) {
-      return NextResponse.json({
-        success: true,
-        available: false,
-        reason: 'This subdomain is reserved and cannot be used.',
+        reason: validation.error,
       }, { headers: securityHeaders });
     }
 
     // Check if subdomain is already taken
     const existingTenant = await prisma.tenant.findUnique({
-      where: { slug: normalizedSubdomain },
+      where: { slug: validation.normalized },
     });
 
     if (existingTenant) {
@@ -228,7 +131,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       available: true,
-      subdomain: normalizedSubdomain,
+      subdomain: validation.normalized,
     }, { headers: securityHeaders });
   } catch (error) {
     console.error('[Check Subdomain] Error:', error);

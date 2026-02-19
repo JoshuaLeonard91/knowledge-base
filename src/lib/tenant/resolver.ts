@@ -8,6 +8,7 @@
 import { headers } from 'next/headers';
 import { prisma } from '@/lib/db/client';
 import { decryptFromString } from '@/lib/security/crypto';
+import { RESERVED_SUBDOMAINS } from '@/lib/validation';
 import { hasActiveAccess } from '@/lib/subscription/helpers';
 import type { Tenant, TenantHygraphConfig, TenantJiraConfig, TenantFeatures, TenantBranding } from '@/generated/prisma';
 
@@ -207,9 +208,7 @@ export function transformTenantToContext(tenant: TenantWithConfig, subscriptionA
  * Check if a slug is available for registration
  */
 export async function isSlugAvailable(slug: string): Promise<boolean> {
-  // Reserved slugs
-  const reserved = ['www', 'app', 'api', 'admin', 'mail', 'smtp', 'support', 'help', 'billing', 'demo', 'test'];
-  if (reserved.includes(slug.toLowerCase())) {
+  if (RESERVED_SUBDOMAINS.includes(slug.toLowerCase())) {
     return false;
   }
 

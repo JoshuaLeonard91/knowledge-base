@@ -101,6 +101,93 @@ export function validateSearchQuery(query: unknown): { valid: boolean; error?: s
   return { valid: true, sanitized };
 }
 
+// ==========================================
+// SUBDOMAIN VALIDATION
+// ==========================================
+
+/** Consolidated reserved subdomain list — infrastructure + service names */
+export const RESERVED_SUBDOMAINS = [
+  // Infrastructure
+  'www', 'api', 'app', 'cdn', 'ftp', 'mail', 'smtp', 'email',
+  'static', 'assets', 'media', 'images', 'img',
+  // App routes & features
+  'admin', 'dashboard', 'billing', 'account', 'settings',
+  'auth', 'login', 'logout', 'signup', 'register',
+  'support', 'help', 'docs', 'status', 'blog', 'portal',
+  'checkout', 'payment', 'stripe', 'webhook', 'webhooks',
+  'shop', 'store',
+  // Environments
+  'dev', 'staging', 'prod', 'test', 'demo',
+];
+
+/**
+ * Blocked words — common profanity, slurs, and offensive terms.
+ * Checked as substrings so "badword123" is also caught.
+ */
+const BLOCKED_WORDS = [
+  // Profanity
+  'fuck', 'shit', 'ass', 'damn', 'bitch', 'bastard', 'crap', 'dick',
+  'cock', 'cunt', 'piss', 'tits', 'boob', 'porn', 'sexy', 'nude',
+  'naked', 'xxx', 'anal', 'anus', 'dildo', 'penis', 'vagina',
+  // Slurs (abbreviated/common forms)
+  'nigger', 'nigga', 'faggot', 'fag', 'retard', 'spic', 'chink',
+  'kike', 'dyke', 'tranny', 'whore', 'slut',
+  // Hate/violence
+  'nazi', 'hitler', 'kkk', 'jihad', 'terror',
+  // Scam/impersonation
+  'admin', 'moderator', 'official', 'stripe', 'paypal',
+];
+
+/** Format: lowercase alphanumeric + hyphens, must start/end with alphanumeric */
+const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,30}[a-z0-9])?$/;
+
+/** At least one letter required (no pure-number subdomains) */
+const HAS_LETTER = /[a-z]/;
+
+/**
+ * Validate a subdomain slug. Returns { valid, error? }.
+ * Does NOT check database availability — callers handle that separately.
+ */
+export function validateSubdomain(raw: unknown): { valid: boolean; error?: string; normalized?: string } {
+  if (!raw || typeof raw !== 'string') {
+    return { valid: false, error: 'Subdomain is required' };
+  }
+
+  const subdomain = raw.toLowerCase().trim();
+
+  if (subdomain.length < 3) {
+    return { valid: false, error: 'Subdomain must be at least 3 characters' };
+  }
+
+  if (subdomain.length > 32) {
+    return { valid: false, error: 'Subdomain must be 32 characters or less' };
+  }
+
+  if (!SUBDOMAIN_REGEX.test(subdomain)) {
+    return { valid: false, error: 'Use only lowercase letters, numbers, and hyphens. Must start and end with a letter or number.' };
+  }
+
+  if (subdomain.includes('--')) {
+    return { valid: false, error: 'Subdomain cannot contain consecutive hyphens' };
+  }
+
+  if (!HAS_LETTER.test(subdomain)) {
+    return { valid: false, error: 'Subdomain must contain at least one letter' };
+  }
+
+  if (RESERVED_SUBDOMAINS.includes(subdomain)) {
+    return { valid: false, error: 'This subdomain is reserved' };
+  }
+
+  // Check blocked words as substrings
+  const blocked = BLOCKED_WORDS.find(word => subdomain.includes(word));
+  if (blocked) {
+    return { valid: false, error: 'This subdomain is not allowed' };
+  }
+
+  return { valid: true, normalized: subdomain };
+}
+
 // Generate a random ticket ID using cryptographic randomness
 export function generateTicketId(): string {
   const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';

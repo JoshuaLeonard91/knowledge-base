@@ -12,20 +12,9 @@ import { isAuthenticated, getSession } from '@/lib/auth';
 import { getUserById, hasActiveAccess, syncSubscriptionWithStripe } from '@/lib/subscription/helpers';
 import { prisma } from '@/lib/db/client';
 import { validateCsrfRequest, csrfErrorResponse } from '@/lib/security/csrf';
+import { validateSubdomain } from '@/lib/validation';
 import { TenantStatus, TenantPlan } from '@/generated/prisma';
 import crypto from 'crypto';
-
-// Reserved subdomains that can't be used
-const RESERVED_SUBDOMAINS = [
-  'www', 'app', 'api', 'admin', 'mail', 'smtp', 'ftp', 'blog',
-  'shop', 'store', 'support', 'help', 'docs', 'status', 'cdn',
-  'assets', 'static', 'media', 'images', 'staging', 'dev', 'test',
-  'demo', 'portal', 'dashboard', 'billing', 'account', 'login',
-  'signup', 'register', 'auth',
-];
-
-// Subdomain validation regex
-const SUBDOMAIN_REGEX = /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$/;
 
 // Hex color validation regex
 const HEX_COLOR_REGEX = /^#[0-9A-Fa-f]{6}$/;
@@ -108,36 +97,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Validate subdomain
-    if (!subdomain || typeof subdomain !== 'string') {
+    // Validate subdomain (format, length, reserved, profanity)
+    const validation = validateSubdomain(subdomain);
+    if (!validation.valid) {
       return NextResponse.json(
-        { success: false, error: 'Subdomain is required' },
+        { success: false, error: validation.error },
         { status: 400 }
       );
     }
 
-    const normalizedSubdomain = subdomain.toLowerCase().trim();
-
-    if (!SUBDOMAIN_REGEX.test(normalizedSubdomain)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid subdomain format' },
-        { status: 400 }
-      );
-    }
-
-    if (normalizedSubdomain.length < 3 || normalizedSubdomain.length > 63) {
-      return NextResponse.json(
-        { success: false, error: 'Subdomain must be 3-63 characters' },
-        { status: 400 }
-      );
-    }
-
-    if (RESERVED_SUBDOMAINS.includes(normalizedSubdomain)) {
-      return NextResponse.json(
-        { success: false, error: 'This subdomain is reserved' },
-        { status: 400 }
-      );
-    }
+    const normalizedSubdomain = validation.normalized!;
 
     // Check if subdomain is taken
     const existingTenant = await prisma.tenant.findUnique({
