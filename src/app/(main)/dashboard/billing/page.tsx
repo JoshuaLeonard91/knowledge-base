@@ -23,6 +23,7 @@ interface BillingData {
     description: string;
     color: 'green' | 'yellow' | 'red' | 'gray';
   };
+  nextStep?: string;
 }
 
 export default function BillingPage() {
@@ -33,6 +34,7 @@ export default function BillingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isPortalLoading, setIsPortalLoading] = useState(false);
+  const [isCheckoutLoading, setIsCheckoutLoading] = useState(false);
   const [data, setData] = useState<BillingData | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -102,6 +104,38 @@ export default function BillingPage() {
       setError('Something went wrong. Please try again.');
     } finally {
       setIsPortalLoading(false);
+    }
+  };
+
+  // Create new checkout session for resubscription
+  const handleResubscribe = async () => {
+    setIsCheckoutLoading(true);
+    setError(null);
+
+    try {
+      const csrfRes = await fetch('/api/auth/session');
+      const csrfData = await csrfRes.json();
+
+      const res = await fetch('/api/checkout/create-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-CSRF-Token': csrfData.csrf,
+        },
+        body: JSON.stringify({ productSlug: 'pro' }),
+      });
+
+      const result = await res.json();
+
+      if (result.checkoutUrl) {
+        window.location.href = result.checkoutUrl;
+      } else {
+        setError(result.error || 'Failed to start checkout');
+      }
+    } catch {
+      setError('Something went wrong. Please try again.');
+    } finally {
+      setIsCheckoutLoading(false);
     }
   };
 
@@ -232,6 +266,31 @@ export default function BillingPage() {
           </div>
         )}
       </FloatingPanel>
+
+      {/* Resubscribe CTA for expired subscriptions */}
+      {data.nextStep === 'resubscribe' && (
+        <FloatingPanel className="mb-6 bg-gradient-to-br from-[var(--accent-primary)]/10 to-transparent">
+          <h2 className="text-lg font-semibold mb-2 text-[var(--text-primary)]">Resubscribe</h2>
+          <p className="text-[var(--text-secondary)] mb-6">
+            Your subscription has expired. Resubscribe to restore access to your portal.
+          </p>
+
+          <button
+            onClick={handleResubscribe}
+            disabled={isCheckoutLoading}
+            className="w-full py-4 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] disabled:opacity-50 disabled:cursor-not-allowed rounded-xl font-semibold transition text-white flex items-center justify-center gap-2"
+          >
+            {isCheckoutLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white" />
+                Processing...
+              </>
+            ) : (
+              'Resubscribe — $5/month'
+            )}
+          </button>
+        </FloatingPanel>
+      )}
 
       {/* Stripe Portal Button */}
       <FloatingPanel>

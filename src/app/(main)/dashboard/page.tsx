@@ -281,12 +281,20 @@ export default function DashboardPage() {
                 <span className="text-sm text-red-400">Expired</span>
               </div>
             </div>
-            <Link
-              href="/dashboard/billing"
-              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] text-white font-medium rounded-lg transition"
+            <button
+              onClick={() => handleCheckout('pro')}
+              disabled={isProcessingPayment}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[var(--accent-primary)] hover:bg-[var(--accent-hover)] disabled:opacity-50 text-white font-medium rounded-lg transition"
             >
-              Resubscribe
-            </Link>
+              {isProcessingPayment ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-t-2 border-b-2 border-white" />
+                  Processing...
+                </>
+              ) : (
+                'Resubscribe'
+              )}
+            </button>
           </FloatingPanel>
         )}
 
