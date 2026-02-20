@@ -67,8 +67,15 @@ async function handleMainDomainCheckout(
     ? await prisma.user.findUnique({ where: { id: tenantUser.userId } })
     : null;
 
+  if (!user && tenantUser.userId) {
+    // userId FK was set but User record not found — stale reference (e.g. deleted user).
+    // Do NOT create an orphan User; the subscription would be disconnected from the session.
+    console.error('[Stripe Webhook] User not found for userId FK:', tenantUser.userId);
+    return;
+  }
+
   if (!user) {
-    // Create User if doesn't exist (legacy fallback via discordId)
+    // userId was never set — legacy fallback via discordId
     if (tenantUser.discordId) {
       user = await prisma.user.findUnique({ where: { discordId: tenantUser.discordId } });
     }
