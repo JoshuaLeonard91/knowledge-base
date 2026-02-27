@@ -57,7 +57,7 @@ const getHygraphClient = cache(async (): Promise<HygraphClient | null> => {
     // If tenant has Hygraph config, use their client (token optional for public API)
     if (tenant?.hygraph?.endpoint) {
       console.log(`[CMS] Using tenant Hygraph config for: ${tenant.slug}`);
-      return createHygraphClient(tenant.hygraph.endpoint, tenant.hygraph.token || '', `tenant:${tenant.slug}`);
+      return createHygraphClient(tenant.hygraph.endpoint, tenant.hygraph.token ?? '', `tenant:${tenant.slug}`);
     }
 
     // Tenant exists but no Hygraph config - return null (don't use main domain credentials)
@@ -728,7 +728,7 @@ export async function getTicketCategoriesForTenant(tenantId: string): Promise<Ti
 
     if (config) {
       const endpoint = decryptFromString(config.endpoint);
-      const token = decryptFromString(config.token);
+      const token = config.token ? decryptFromString(config.token) : '';
       const client = createHygraphClient(endpoint, token, `tenant:${tenantId}`);
       return client.getTicketCategories();
     }

@@ -11,26 +11,18 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState, useRef } from 'react';
 import { List, X } from '@phosphor-icons/react';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 interface MainHeaderProps {
   siteName: string;
 }
 
-interface UserStatus {
-  isLoggedIn: boolean;
-  hasDashboard: boolean; // Has active subscription + tenant
-  userName?: string;
-  userAvatar?: string;
-}
-
 export function MainHeader({ siteName }: MainHeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [userStatus, setUserStatus] = useState<UserStatus>({
-    isLoggedIn: false,
-    hasDashboard: false,
-  });
-  const [isLoading, setIsLoading] = useState(true);
+  const { user, isLoading: authLoading } = useAuth();
+  const [hasDashboard, setHasDashboard] = useState(false);
+  const [subLoading, setSubLoading] = useState(false);
   const [showUserMenu, setShowUserMenu] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -68,7 +60,7 @@ export function MainHeader({ siteName }: MainHeaderProps) {
         return;
       }
       if (!logoutRes.ok) throw new Error('Logout request failed');
-      setUserStatus({ isLoggedIn: false, hasDashboard: false });
+      setHasDashboard(false);
       setShowUserMenu(false);
       router.refresh();
     } catch {
@@ -78,54 +70,37 @@ export function MainHeader({ siteName }: MainHeaderProps) {
     }
   };
 
-  // Check user authentication status on mount + tab focus
+  // Fetch subscription status only when user is authenticated
   useEffect(() => {
-    async function checkAuth() {
-      setIsLoading(true);
+    if (authLoading || !user) {
+      setHasDashboard(false);
+      return;
+    }
+
+    let cancelled = false;
+    setSubLoading(true);
+
+    async function checkSubscription() {
       try {
-        // Check session with cache-busting
-        const sessionRes = await fetch('/api/auth/session', {
-          cache: 'no-store',
-        });
-        const sessionData = await sessionRes.json();
-
-        if (!sessionData.authenticated) {
-          setUserStatus({ isLoggedIn: false, hasDashboard: false });
-          setIsLoading(false);
-          return;
-        }
-
-        // User is logged in, check subscription status
         const subRes = await fetch('/api/stripe/subscription', {
           cache: 'no-store',
         });
         const subData = await subRes.json();
-
-        const hasDashboard = subData.success && subData.nextStep === 'dashboard';
-
-        setUserStatus({
-          isLoggedIn: true,
-          hasDashboard,
-          userName: sessionData.user?.displayName,
-          userAvatar: sessionData.user?.avatarUrl,
-        });
+        if (!cancelled) {
+          setHasDashboard(subData.success && subData.nextStep === 'dashboard');
+        }
       } catch {
-        setUserStatus({ isLoggedIn: false, hasDashboard: false });
+        if (!cancelled) setHasDashboard(false);
       } finally {
-        setIsLoading(false);
+        if (!cancelled) setSubLoading(false);
       }
     }
 
-    checkAuth();
+    checkSubscription();
+    return () => { cancelled = true; };
+  }, [authLoading, user]);
 
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-        checkAuth();
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, []); // Mount only + visibility change
+  const isLoading = authLoading || (!!user && subLoading);
 
   // Don't show buttons on certain pages
   const isSignupPage = pathname === '/signup';
@@ -147,25 +122,25 @@ export function MainHeader({ siteName }: MainHeaderProps) {
     }
 
     // Logged in - show user menu
-    if (userStatus.isLoggedIn) {
+    if (user) {
       return (
         <div className="relative" ref={menuRef}>
           <button
             onClick={() => setShowUserMenu(!showUserMenu)}
             className="flex items-center gap-2 px-3 h-[38px] bg-white/5 hover:bg-white/10 rounded-lg font-medium transition text-white"
           >
-            {userStatus.userAvatar ? (
+            {user.avatarUrl ? (
               <img
-                src={userStatus.userAvatar}
+                src={user.avatarUrl}
                 alt=""
                 className="w-6 h-6 rounded-full"
               />
             ) : (
               <div className="w-6 h-6 rounded-full bg-indigo-600 flex items-center justify-center text-xs">
-                {userStatus.userName?.charAt(0).toUpperCase() || 'U'}
+                {user.displayName?.charAt(0).toUpperCase() || 'U'}
               </div>
             )}
-            <span className="hidden sm:inline">{userStatus.userName || 'User'}</span>
+            <span className="hidden sm:inline">{user.displayName || 'User'}</span>
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
             </svg>

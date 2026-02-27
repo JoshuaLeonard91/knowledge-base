@@ -1,10 +1,11 @@
 import type { Metadata, Viewport } from "next";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import "./globals.css";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { ThemeProvider } from "@/components/theme/ThemeProvider";
+import { getSafeUser } from "@/lib/auth";
 import { LayoutContent } from "@/components/layout/LayoutContent";
 import { HistoryProvider } from "@/components/support/HistoryProvider";
 import { TenantProvider } from "@/lib/tenant/context";
@@ -48,11 +49,27 @@ export default async function RootLayout({
     redirect(mainDomain);
   }
 
-  // Fetch header and footer data from CMS (cached per request)
-  const [headerData, footerData] = await Promise.all([
+  // Fetch header/footer data + auth state in parallel (all cached per request)
+  const [headerData, footerData, initialUser] = await Promise.all([
     getHeaderData(),
     getFooterData(),
+    getSafeUser(),
   ]);
+
+  // Read UI mode from preferences cookie (server-side, avoids client fetch)
+  const cookieStore = await cookies();
+  const prefsCookie = cookieStore.get('user_prefs');
+  let initialMode: 'classic' | 'minimal' | undefined;
+  if (prefsCookie?.value) {
+    try {
+      const parsed = JSON.parse(prefsCookie.value);
+      if (parsed.uiMode === 'classic' || parsed.uiMode === 'minimal') {
+        initialMode = parsed.uiMode;
+      }
+    } catch {
+      // Invalid JSON, let ThemeProvider use default
+    }
+  }
 
   // Determine the theme to apply (data-theme attribute)
   // Priority: tenant theme > default based on context
@@ -95,8 +112,8 @@ export default async function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
       </head>
       <body className="min-h-screen flex flex-col bg-[var(--bg-primary)] overflow-x-clip">
-        <ThemeProvider>
-          <AuthProvider>
+        <ThemeProvider initialMode={initialMode}>
+          <AuthProvider initialUser={initialUser}>
             <TenantProvider tenant={clientTenant}>
               <HistoryProvider>
                 <LayoutContent headerData={headerData} footerData={footerData}>

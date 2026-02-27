@@ -437,8 +437,8 @@ export class HygraphClient {
    * @param options - Optional endpoint and token. If not provided, uses env vars.
    */
   constructor(options?: HygraphClientOptions) {
-    this.endpoint = options?.endpoint || process.env.HYGRAPH_ENDPOINT || null;
-    this.token = options?.token || process.env.HYGRAPH_TOKEN || null;
+    this.endpoint = options?.endpoint ?? process.env.HYGRAPH_ENDPOINT ?? null;
+    this.token = options?.token ?? process.env.HYGRAPH_TOKEN ?? null;
     // Only endpoint is required — token is optional for public Content API
     this.isConfigured = !!this.endpoint;
     this.cacheTag = options?.cacheTag || 'main';

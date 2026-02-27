@@ -9,6 +9,7 @@
 
 import { createContext, useContext, useState, useEffect, useCallback, useMemo, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
+import { useAuth } from '@/components/auth/AuthProvider';
 
 interface DashboardUser {
   username: string;
@@ -60,21 +61,20 @@ interface Props {
 
 export function DashboardProvider({ children }: Props) {
   const router = useRouter();
-  const [user, setUser] = useState<DashboardUser | null>(null);
+  const { user: authUser, isLoading: authLoading } = useAuth();
   const [tenant, setTenant] = useState<DashboardTenant | null>(null);
   const [subscription, setSubscription] = useState<DashboardSubscription | null>(null);
   const [nextStep, setNextStep] = useState<DashboardContextType['nextStep']>('subscribe');
   const [isLoading, setIsLoading] = useState(true);
 
+  // Derive DashboardUser from AuthProvider's SafeUser
+  const user: DashboardUser | null = authUser ? {
+    username: authUser.displayName || 'User',
+    avatar: authUser.avatarUrl || null,
+  } : null;
+
   const fetchData = useCallback(async () => {
     try {
-      // Check session
-      const sessionRes = await fetch('/api/auth/session');
-      if (sessionRes.status === 401) {
-        router.push('/signup');
-        return;
-      }
-
       // Fetch subscription + tenant info
       const subRes = await fetch(`/api/stripe/subscription?t=${Date.now()}`, {
         headers: { 'Cache-Control': 'no-store' },
@@ -85,12 +85,6 @@ export function DashboardProvider({ children }: Props) {
       }
 
       const data = await subRes.json();
-      const session = await sessionRes.json();
-
-      setUser({
-        username: session.user?.displayName || 'User',
-        avatar: session.user?.avatarUrl || null,
-      });
 
       setNextStep(data.nextStep || 'subscribe');
 
@@ -117,9 +111,17 @@ export function DashboardProvider({ children }: Props) {
     }
   }, [router]);
 
+  // Wait for auth to resolve, then fetch subscription data
   useEffect(() => {
+    if (authLoading) return;
+
+    if (!authUser) {
+      router.push('/signup');
+      return;
+    }
+
     fetchData();
-  }, [fetchData]);
+  }, [authLoading, authUser, fetchData, router]);
 
   const hasActiveAccess = nextStep === 'dashboard' || nextStep === 'onboarding';
   const hasTenant = !!tenant && nextStep === 'dashboard';

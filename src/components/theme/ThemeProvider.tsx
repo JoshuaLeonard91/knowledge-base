@@ -13,17 +13,25 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [uiMode, setUIModeState] = useState<UIMode>('classic');
-  const [isLoading, setIsLoading] = useState(true);
+interface ThemeProviderProps {
+  children: ReactNode;
+  initialMode?: UIMode;
+}
 
-  // Fetch preferences from secure httpOnly cookie via API
+export function ThemeProvider({ children, initialMode }: ThemeProviderProps) {
+  const hasServerData = initialMode !== undefined;
+  const [uiMode, setUIModeState] = useState<UIMode>(initialMode ?? 'classic');
+  const [isLoading, setIsLoading] = useState(!hasServerData);
+
+  // Fetch preferences from secure httpOnly cookie via API (skipped when server-provided)
   useEffect(() => {
+    if (hasServerData) return;
+
     async function loadPreferences() {
       try {
         const response = await fetch('/api/preferences', {
           method: 'GET',
-          credentials: 'include', // Include cookies
+          credentials: 'include',
         });
 
         if (response.ok) {
@@ -41,7 +49,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     }
 
     loadPreferences();
-  }, []);
+  }, [hasServerData]);
 
   // Save preferences to secure httpOnly cookie via API
   const savePreferences = useCallback(async (mode: UIMode) => {

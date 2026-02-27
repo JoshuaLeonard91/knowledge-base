@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect, useCallback, useMemo, Suspense, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useMemo, useRef, Suspense, ReactNode } from 'react';
 import { SafeUser } from '@/lib/security/sanitize';
 import { AuthNotification } from './AuthNotification';
 
@@ -15,10 +15,17 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<SafeUser | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+interface AuthProviderProps {
+  children: ReactNode;
+  initialUser?: SafeUser | null;
+}
+
+export function AuthProvider({ children, initialUser }: AuthProviderProps) {
+  const hasServerData = initialUser !== undefined;
+  const [user, setUser] = useState<SafeUser | null>(hasServerData ? (initialUser ?? null) : null);
+  const [isLoading, setIsLoading] = useState(!hasServerData);
   const [authMode, setAuthMode] = useState<'discord' | 'mock' | null>(null);
+  const skipMountFetch = useRef(hasServerData);
 
   const checkSession = useCallback(async () => {
     try {
@@ -47,7 +54,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check session on mount + when tab becomes visible (catches logouts from other tabs)
   useEffect(() => {
-    checkSession();
+    // Skip mount fetch when server already provided the user data
+    if (skipMountFetch.current) {
+      skipMountFetch.current = false;
+    } else {
+      checkSession();
+    }
 
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
