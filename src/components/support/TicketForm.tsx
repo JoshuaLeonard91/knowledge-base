@@ -92,7 +92,7 @@ export function TicketForm({ categories }: TicketFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateServerId(serverId) || !selectedCategory || !selectedSeverity || description.length < 10) return;
+    if (!validateServerId(serverId) || !selectedCategory || !selectedSeverity || description.trim().length < 10) return;
 
     setIsSubmitting(true);
     setSubmitResult(null);
@@ -386,7 +386,7 @@ export function TicketForm({ categories }: TicketFormProps) {
       {/* Submit */}
       <button
         type="submit"
-        disabled={!serverId.trim() || !selectedCategory || !selectedSeverity || description.length < 10 || isSubmitting}
+        disabled={!serverId.trim() || !selectedCategory || !selectedSeverity || description.trim().length < 10 || isSubmitting}
         className="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
