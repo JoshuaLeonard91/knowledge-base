@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { CaretLeft, PaperPlaneTilt, CheckCircle, WarningCircle, SpinnerGap } from '@phosphor-icons/react';
 import { useAuth } from '@/components/auth/AuthProvider';
+import { useTenant } from '@/lib/tenant/context';
 import { LoginButton } from '@/components/auth/LoginButton';
 
 interface MinimalTicketProps {
@@ -12,6 +13,8 @@ interface MinimalTicketProps {
 
 export function MinimalTicket({ onBack }: MinimalTicketProps) {
   const { user, isLoading: authLoading } = useAuth();
+  const tenant = useTenant();
+  const showServerId = tenant?.features.showServerIdField ?? false;
   const [serverId, setServerId] = useState('');
   const [serverIdError, setServerIdError] = useState('');
   const [description, setDescription] = useState('');
@@ -46,7 +49,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim() || !user || !validateServerId(serverId)) return;
+    if (!description.trim() || !user || (showServerId && !validateServerId(serverId))) return;
 
     setIsSubmitting(true);
     setError(null);
@@ -56,7 +59,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
         body: JSON.stringify({
-          serverId: serverId.trim(),
+          ...(showServerId && serverId.trim() ? { serverId: serverId.trim() } : {}),
           categoryId: 'technical',
           severity: 'medium',
           description: description.trim(),
@@ -172,27 +175,29 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         )}
 
         {/* Discord Server ID */}
-        <div>
-          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-            Discord Server ID
-          </label>
-          <input
-            type="text"
-            value={serverId}
-            onChange={(e) => {
-              setServerId(e.target.value);
-              if (serverIdError) setServerIdError('');
-            }}
-            placeholder=""
-            className={`w-full px-4 py-3 rounded-xl bg-[var(--bg-secondary)] border text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors ${serverIdError ? 'border-[var(--accent-danger)]' : 'border-[var(--border-primary)]'}`}
-          />
-          {serverIdError && (
-            <p className="text-sm text-[var(--accent-danger)] mt-1">{serverIdError}</p>
-          )}
-          <p className="mt-2 text-xs text-[var(--text-muted)]">
-            Right-click your server name in Discord → Copy Server ID
-          </p>
-        </div>
+        {showServerId && (
+          <div>
+            <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+              Discord Server ID
+            </label>
+            <input
+              type="text"
+              value={serverId}
+              onChange={(e) => {
+                setServerId(e.target.value);
+                if (serverIdError) setServerIdError('');
+              }}
+              placeholder=""
+              className={`w-full px-4 py-3 rounded-xl bg-[var(--bg-secondary)] border text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] transition-colors ${serverIdError ? 'border-[var(--accent-danger)]' : 'border-[var(--border-primary)]'}`}
+            />
+            {serverIdError && (
+              <p className="text-sm text-[var(--accent-danger)] mt-1">{serverIdError}</p>
+            )}
+            <p className="mt-2 text-xs text-[var(--text-muted)]">
+              Right-click your server name in Discord → Copy Server ID
+            </p>
+          </div>
+        )}
 
         {/* Description */}
         <div>
@@ -224,7 +229,7 @@ export function MinimalTicket({ onBack }: MinimalTicketProps) {
         {/* Submit */}
         <button
           type="submit"
-          disabled={isSubmitting || !serverId.trim() || description.trim().length < 20}
+          disabled={isSubmitting || (showServerId && !serverId.trim()) || description.trim().length < 20}
           className="w-full flex items-center justify-center gap-2 p-4 rounded-xl bg-[var(--accent-primary)] text-white font-medium hover:bg-[var(--accent-primary)]/90 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {isSubmitting ? (

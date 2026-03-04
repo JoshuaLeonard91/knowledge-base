@@ -21,6 +21,8 @@ export interface ClientTenantConfig {
     ticketsEnabled: boolean;
     discordLoginEnabled: boolean;
     tipsEnabled: boolean;
+    showServerIdField: boolean;
+    showDiscordUserIdField: boolean;
   };
   branding: {
     logoUrl: string | null;

@@ -35,6 +35,8 @@ export async function GET() {
           servicesEnabled: tenant.features.servicesEnabled,
           ticketsEnabled: tenant.features.ticketsEnabled,
           discordLoginEnabled: tenant.features.discordLoginEnabled,
+          showServerIdField: tenant.features.showServerIdField,
+          showDiscordUserIdField: tenant.features.showDiscordUserIdField,
         },
         branding: tenant.branding ? {
           logoUrl: tenant.branding.logoUrl,

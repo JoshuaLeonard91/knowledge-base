@@ -45,6 +45,8 @@ export interface TenantContext {
     ticketsEnabled: boolean;
     discordLoginEnabled: boolean;
     tipsEnabled: boolean;
+    showServerIdField: boolean;
+    showDiscordUserIdField: boolean;
   };
   branding: {
     logoUrl: string | null;
@@ -174,6 +176,8 @@ export function transformTenantToContext(tenant: TenantWithConfig, subscriptionA
     ticketsEnabled: true,
     discordLoginEnabled: true,
     tipsEnabled: false,
+    showServerIdField: false,
+    showDiscordUserIdField: false,
   };
 
   return {
@@ -190,6 +194,8 @@ export function transformTenantToContext(tenant: TenantWithConfig, subscriptionA
       ticketsEnabled: features.ticketsEnabled,
       discordLoginEnabled: features.discordLoginEnabled,
       tipsEnabled: features.tipsEnabled,
+      showServerIdField: features.showServerIdField,
+      showDiscordUserIdField: features.showDiscordUserIdField,
     },
     branding: tenant.branding
       ? {

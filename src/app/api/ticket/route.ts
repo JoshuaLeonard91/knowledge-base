@@ -8,6 +8,7 @@ import {
   generateTicketId,
 } from '@/lib/validation';
 import { resolveProviderFromRequest } from '@/lib/ticketing/adapter';
+import { getTenantFromRequest } from '@/lib/tenant/resolver';
 import { prisma } from '@/lib/db/client';
 import { sendTicketCreationDM } from '@/lib/discord-bot/notifications';
 import { resolveTenantSlug } from '@/lib/discord-bot/helpers';
@@ -69,18 +70,36 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { serverId, categoryId, severity, description, discordNotify } = body;
 
-    // Validate Discord server ID format (snowflake)
-    const serverValidation = validateDiscordServerId(serverId);
-    if (!serverValidation.valid) {
-      logValidationFailure({
-        field: 'serverId',
-        reason: serverValidation.error || 'Invalid server ID',
-        ip,
-        resource: '/api/ticket',
-      });
-      return createErrorResponse('validation', 400);
+    // Resolve tenant to check feature flags
+    const tenantContext = await getTenantFromRequest();
+    const serverIdRequired = tenantContext?.features.showServerIdField ?? false;
+
+    // Validate Discord server ID format (snowflake) — skip if tenant has it disabled
+    let sanitizedServerId: string | undefined;
+    if (serverIdRequired || serverId) {
+      if (serverIdRequired && !serverId) {
+        logValidationFailure({
+          field: 'serverId',
+          reason: 'Server ID is required',
+          ip,
+          resource: '/api/ticket',
+        });
+        return createErrorResponse('validation', 400);
+      }
+      if (serverId) {
+        const serverValidation = validateDiscordServerId(serverId);
+        if (!serverValidation.valid) {
+          logValidationFailure({
+            field: 'serverId',
+            reason: serverValidation.error || 'Invalid server ID',
+            ip,
+            resource: '/api/ticket',
+          });
+          return createErrorResponse('validation', 400);
+        }
+        sanitizedServerId = serverValidation.sanitized || serverId;
+      }
     }
-    const sanitizedServerId = serverValidation.sanitized || serverId;
 
     // Validate category ID
     const validCategoryIds = ticketCategories.map(c => c.id);

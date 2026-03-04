@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../auth/AuthProvider';
+import { useTenant } from '@/lib/tenant/context';
 import { LoginButton } from '../auth/LoginButton';
 import { SearchResult, TicketSeverity } from '@/types';
 import { TicketCategory } from '@/lib/cms';
@@ -32,6 +33,11 @@ interface TicketFormProps {
 
 export function TicketForm({ categories }: TicketFormProps) {
   const { user, isLoading: authLoading } = useAuth();
+  const tenant = useTenant();
+
+  // Both main domain and tenants: respect feature flag (default off).
+  const showServerId = tenant?.features.showServerIdField ?? false;
+  const showDiscordUserId = tenant?.features.showDiscordUserIdField ?? false;
   const [serverId, setServerId] = useState('');
   const [serverIdError, setServerIdError] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('');
@@ -92,7 +98,7 @@ export function TicketForm({ categories }: TicketFormProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validateServerId(serverId) || !selectedCategory || !selectedSeverity || description.trim().length < 10) return;
+    if ((showServerId && !validateServerId(serverId)) || !selectedCategory || !selectedSeverity || description.trim().length < 10) return;
 
     setIsSubmitting(true);
     setSubmitResult(null);
@@ -102,12 +108,12 @@ export function TicketForm({ categories }: TicketFormProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
         body: JSON.stringify({
-          serverId: serverId.trim(),
+          ...(showServerId && serverId.trim() ? { serverId: serverId.trim() } : {}),
           categoryId: selectedCategory,
           severity: selectedSeverity,
           description,
           discordNotify,
-          ...(user?.provider !== 'discord' && discordUserId.trim() ? { discordUserId: discordUserId.trim() } : {}),
+          ...(showDiscordUserId && discordUserId.trim() ? { discordUserId: discordUserId.trim() } : {}),
         }),
       });
 
@@ -199,27 +205,29 @@ export function TicketForm({ categories }: TicketFormProps) {
       )}
 
       {/* Discord Server ID Input */}
-      <div>
-        <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
-          Discord Server ID
-        </label>
-        <input
-          type="text"
-          value={serverId}
-          onChange={(e) => {
-            setServerId(e.target.value);
-            if (serverIdError) setServerIdError('');
-          }}
-          placeholder=""
-          className={`input ${serverIdError ? 'border-[var(--accent-danger)]' : ''}`}
-        />
-        {serverIdError && (
-          <p className="text-sm text-[var(--accent-danger)] mt-1">{serverIdError}</p>
-        )}
-        <p className="text-xs text-[var(--text-muted)] mt-2">
-          Right-click your server name in Discord → Copy Server ID
-        </p>
-      </div>
+      {showServerId && (
+        <div>
+          <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
+            Discord Server ID
+          </label>
+          <input
+            type="text"
+            value={serverId}
+            onChange={(e) => {
+              setServerId(e.target.value);
+              if (serverIdError) setServerIdError('');
+            }}
+            placeholder=""
+            className={`input ${serverIdError ? 'border-[var(--accent-danger)]' : ''}`}
+          />
+          {serverIdError && (
+            <p className="text-sm text-[var(--accent-danger)] mt-1">{serverIdError}</p>
+          )}
+          <p className="text-xs text-[var(--text-muted)] mt-2">
+            Right-click your server name in Discord → Copy Server ID
+          </p>
+        </div>
+      )}
 
       {/* Category Selection */}
       <div>
@@ -327,8 +335,8 @@ export function TicketForm({ categories }: TicketFormProps) {
         </div>
       )}
 
-      {/* Discord User ID (only for non-Discord users) */}
-      {user?.provider !== 'discord' && (
+      {/* Discord User ID (shown based on feature flag or non-Discord provider on main domain) */}
+      {showDiscordUserId && (
         <div>
           <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">
             Discord User ID <span className="text-[var(--text-muted)] font-normal">(optional)</span>
@@ -361,7 +369,7 @@ export function TicketForm({ categories }: TicketFormProps) {
       )}
 
       {/* Discord DM Notifications — shown for Discord users or when Discord ID is provided */}
-      {(user?.provider === 'discord' || (discordUserId.trim() && !discordUserIdError)) && (
+      {(user?.provider === 'discord' || (showDiscordUserId && discordUserId.trim() && !discordUserIdError)) && (
         <label className="flex items-start gap-3 p-4 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-primary)] cursor-pointer select-none">
           <input
             type="checkbox"
@@ -386,7 +394,7 @@ export function TicketForm({ categories }: TicketFormProps) {
       {/* Submit */}
       <button
         type="submit"
-        disabled={!serverId.trim() || !selectedCategory || !selectedSeverity || description.trim().length < 10 || isSubmitting}
+        disabled={(showServerId && !serverId.trim()) || !selectedCategory || !selectedSeverity || description.trim().length < 10 || isSubmitting}
         className="btn btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {isSubmitting ? (
