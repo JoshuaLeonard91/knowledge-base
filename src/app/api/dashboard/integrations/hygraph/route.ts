@@ -3,12 +3,14 @@
  *
  * GET  - Returns configured status only (no credentials)
  * POST - Creates/updates config (validates -> encrypts -> stores)
+ *        Returns webhook secret ONE TIME when first generated
+ * PATCH - Regenerates webhook secret (returns new secret once)
  * DELETE - Removes config
  *
  * Security:
  * - Only tenant owner can access
  * - Credentials are encrypted before storage
- * - Credentials are NEVER returned to client
+ * - Webhook secret shown once on creation/regeneration, never retrievable after
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -78,7 +80,7 @@ export async function GET() {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://helpportal.app';
     const webhookUrl = config ? `${appUrl}/api/webhooks/hygraph/${tenant.id}` : null;
 
-    // Return status — hide secrets when subscription expired
+    // Return status only — never include secrets in GET response
     return NextResponse.json(
       {
         configured: !!config,
@@ -86,8 +88,6 @@ export async function GET() {
         connectedAt: config?.createdAt || null,
         webhookUrl,
         hasWebhookSecret: !!config?.webhookSecret,
-        // Only show secret to active subscribers
-        webhookSecret: isActive && config?.webhookSecret ? decryptFromString(config.webhookSecret) : null,
         readOnly: !isActive,
       },
       { headers: securityHeaders }
@@ -147,9 +147,12 @@ export async function POST(request: NextRequest) {
       where: { tenantId: tenant.id },
       select: { webhookSecret: true },
     });
+
+    const isNewSecret = !existing?.webhookSecret;
+    const rawSecret = isNewSecret ? randomBytes(32).toString('hex') : null;
     const webhookSecret = existing?.webhookSecret
       ? existing.webhookSecret // Keep existing secret
-      : encryptToString(randomBytes(32).toString('hex')); // Generate new secret
+      : encryptToString(rawSecret!); // Generate new secret
 
     // Upsert configuration
     await prisma.tenantHygraphConfig.upsert({
@@ -169,14 +172,66 @@ export async function POST(request: NextRequest) {
 
     console.log('[Hygraph Config] Configuration saved');
 
+    // Return the secret only when newly generated (one-time reveal)
     return NextResponse.json(
-      { success: true },
+      {
+        success: true,
+        ...(isNewSecret && rawSecret ? { webhookSecret: rawSecret } : {}),
+      },
       { headers: securityHeaders }
     );
   } catch (error) {
     console.error('[Hygraph Config] POST error:', error);
     return NextResponse.json(
       { error: 'Failed to save configuration' },
+      { status: 500, headers: securityHeaders }
+    );
+  }
+}
+
+/**
+ * PATCH - Regenerate webhook secret (CSRF-protected)
+ *
+ * Generates a new secret, stores it encrypted, and returns the plaintext
+ * once. After this response, the secret cannot be retrieved again — only
+ * regenerated. Follows the same pattern as Stripe/GitHub API key management.
+ */
+export async function PATCH(request: NextRequest) {
+  try {
+    const auth = await requireSubscribedTenantOwner(request);
+    if ('response' in auth) return auth.response;
+    const { tenant } = auth;
+
+    const config = await prisma.tenantHygraphConfig.findUnique({
+      where: { tenantId: tenant.id },
+      select: { tenantId: true },
+    });
+
+    if (!config) {
+      return NextResponse.json(
+        { error: 'Hygraph not configured' },
+        { status: 404, headers: securityHeaders }
+      );
+    }
+
+    // Generate and store new secret
+    const rawSecret = randomBytes(32).toString('hex');
+    await prisma.tenantHygraphConfig.update({
+      where: { tenantId: tenant.id },
+      data: { webhookSecret: encryptToString(rawSecret) },
+    });
+
+    console.log('[Hygraph Config] Webhook secret regenerated');
+
+    // Return plaintext once — cannot be retrieved again
+    return NextResponse.json(
+      { success: true, webhookSecret: rawSecret },
+      { headers: securityHeaders }
+    );
+  } catch (error) {
+    console.error('[Hygraph Config] PATCH error:', error);
+    return NextResponse.json(
+      { error: 'Failed to regenerate secret' },
       { status: 500, headers: securityHeaders }
     );
   }

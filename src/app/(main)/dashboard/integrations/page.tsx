@@ -31,7 +31,6 @@ interface IntegrationStatus {
   connectedAt?: string;
   webhookUrl?: string;
   hasWebhookSecret?: boolean;
-  webhookSecret?: string;
   readOnly?: boolean;
 }
 
@@ -127,6 +126,8 @@ export default function IntegrationsPage() {
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [revealedSecret, setRevealedSecret] = useState<string | null>(null);
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // Fetch all statuses
   const fetchStatuses = async () => {
@@ -225,6 +226,11 @@ export default function IntegrationsPage() {
       if (!data.success) {
         setError(data.error || 'Failed to save');
         return;
+      }
+
+      // Show the webhook secret one time if it was newly generated
+      if (data.webhookSecret) {
+        setRevealedSecret(data.webhookSecret);
       }
 
       setSuccess('Hygraph connected successfully!');
@@ -697,27 +703,74 @@ export default function IntegrationsPage() {
                     {hygraphStatus.hasWebhookSecret && !readOnly && (
                       <div>
                         <label className="block text-xs text-[var(--text-muted)] mb-1">Secret Key</label>
-                        <div className="flex gap-2">
-                          <div className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-lg text-xs font-mono text-[var(--text-muted)] tracking-widest">
-                            ••••••••••••••••••••••••
+                        {revealedSecret ? (
+                          <>
+                            <div className="flex gap-2 mb-2">
+                              <div className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-amber-500/30 rounded-lg text-xs font-mono text-[var(--text-primary)] break-all">
+                                {revealedSecret}
+                              </div>
+                              <button
+                                onClick={() => {
+                                  navigator.clipboard.writeText(revealedSecret);
+                                  setSuccess('Secret key copied!');
+                                  setTimeout(() => setSuccess(null), 2000);
+                                }}
+                                className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition flex-shrink-0"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                            <p className="text-xs text-amber-400 mb-2">
+                              Copy this secret now — it won&apos;t be shown again.
+                            </p>
+                            <button
+                              onClick={() => setRevealedSecret(null)}
+                              className="text-xs text-[var(--text-muted)] hover:text-[var(--text-secondary)] transition"
+                            >
+                              I&apos;ve copied it, dismiss
+                            </button>
+                          </>
+                        ) : (
+                          <div className="flex gap-2">
+                            <div className="flex-1 px-3 py-2 bg-[var(--bg-secondary)] border border-white/[0.06] rounded-lg text-xs font-mono text-[var(--text-muted)] tracking-widest">
+                              ••••••••••••••••••••••••
+                            </div>
+                            <button
+                              onClick={async () => {
+                                setIsRegenerating(true);
+                                try {
+                                  const csrf = await getCsrfToken();
+                                  const res = await fetch('/api/dashboard/integrations/hygraph', {
+                                    method: 'PATCH',
+                                    headers: { 'X-CSRF-Token': csrf },
+                                  });
+                                  const data = await res.json();
+                                  if (data.webhookSecret) {
+                                    setRevealedSecret(data.webhookSecret);
+                                    setSuccess('New secret generated. Copy it now!');
+                                    setTimeout(() => setSuccess(null), 3000);
+                                  } else {
+                                    setError(data.error || 'Failed to regenerate');
+                                    setTimeout(() => setError(null), 3000);
+                                  }
+                                } catch {
+                                  setError('Failed to regenerate secret');
+                                  setTimeout(() => setError(null), 3000);
+                                } finally {
+                                  setIsRegenerating(false);
+                                }
+                              }}
+                              disabled={isRegenerating}
+                              className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition disabled:opacity-50"
+                            >
+                              {isRegenerating ? 'Generating...' : 'Regenerate'}
+                            </button>
                           </div>
-                          <button
-                            onClick={() => {
-                              if (hygraphStatus.webhookSecret) {
-                                navigator.clipboard.writeText(hygraphStatus.webhookSecret);
-                                setSuccess('Secret key copied!');
-                                setTimeout(() => setSuccess(null), 2000);
-                              }
-                            }}
-                            className="px-3 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--bg-elevated)] rounded-lg text-xs transition"
-                          >
-                            Copy
-                          </button>
-                        </div>
+                        )}
                       </div>
                     )}
                     <p className="text-xs text-[var(--text-muted)]">
-                      In Hygraph: Project Settings → Webhooks → Create Webhook. Paste the URL and secret, set method to <strong className="text-[var(--text-secondary)]">POST</strong>, stage to <strong className="text-[var(--text-secondary)]">Published</strong>, and leave content model as &quot;None&quot; (all models).
+                      In Hygraph: Project Settings → AI &amp; Automation → Webhooks → Create Webhook. Paste the URL and secret, set method to <strong className="text-[var(--text-secondary)]">POST</strong>, stage to <strong className="text-[var(--text-secondary)]">Published</strong>, and leave content model as &quot;None&quot; (all models).
                     </p>
                   </div>
                 </div>
